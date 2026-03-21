@@ -25,3 +25,8 @@ This project embraces Test-Driven Development (TDD):
 - **Backend**: Run `uv run ruff format --check .; uv run ruff check .; uv run pytest` in the `backend` directory.
 - **Workspace Task**: Run VS Code task `✅ Check OpenVoca (All)` to execute both checks.
 Please write tests before implementing core logic and run checks before completing any task.
+
+## Versioning and Contribution
+- **Project Version**: Maintained in `VERSION` at the repository root.
+- **Contribution Guide**: See `CONTRIBUTING.md` for feature checklist and pre-commit checks.
+- **Release Guide**: See `RELEASE.md` for how to publish a new version.
