@@ -28,10 +28,11 @@ pnpm build
 
 This project heavily enforces Test-Driven Development (TDD). 
 
+- **Run Full Local Check**: `pnpm run check`
 - **Run Unit Tests**: `pnpm test`
 - **Run Tests with UI (UI Coverage)**: `pnpm vitest --ui` (if the UI package is installed)
 - **Frameworks**: We use `vitest`, `jsdom`, and `@vue/test-utils` for rapid assertion and component-level testing.
-Please write failing `.spec.ts` files inside the `/tests` folder *before* attempting complex logic implementation.
+Please write failing `.spec.ts` files inside the `/tests` folder *before* attempting complex logic implementation, and run `pnpm run check` before marking work as done.
 
 ## Architecture Guidelines
 - **Single File Components**: Use `<script setup lang="ts">`.

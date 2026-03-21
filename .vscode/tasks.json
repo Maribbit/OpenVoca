@@ -31,7 +31,39 @@
       "label": "🚀 Run OpenVoca (All)",
       "dependsOn": ["Start Backend", "Start Frontend"],
       "group": {
-        "kind": "build",
+        "kind": "build"
+      }
+    },
+    {
+      "label": "Check Frontend",
+      "type": "shell",
+      "command": "pnpm run check",
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      },
+      "presentation": {
+        "panel": "shared",
+        "group": "checks"
+      }
+    },
+    {
+      "label": "Check Backend",
+      "type": "shell",
+      "command": "uv run ruff format --check .; uv run ruff check .; uv run pytest",
+      "options": {
+        "cwd": "${workspaceFolder}/backend"
+      },
+      "presentation": {
+        "panel": "shared",
+        "group": "checks"
+      }
+    },
+    {
+      "label": "✅ Check OpenVoca (All)",
+      "dependsOn": ["Check Backend", "Check Frontend"],
+      "group": {
+        "kind": "test",
+        "isDefault": true
       }
     }
   ]

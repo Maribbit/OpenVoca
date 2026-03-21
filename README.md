@@ -21,6 +21,7 @@ Launch both frontend and backend servers concurrently using VS Code's tasks:
 
 ## Testing & TDD
 This project embraces Test-Driven Development (TDD):
-- **Frontend**: Run `pnpm test` in the frontend directory.
-- **Backend**: Run `uv run pytest` in the backend directory.
-Please write tests before implementing core logic to ensure a robust foundation.
+- **Frontend**: Run `pnpm run check` in the `frontend` directory.
+- **Backend**: Run `uv run ruff format --check .; uv run ruff check .; uv run pytest` in the `backend` directory.
+- **Workspace Task**: Run VS Code task `✅ Check OpenVoca (All)` to execute both checks.
+Please write tests before implementing core logic and run checks before completing any task.

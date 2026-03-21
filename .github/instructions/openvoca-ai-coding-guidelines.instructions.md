@@ -36,6 +36,11 @@ As an AI programming assistant working on this project, please adhere to the fol
 - **Red-Green-Refactor**: ALWAYS follow Test-Driven Development. When asked to implement complex logic, FIRST write failing tests (Red), THEN implement the code to pass it (Green), and finally optimize (Refactor). Do not generate massive chunks of business logic without tests.
 - **Frontend Stack**: Use vitest and @vue/test-utils.
 - **Backend Stack**: Use pytest and httpx (TestClient).
+- **Mandatory Check Commands**:
+  - Frontend: `pnpm run check`
+  - Backend: `uv run ruff format --check .; uv run ruff check .; uv run pytest`
+  - Workspace (VS Code task): `✅ Check OpenVoca (All)`
+- **Completion Rule**: Before claiming implementation is finished, run the relevant check command(s) and verify they pass.
 
 ## Guidelines
 

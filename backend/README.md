@@ -22,9 +22,10 @@ uv run fastapi dev src/main.py
 
 We employ Test-Driven Development strictly. All business logic must be fully covered by tests before and during implementation.
 
+- **Run Full Local Check**: `uv run ruff format --check .; uv run ruff check .; uv run pytest`
 - **Run Tests**: `uv run pytest`
 - **Frameworks**: We use pytest and httpx (for FastAPI's TestClient).
-All tests are stored inside the `/tests` directory. Please execute `uv run pytest` frequently during the **Red-Green-Refactor** phase.
+All tests are stored inside the `/tests` directory. Please execute checks frequently during the **Red-Green-Refactor** phase and always run the full local check before marking work as done.
 
 ## Architecture Guidelines
 - **Project Structure**: All source code should be nested under `src`.
