@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend (FastAPI)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "fastapi",
+      "args": [
+        "dev",
+        "src/main.py"
+      ],
+      "cwd": "${workspaceFolder}/backend",
+      "justMyCode": false,
+      "presentation": {
+        "group": "OpenVoca",
+        "order": 1
+      }
+    }
+  ]
+}

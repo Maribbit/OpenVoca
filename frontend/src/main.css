@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #F9F9F6;
+  --color-ink: #2C2C2C;
+  --color-inkLight: #6B7280;
+  --color-highlight: #FDE68A;
+  --color-selectionBg: #BAE6FD;
+  --color-surface: #FFFFFF;
+
+  --font-serif: "Lora", serif;
+  --font-sans: "Inter", sans-serif;
+}
+
+/* 根据 UI 设定，保证默认背景和字体生效 */
+@layer base {
+  body {
+    @apply bg-paper text-ink font-sans antialiased;
+  }
+  ::selection {
+    @apply bg-selectionBg text-ink;
+  }
+}

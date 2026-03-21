@@ -1,0 +1,43 @@
+---
+description: Read before writing any code for the OpenVoca project. These guidelines are mandatory for all AI-generated code contributions.
+applyTo: "**/*"
+---
+
+# OpenVoca AI Coding Guidelines
+
+As an AI programming assistant working on this project, please adhere to the following VERY STRICT guidelines:
+
+## 1. Documentation & Comments
+
+- **English Only**: ALL code comments, docstrings, inline explanations, and commit messages MUST be written in English. Do not write Chinese comments in the codebase.
+- **Conciseness**: Keep comments brief and focus on the "why" rather than the "how". Avoid redundant comments for obvious code.
+- **No File Headers**: Do not add file-level boilerplate comments (e.g. author tags, creation dates) unless specifically requested.
+
+## 2. Code Style & Architecture
+
+- **Vue 3 (Frontend)**:
+  - ALWAYS use <script setup lang="ts"> and the Composition API.
+  - Rely on Tailwind v4 utility classes and avoid writing custom CSS in <style> blocks unless absolutely necessary for animations or complex pseudo-elements.
+  - Follow our global Zen Mode aesthetic: 'paper' backgrounds and 'ink' text.
+
+- **Python (Backend)**:
+  - Strongly type all Python function arguments and return signatures using Python 3.12+ type hints.
+  - Leverage Pydantic/SQLModel strictly.
+  - Prefer explicit structural imports over wildcard imports.
+
+## 3. Toolchain Compliance
+
+- Never recommend npm or yarn. Only use pnpm for frontend dependency management.
+- Never recommend raw pip. Only use uv for python environment and dependency management.
+- Never create commits, amend commits, or push to remote unless the user explicitly asks for it.
+
+## 4. Testing & TDD (Test-Driven Development)
+
+- **Red-Green-Refactor**: ALWAYS follow Test-Driven Development. When asked to implement complex logic, FIRST write failing tests (Red), THEN implement the code to pass it (Green), and finally optimize (Refactor). Do not generate massive chunks of business logic without tests.
+- **Frontend Stack**: Use vitest and @vue/test-utils.
+- **Backend Stack**: Use pytest and httpx (TestClient).
+
+## Guidelines
+
+- **[Concept & Rules](../../design/OpenVoca_Concept.md)**: Details the core mechanic.
+- **[Toolchain](../../design/Toolchain.md)**: Dependency management and environments.
