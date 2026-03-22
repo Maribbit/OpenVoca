@@ -35,6 +35,33 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.3.0
+
+Date: 2026-03-22
+
+### Highlights
+- Delivered the core learning loop for seen vocabulary: mark words in-context, submit feedback, update familiarity, and generate the next sentence from least-familiar words.
+- Added a vocabulary stats page with familiarity levels and clear-all support.
+- Upgraded "next sentence" into a safer hold-to-confirm interaction: users must hold and then release to advance.
+
+### Backend
+- Added persistent word familiarity storage with SQLModel in `backend/src/services/word_store.py`.
+- Added `POST /api/reading-sentence/next` to pick target words from the vocabulary store.
+- Added `POST /api/feedback` to apply familiarity updates from user markings.
+- Added `GET /api/vocabulary` and `DELETE /api/vocabulary` for stats page data and reset.
+- Added tests for familiarity boundaries, selection strategy, and clear-all behavior in `backend/tests/test_main.py`.
+
+### Frontend
+- Added word marking toggle in reading view and feedback submission on sentence advance.
+- Added long-press confirmation flow for advancing sentences (right arrow, footer area, and Space key).
+- Added progress feedback for hold interaction and clearer instructional text.
+- Added stats route and vocabulary table UI in `frontend/src/views/StatsView.vue`.
+- Expanded API typings and i18n strings for feedback, vocabulary, and new reading interaction prompts.
+- Added frontend regression test for "hold complete + release to advance" behavior.
+
+### Breaking Changes
+- Added new backend endpoints: `/api/reading-sentence/next`, `/api/feedback`, `/api/vocabulary`.
+
 ## v0.2.0
 
 Date: 2026-03-22

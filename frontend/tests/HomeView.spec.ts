@@ -1,5 +1,6 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createRouter, createMemoryHistory } from "vue-router";
 
 import HomeView from "../src/views/HomeView.vue";
 
@@ -22,10 +23,21 @@ const tokenizedSentence = {
 
 describe("HomeView.vue", () => {
   afterEach(() => {
+    vi.useRealTimers();
     window.localStorage.clear();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
+
+  function makeRouter() {
+    return createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: "/", component: HomeView },
+        { path: "/stats", component: { template: "<div>Stats</div>" } },
+      ],
+    });
+  }
 
   it("renders the generated reading sentence", async () => {
     window.localStorage.setItem("openvoca.ui.locale", "en");
@@ -38,7 +50,9 @@ describe("HomeView.vue", () => {
       }),
     );
 
-    const wrapper = mount(HomeView);
+    const wrapper = mount(HomeView, {
+      global: { plugins: [makeRouter()] },
+    });
     await flushPromises();
     const wordButtons = wrapper
       .findAll("button")
@@ -63,7 +77,52 @@ describe("HomeView.vue", () => {
       "meadow",
     ]);
     expect(wrapper.text()).toContain("meadow.");
-    expect(wrapper.text()).toContain("Refresh the page for another sentence");
+    expect(wrapper.text()).toContain(
+      "Hold Space or →, then release for next sentence",
+    );
+  });
+
+  it("advances only after releasing Space when hold is complete", async () => {
+    window.localStorage.setItem("openvoca.ui.locale", "en");
+    vi.useFakeTimers();
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => tokenizedSentence,
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    mount(HomeView, {
+      global: { plugins: [makeRouter()] },
+    });
+    await flushPromises();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/reading-sentence",
+      expect.any(Object),
+    );
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      "/api/reading-sentence/next",
+      expect.any(Object),
+    );
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { code: "Space" }));
+    vi.advanceTimersByTime(650);
+    await flushPromises();
+
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      "/api/reading-sentence/next",
+      expect.any(Object),
+    );
+
+    window.dispatchEvent(new KeyboardEvent("keyup", { code: "Space" }));
+    await flushPromises();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/reading-sentence/next",
+      expect.any(Object),
+    );
+    vi.useRealTimers();
   });
 
   it("switches UI language to Chinese and persists locale", async () => {
@@ -77,7 +136,9 @@ describe("HomeView.vue", () => {
       }),
     );
 
-    const wrapper = mount(HomeView);
+    const wrapper = mount(HomeView, {
+      global: { plugins: [makeRouter()] },
+    });
     await flushPromises();
 
     const menuTrigger = wrapper
@@ -112,7 +173,9 @@ describe("HomeView.vue", () => {
       }),
     );
 
-    const wrapper = mount(HomeView);
+    const wrapper = mount(HomeView, {
+      global: { plugins: [makeRouter()] },
+    });
     await flushPromises();
 
     const settingsTrigger = wrapper.find(
@@ -149,7 +212,9 @@ describe("HomeView.vue", () => {
       }),
     );
 
-    const wrapper = mount(HomeView);
+    const wrapper = mount(HomeView, {
+      global: { plugins: [makeRouter()] },
+    });
     await flushPromises();
 
     await wrapper

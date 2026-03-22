@@ -11,6 +11,8 @@ frontend/dist/
 
 # Backend
 backend/.venv/
+backend/openvoca.db
+openvoca.db
 .ruff_cache/
 __pycache__/
 *.py[cod]

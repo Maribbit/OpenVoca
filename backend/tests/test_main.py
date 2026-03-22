@@ -1,13 +1,27 @@
 import httpx
 import pytest
 from fastapi.testclient import TestClient
+from sqlmodel import SQLModel, create_engine
 
 import src.main as main_module
 from src.main import app
 from src.integrations.ollama import OllamaClient
 from src.services.tokenizer import tokenize_sentence
+from src.services.word_store import (
+    apply_feedback,
+    clear_all_words,
+    list_all_words,
+    pick_target_words,
+)
 
 client = TestClient(app)
+
+
+def _in_memory_engine():
+    """Create a fresh in-memory SQLite engine for test isolation."""
+    engine = create_engine("sqlite://", echo=False)
+    SQLModel.metadata.create_all(engine)
+    return engine
 
 
 def test_read_root():
@@ -175,3 +189,102 @@ def test_reading_sentence_endpoint_uses_frontend_configuration(
             {"text": ".", "isWord": False},
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# Word store / familiarity update tests
+# ---------------------------------------------------------------------------
+
+
+def test_apply_feedback_creates_new_records() -> None:
+    """Marked words should be created with familiarity 0, unmarked targets with 1."""
+    engine = _in_memory_engine()
+
+    apply_feedback(
+        target_words=["lantern", "meadow"],
+        marked_words=["meadow"],
+        sentence="A lantern glowed beside the meadow.",
+        engine=engine,
+    )
+
+    words = {r.word: r.familiarity for r in list_all_words(engine)}
+    assert words["lantern"] == 1  # unmarked target → +1
+    assert words["meadow"] == 0  # marked (unknown) → stays at 0
+
+
+def test_apply_feedback_decreases_familiarity_for_marked_words() -> None:
+    """Marking a previously familiar word should decrease its familiarity."""
+    engine = _in_memory_engine()
+
+    # First round: word becomes familiar
+    apply_feedback(
+        target_words=["harbor"],
+        marked_words=[],
+        sentence="The harbor was calm.",
+        engine=engine,
+    )
+    words = {r.word: r.familiarity for r in list_all_words(engine)}
+    assert words["harbor"] == 1
+
+    # Second round: user marks it as unknown
+    apply_feedback(
+        target_words=["harbor"],
+        marked_words=["harbor"],
+        sentence="Ships lined the harbor.",
+        engine=engine,
+    )
+    words = {r.word: r.familiarity for r in list_all_words(engine)}
+    assert words["harbor"] == 0
+
+
+def test_apply_feedback_caps_familiarity_at_boundaries() -> None:
+    """Familiarity should never go below 0 or above 4."""
+    engine = _in_memory_engine()
+
+    # Increase to max
+    for _ in range(6):
+        apply_feedback(
+            target_words=["resolve"],
+            marked_words=[],
+            sentence="They showed resolve.",
+            engine=engine,
+        )
+    words = {r.word: r.familiarity for r in list_all_words(engine)}
+    assert words["resolve"] == 4
+
+    # Decrease past zero
+    for _ in range(6):
+        apply_feedback(
+            target_words=[],
+            marked_words=["resolve"],
+            sentence="They showed resolve.",
+            engine=engine,
+        )
+    words = {r.word: r.familiarity for r in list_all_words(engine)}
+    assert words["resolve"] == 0
+
+
+def test_pick_target_words_returns_least_familiar() -> None:
+    """pick_target_words should return words with lowest familiarity first."""
+    engine = _in_memory_engine()
+
+    apply_feedback(["alpha", "beta", "gamma", "delta"], [], "sentence", engine=engine)
+    # All start at familiarity 1. Boost alpha twice more.
+    apply_feedback(["alpha"], [], "sentence", engine=engine)
+    apply_feedback(["alpha"], [], "sentence", engine=engine)
+
+    picked = pick_target_words(limit=3, engine=engine)
+    assert "alpha" not in picked  # alpha has familiarity 3, others have 1
+    assert len(picked) == 3
+
+
+def test_clear_all_words_empties_database() -> None:
+    """clear_all_words should delete every record."""
+    engine = _in_memory_engine()
+
+    apply_feedback(["a", "b", "c"], [], "sentence", engine=engine)
+    assert len(list_all_words(engine)) == 3
+
+    deleted = clear_all_words(engine)
+    assert deleted == 3
+    assert len(list_all_words(engine)) == 0

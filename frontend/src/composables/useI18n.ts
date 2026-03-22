@@ -39,6 +39,17 @@ interface LocaleMessages {
   systemFont: string;
   uiFontSans: string;
   uiFontSerif: string;
+  nextSentenceHint: string;
+  vocabulary: string;
+  backToReading: string;
+  clearVocabulary: string;
+  familiarityNeedsReview: string;
+  familiarityLearning: string;
+  familiarityFamiliar: string;
+  familiarityMastered: string;
+  showingWords: string;
+  emptyVocabulary: string;
+  stats: string;
 }
 
 const STORAGE_KEY = "openvoca.ui.locale";
@@ -82,6 +93,17 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     systemFont: "System Font",
     uiFontSans: "Sans",
     uiFontSerif: "Serif",
+    nextSentenceHint: "Hold Space or →, then release for next sentence",
+    vocabulary: "Your Vocabulary",
+    backToReading: "Back to Reading",
+    clearVocabulary: "Clear All",
+    familiarityNeedsReview: "Needs Review",
+    familiarityLearning: "Learning",
+    familiarityFamiliar: "Familiar",
+    familiarityMastered: "Mastered",
+    showingWords: "words total",
+    emptyVocabulary: "No words yet. Start reading to build your vocabulary.",
+    stats: "Stats",
   },
   zh: {
     menu: "菜单",
@@ -120,6 +142,17 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     systemFont: "系统字体",
     uiFontSans: "标准 (Sans)",
     uiFontSerif: "阅读 (Serif)",
+    nextSentenceHint: "长按空格或 →，松开后进入下一句",
+    vocabulary: "你的词库",
+    backToReading: "返回阅读",
+    clearVocabulary: "清空词库",
+    familiarityNeedsReview: "需复习",
+    familiarityLearning: "学习中",
+    familiarityFamiliar: "较熟悉",
+    familiarityMastered: "已掌握",
+    showingWords: "个单词",
+    emptyVocabulary: "暂无单词，开始阅读以积累你的词库。",
+    stats: "统计",
   },
 };
 

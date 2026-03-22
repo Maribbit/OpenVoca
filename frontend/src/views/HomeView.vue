@@ -57,6 +57,12 @@
 
       <div class="flex flex-1 items-center justify-end gap-3">
         <span class="hidden md:inline">gemma3:4b</span>
+        <router-link
+          to="/stats"
+          class="cursor-pointer rounded-full px-3 py-2 transition-colors hover:bg-black/4 hover:text-ink"
+        >
+          {{ i18nMessages.stats }}
+        </router-link>
       </div>
     </header>
 
@@ -254,7 +260,13 @@
             <button
               v-if="token.isWord"
               type="button"
-              class="cursor-pointer rounded-md px-[0.09em] py-[0.04em] transition-colors hover:bg-highlight/70 focus:outline-none"
+              class="cursor-pointer rounded-md px-[0.09em] py-[0.04em] transition-colors focus:outline-none"
+              :class="
+                markedWords.has(token.text.toLowerCase())
+                  ? 'bg-highlight'
+                  : 'hover:bg-highlight/70'
+              "
+              @click="toggleWordMark(token.text)"
             >
               {{ token.text }}
             </button>
@@ -262,12 +274,53 @@
           </template>
         </p>
       </article>
+
+      <!-- Right arrow: long-press to advance -->
+      <div
+        class="group/btn pointer-events-auto absolute bottom-0 right-0 top-0 hidden w-1/6 cursor-pointer items-center justify-end pr-4 select-none md:flex"
+        @mousedown.prevent="startHold"
+        @mouseup="releaseHold"
+        @mouseleave="abortHold"
+        @touchstart.prevent="startHold"
+        @touchend="releaseHold"
+        @touchcancel="abortHold"
+      >
+        <svg
+          class="h-8 w-8 text-ink opacity-0 transition-opacity group-hover/btn:opacity-30"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="1.5"
+            d="M9 5l7 7-7 7"
+          />
+        </svg>
+      </div>
     </main>
 
+    <!-- Footer: long-press hint + progress bar -->
     <footer
-      class="pointer-events-none fixed inset-x-0 bottom-0 px-8 py-8 text-center text-[11px] uppercase tracking-[0.35em] text-inkLight/55"
+      class="fixed inset-x-0 bottom-0 cursor-pointer select-none px-8 py-8 text-center"
+      @mousedown.prevent="startHold"
+      @mouseup="releaseHold"
+      @mouseleave="abortHold"
+      @touchstart.prevent="startHold"
+      @touchend="releaseHold"
+      @touchcancel="abortHold"
     >
-      {{ i18nMessages.refreshHint }}
+      <div
+        class="absolute inset-x-0 bottom-0 h-[3px] rounded-full bg-ink/60 transition-all ease-linear"
+        :style="{
+          width: holdProgress * 100 + '%',
+          transitionDuration: holdProgress > 0 ? '600ms' : '0ms',
+        }"
+      />
+      <p class="text-[11px] uppercase tracking-[0.35em] text-inkLight/55">
+        {{ i18nMessages.nextSentenceHint }}
+      </p>
     </footer>
 
     <div
@@ -473,10 +526,12 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, onMounted, ref, watch } from "vue";
+  import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
   import {
     fetchReadingSentence,
+    fetchNextReadingSentence,
+    submitFeedback,
     type ReadingSentenceToken,
   } from "../api/reading";
   import {
@@ -522,6 +577,11 @@
   const draftTargetWords = ref("");
   const draftPromptTemplate = ref("");
   const targetWordsToken = "{{target_words}}";
+  const markedWords = ref<Set<string>>(new Set());
+  const currentTargetWords = ref<string[]>([]);
+  const holdProgress = ref(0);
+  const holdReady = ref(false);
+  let holdTimer: ReturnType<typeof setTimeout> | null = null;
 
   const preferences = ref<ReadingPreferences>(loadReadingPreferences());
   const readingUiSettings = ref<ReadingUiSettings>(loadReadingUiSettings());
@@ -659,11 +719,98 @@
       const response = await fetchReadingSentence(preferences.value);
       sentence.value = response.sentence;
       tokens.value = response.tokens;
+      currentTargetWords.value = response.words;
+      markedWords.value = new Set();
     } catch {
       errorMessage.value = i18nMessages.value.ollamaError;
       tokens.value = [];
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  function toggleWordMark(word: string): void {
+    const key = word.toLowerCase();
+    const next = new Set(markedWords.value);
+    if (next.has(key)) {
+      next.delete(key);
+    } else {
+      next.add(key);
+    }
+    markedWords.value = next;
+  }
+
+  async function goToNextSentence(): Promise<void> {
+    if (isLoading.value) return;
+
+    // Submit feedback for the current sentence (fire-and-forget)
+    if (sentence.value) {
+      void submitFeedback({
+        targetWords: currentTargetWords.value,
+        markedWords: [...markedWords.value],
+        sentence: sentence.value,
+      });
+    }
+
+    isLoading.value = true;
+    errorMessage.value = "";
+
+    try {
+      const response = await fetchNextReadingSentence(preferences.value);
+      sentence.value = response.sentence;
+      tokens.value = response.tokens;
+      currentTargetWords.value = response.words;
+      markedWords.value = new Set();
+    } catch {
+      errorMessage.value = i18nMessages.value.ollamaError;
+      tokens.value = [];
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  function startHold(): void {
+    if (isLoading.value || isMenuOpen.value || isUiPanelOpen.value) return;
+    abortHold();
+    holdProgress.value = 1;
+    holdReady.value = false;
+    holdTimer = setTimeout(() => {
+      holdTimer = null;
+      holdReady.value = true;
+    }, 600);
+  }
+
+  function abortHold(): void {
+    if (holdTimer) {
+      clearTimeout(holdTimer);
+      holdTimer = null;
+    }
+    holdProgress.value = 0;
+    holdReady.value = false;
+  }
+
+  function releaseHold(): void {
+    const shouldAdvance = holdReady.value;
+    abortHold();
+    if (shouldAdvance) {
+      void goToNextSentence();
+    }
+  }
+
+  function handleKeydown(event: KeyboardEvent): void {
+    if (event.code === "Space" && !isMenuOpen.value && !isUiPanelOpen.value) {
+      const target = event.target as HTMLElement;
+      if (target.tagName === "TEXTAREA" || target.tagName === "INPUT") return;
+      event.preventDefault();
+      if (!event.repeat) {
+        startHold();
+      }
+    }
+  }
+
+  function handleKeyup(event: KeyboardEvent): void {
+    if (event.code === "Space") {
+      releaseHold();
     }
   }
 
@@ -739,6 +886,14 @@
     syncDraftFromPreferences();
     applyTheme(readingUiSettings.value.theme);
     void loadSentence();
+    window.addEventListener("keydown", handleKeydown);
+    window.addEventListener("keyup", handleKeyup);
+  });
+
+  onUnmounted(() => {
+    abortHold();
+    window.removeEventListener("keydown", handleKeydown);
+    window.removeEventListener("keyup", handleKeyup);
   });
 
   watch(
