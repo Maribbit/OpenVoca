@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:wght@400;500;600&display=swap");
+
 @import "tailwindcss";
 
 @theme {
@@ -14,10 +16,51 @@
 
 /* 根据 UI 设定，保证默认背景和字体生效 */
 @layer base {
+  html,
+  body,
+  #app {
+    min-height: 100%;
+  }
+
   body {
     @apply bg-paper text-ink font-sans antialiased;
   }
+
   ::selection {
     @apply bg-selectionBg text-ink;
+  }
+}
+
+@layer utilities {
+  .sentence-fade {
+    animation: sentence-fade 480ms ease-out;
+  }
+
+  .menu-fade {
+    animation: menu-fade 320ms ease-out;
+  }
+}
+
+@keyframes sentence-fade {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes menu-fade {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
