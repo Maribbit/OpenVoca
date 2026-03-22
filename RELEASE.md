@@ -35,6 +35,30 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.3.1
+
+Date: 2026-03-22
+
+### Highlights
+- Improved reading clarity by reducing sentence size and line/letter spacing presets.
+- Improved hold-to-continue affordance with a more visible centered capsule interaction.
+- Added a persistent interface font-size control for system UI labels and controls.
+- Added target-word visual cue in sentence rendering with dotted underlines.
+- Clarified wording in preferences: target words are now labeled as initial target words.
+
+### Backend
+- No API contract changes.
+- Confirmed next-sentence target-word strategy remains: vocabulary-first (least familiar), fallback to initial target words only when vocabulary is empty.
+
+### Frontend
+- Reworked next-sentence interaction UI from edge/footer hints to a centered capsule with progress and release feedback.
+- Added interface size settings in menu and persisted selection to local storage.
+- Updated target-word label and hint text in i18n messages for both English and Chinese.
+- Added dotted underline cue for current target words in reading sentence tokens.
+
+### Breaking Changes
+- None.
+
 ## v0.3.0
 
 Date: 2026-03-22

@@ -77,9 +77,7 @@ describe("HomeView.vue", () => {
       "meadow",
     ]);
     expect(wrapper.text()).toContain("meadow.");
-    expect(wrapper.text()).toContain(
-      "Hold Space or →, then release for next sentence",
-    );
+    expect(wrapper.text()).toContain("Hold to continue");
   });
 
   it("advances only after releasing Space when hold is complete", async () => {

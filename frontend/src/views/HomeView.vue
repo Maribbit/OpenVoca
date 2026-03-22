@@ -8,7 +8,8 @@
     </div>
 
     <header
-      class="group fixed inset-x-0 top-0 z-10 flex items-center justify-between px-6 py-6 text-[11px] uppercase tracking-[0.45em] text-inkLight/50 md:px-10"
+      class="group fixed inset-x-0 top-0 z-10 flex items-center justify-between px-6 py-6 uppercase tracking-[0.45em] text-inkLight/50 md:px-10"
+      :class="uiHeaderSizeClass"
     >
       <div class="flex flex-1 justify-start">
         <button
@@ -227,7 +228,9 @@
       </div>
     </section>
 
-    <main class="flex min-h-screen items-center justify-center px-8 py-24">
+    <main
+      class="flex min-h-screen flex-col items-center justify-center gap-14 px-8 py-24"
+    >
       <article class="w-full max-w-3xl text-center">
         <p
           v-if="isLoading"
@@ -261,23 +264,31 @@
               v-if="token.isWord"
               type="button"
               class="cursor-pointer rounded-md px-[0.09em] py-[0.04em] transition-colors focus:outline-none"
-              :class="
+              :class="[
                 markedWords.has(token.text.toLowerCase())
                   ? 'bg-highlight'
-                  : 'hover:bg-highlight/70'
-              "
+                  : 'hover:bg-highlight/70',
+              ]"
               @click="toggleWordMark(token.text)"
             >
-              {{ token.text }}
+              <span
+                :class="
+                  currentTargetWordSet.has(token.text.toLowerCase())
+                    ? 'border-b border-dotted border-inkLight/65 pb-[0.01em]'
+                    : ''
+                "
+              >
+                {{ token.text }}
+              </span>
             </button>
             <span v-else>{{ token.text }}</span>
           </template>
         </p>
       </article>
 
-      <!-- Right arrow: long-press to advance -->
+      <!-- Capsule hold button -->
       <div
-        class="group/btn pointer-events-auto absolute bottom-0 right-0 top-0 hidden w-1/6 cursor-pointer items-center justify-end pr-4 select-none md:flex"
+        class="relative flex flex-col items-center cursor-pointer select-none"
         @mousedown.prevent="startHold"
         @mouseup="releaseHold"
         @mouseleave="abortHold"
@@ -285,43 +296,53 @@
         @touchend="releaseHold"
         @touchcancel="abortHold"
       >
-        <svg
-          class="h-8 w-8 text-ink opacity-0 transition-opacity group-hover/btn:opacity-30"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
+        <div
+          class="relative flex items-center overflow-hidden rounded-full border px-8 py-3 transition-transform active:scale-95"
+          :class="
+            holdReady
+              ? 'border-transparent'
+              : 'border-black/10 bg-surface shadow-sm'
+          "
         >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="1.5"
-            d="M9 5l7 7-7 7"
+          <!-- Progress fill -->
+          <div
+            class="absolute left-0 top-0 h-full rounded-full"
+            :class="
+              holdReady
+                ? 'bg-emerald-500 shadow-[0_0_14px_rgba(16,185,129,0.35)]'
+                : 'bg-ink/8'
+            "
+            :style="{
+              width: holdProgress * 100 + '%',
+              transitionProperty: 'width',
+              transitionDuration:
+                holdProgress > 0 && !holdReady ? '600ms' : '0ms',
+              transitionTimingFunction: 'linear',
+            }"
           />
-        </svg>
+          <!-- Label -->
+          <p
+            class="relative z-10 uppercase tracking-[0.35em] transition-colors duration-150"
+            :class="[
+              holdReady ? 'text-white' : 'text-inkLight/55',
+              uiHeaderSizeClass,
+            ]"
+          >
+            {{ i18nMessages.nextSentenceHint }}
+          </p>
+        </div>
+
+        <!-- Release hint (appears when hold is complete) -->
+        <p
+          class="absolute -bottom-7 text-xs font-bold uppercase tracking-widest text-emerald-500 transition-all duration-200"
+          :class="
+            holdReady ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+          "
+        >
+          {{ i18nMessages.releaseHint }}
+        </p>
       </div>
     </main>
-
-    <!-- Footer: long-press hint + progress bar -->
-    <footer
-      class="fixed inset-x-0 bottom-0 cursor-pointer select-none px-8 py-8 text-center"
-      @mousedown.prevent="startHold"
-      @mouseup="releaseHold"
-      @mouseleave="abortHold"
-      @touchstart.prevent="startHold"
-      @touchend="releaseHold"
-      @touchcancel="abortHold"
-    >
-      <div
-        class="absolute inset-x-0 bottom-0 h-[3px] rounded-full bg-ink/60 transition-all ease-linear"
-        :style="{
-          width: holdProgress * 100 + '%',
-          transitionDuration: holdProgress > 0 ? '600ms' : '0ms',
-        }"
-      />
-      <p class="text-[11px] uppercase tracking-[0.35em] text-inkLight/55">
-        {{ i18nMessages.nextSentenceHint }}
-      </p>
-    </footer>
 
     <div
       v-if="isMenuOpen"
@@ -383,7 +404,7 @@
             </div>
           </section>
 
-          <section class="grid gap-4 sm:grid-cols-2">
+          <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div>
               <h2
                 class="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-inkLight"
@@ -436,6 +457,42 @@
                   @click="setUiFontFamily('serif')"
                 >
                   {{ i18nMessages.uiFontSerif }}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <h2
+                class="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-inkLight"
+              >
+                {{ i18nMessages.uiSize }}
+              </h2>
+              <div
+                class="inline-flex rounded-xl border border-black/8 bg-paper p-1"
+              >
+                <button
+                  type="button"
+                  class="flex h-8 w-8 items-center justify-center rounded-lg transition-colors"
+                  :class="menuToggleButtonClass(uiFontSize === 'sm')"
+                  @click="setUiFontSize('sm')"
+                >
+                  <span class="text-xs font-medium">A-</span>
+                </button>
+                <button
+                  type="button"
+                  class="flex h-8 w-8 items-center justify-center rounded-lg transition-colors"
+                  :class="menuToggleButtonClass(uiFontSize === 'md')"
+                  @click="setUiFontSize('md')"
+                >
+                  <span class="text-sm font-medium">A</span>
+                </button>
+                <button
+                  type="button"
+                  class="flex h-8 w-8 items-center justify-center rounded-lg transition-colors"
+                  :class="menuToggleButtonClass(uiFontSize === 'lg')"
+                  @click="setUiFontSize('lg')"
+                >
+                  <span class="text-base font-medium">A+</span>
                 </button>
               </div>
             </div>
@@ -560,6 +617,7 @@
   const THEME_OPTIONS: ThemeOption[] = ["light", "dark"];
 
   type UiFontFamily = "sans" | "serif";
+  type UiFontSizeOption = "sm" | "md" | "lg";
 
   const DEFAULT_READING_UI_SETTINGS: ReadingUiSettings = {
     fontSize: "md",
@@ -586,22 +644,36 @@
   const preferences = ref<ReadingPreferences>(loadReadingPreferences());
   const readingUiSettings = ref<ReadingUiSettings>(loadReadingUiSettings());
   const uiFontFamily = ref<UiFontFamily>(loadUiFontFamily());
+  const uiFontSize = ref<UiFontSizeOption>(loadUiFontSize());
   const { locale, messages: i18nMessages, setLocale } = useI18n();
+
+  const currentTargetWordSet = computed(
+    () => new Set(currentTargetWords.value.map((word) => word.toLowerCase())),
+  );
 
   const sentenceTypographyClass = computed(() => {
     const fontSizeMap: Record<FontSizeOption, string> = {
-      sm: "text-[1.9rem] md:text-[2.6rem]",
-      md: "text-[2.1rem] md:text-[2.9rem]",
-      lg: "text-[2.3rem] md:text-[3.15rem]",
+      sm: "text-[1.55rem] md:text-[2.0rem]",
+      md: "text-[1.7rem] md:text-[2.2rem]",
+      lg: "text-[1.85rem] md:text-[2.45rem]",
     };
 
     const spacingMap: Record<SpacingOption, string> = {
-      tight: "leading-[1.78] tracking-[0.018em]",
-      normal: "leading-[1.92] tracking-[0.025em]",
-      loose: "leading-[2.02] tracking-[0.033em]",
+      tight: "leading-[1.5] tracking-[0.005em]",
+      normal: "leading-[1.62] tracking-[0.012em]",
+      loose: "leading-[1.75] tracking-[0.02em]",
     };
 
     return `${fontSizeMap[readingUiSettings.value.fontSize]} ${spacingMap[readingUiSettings.value.spacing]}`;
+  });
+
+  const uiHeaderSizeClass = computed(() => {
+    const map: Record<UiFontSizeOption, string> = {
+      sm: "text-[11px]",
+      md: "text-[13px]",
+      lg: "text-[15px]",
+    };
+    return map[uiFontSize.value];
   });
 
   function loadReadingUiSettings(): ReadingUiSettings {
@@ -659,6 +731,20 @@
     uiFontFamily.value = font;
     if (typeof window !== "undefined") {
       window.localStorage.setItem("openvoca.ui.fontFamily", font);
+    }
+  }
+
+  function loadUiFontSize(): UiFontSizeOption {
+    if (typeof window === "undefined") return "md";
+    const saved = window.localStorage.getItem("openvoca.ui.fontSize");
+    if (saved === "sm" || saved === "md" || saved === "lg") return saved;
+    return "md";
+  }
+
+  function setUiFontSize(size: UiFontSizeOption) {
+    uiFontSize.value = size;
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("openvoca.ui.fontSize", size);
     }
   }
   function applyTheme(theme: ThemeOption): void {

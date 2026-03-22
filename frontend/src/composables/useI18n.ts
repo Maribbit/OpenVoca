@@ -39,7 +39,9 @@ interface LocaleMessages {
   systemFont: string;
   uiFontSans: string;
   uiFontSerif: string;
+  uiSize: string;
   nextSentenceHint: string;
+  releaseHint: string;
   vocabulary: string;
   backToReading: string;
   clearVocabulary: string;
@@ -69,8 +71,9 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     localModelProvider: "Local Model (Ollama)",
     model: "Model",
     learningParameters: "Learning Parameters",
-    targetWords: "Target Words",
-    targetWordsHint: "Separate words with commas or new lines.",
+    targetWords: "Initial Target Words",
+    targetWordsHint:
+      "Used for the first sentence, then words come from your vocabulary. Separate words with commas or new lines.",
     promptEngineering: "Prompt Engineering",
     resetToDefault: "Reset to default",
     generationPrompt: "Generation Prompt",
@@ -93,7 +96,9 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     systemFont: "System Font",
     uiFontSans: "Sans",
     uiFontSerif: "Serif",
-    nextSentenceHint: "Hold Space or →, then release for next sentence",
+    uiSize: "Interface Size",
+    nextSentenceHint: "Hold to continue",
+    releaseHint: "Release!",
     vocabulary: "Your Vocabulary",
     backToReading: "Back to Reading",
     clearVocabulary: "Clear All",
@@ -119,8 +124,9 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     localModelProvider: "本地模型 (Ollama)",
     model: "模型",
     learningParameters: "学习参数",
-    targetWords: "目标词",
-    targetWordsHint: "使用逗号或换行分隔多个单词。",
+    targetWords: "初始目标词",
+    targetWordsHint:
+      "仅用于首次生成，后续将从你的词库取词。使用逗号或换行分隔多个单词。",
     promptEngineering: "提示词设置",
     resetToDefault: "恢复默认",
     generationPrompt: "生成提示词",
@@ -142,7 +148,9 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     systemFont: "系统字体",
     uiFontSans: "标准 (Sans)",
     uiFontSerif: "阅读 (Serif)",
-    nextSentenceHint: "长按空格或 →，松开后进入下一句",
+    uiSize: "界面字号",
+    nextSentenceHint: "长按进入下一句",
+    releaseHint: "松手！",
     vocabulary: "你的词库",
     backToReading: "返回阅读",
     clearVocabulary: "清空词库",
