@@ -1,44 +1,265 @@
 <template>
-  <div class="relative min-h-screen overflow-hidden bg-paper text-ink">
+  <div
+    class="relative min-h-screen overflow-hidden bg-paper text-ink transition-colors duration-300"
+    :class="uiFontFamily === 'serif' ? 'font-serif' : 'font-sans'"
+  >
     <div class="fixed inset-x-0 top-0 z-10 h-px bg-black/6">
       <div class="h-full w-1/3 bg-inkLight/55"></div>
     </div>
 
     <header
-      class="fixed inset-x-0 top-0 z-10 flex items-center justify-between px-6 py-6 text-[11px] uppercase tracking-[0.45em] text-inkLight/50 md:px-10"
+      class="group fixed inset-x-0 top-0 z-10 flex items-center justify-between px-6 py-6 text-[11px] uppercase tracking-[0.45em] text-inkLight/50 md:px-10"
     >
-      <button
-        type="button"
-        class="cursor-pointer rounded-full px-3 py-2 transition-colors hover:bg-black/4 hover:text-ink"
-        @click="openMenu"
-      >
-        {{ i18nMessages.menu }}
-      </button>
-      <span>{{ i18nMessages.reading }}</span>
-      <span>gemma3:4b</span>
+      <div class="flex flex-1 justify-start">
+        <button
+          type="button"
+          class="cursor-pointer rounded-full px-3 py-2 transition-colors hover:bg-black/4 hover:text-ink"
+          @click="openMenu"
+        >
+          {{ i18nMessages.menu }}
+        </button>
+      </div>
+
+      <div class="relative flex flex-1 items-center justify-center">
+        <div class="relative flex items-center justify-center">
+          <span>{{ i18nMessages.reading }}</span>
+          <button
+            type="button"
+            data-testid="reading-settings-trigger"
+            class="absolute left-full top-1/2 ml-1 -translate-y-1/2 cursor-pointer rounded-full p-2 opacity-0 transition-all hover:bg-black/4 hover:text-ink group-hover:opacity-100"
+            @click="toggleUiPanel"
+          >
+            <span class="sr-only">{{
+              i18nMessages.readingDisplaySettings
+            }}</span>
+            <svg
+              class="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="1.5"
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065Z"
+              />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="1.5"
+                d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="flex flex-1 items-center justify-end gap-3">
+        <span class="hidden md:inline">gemma3:4b</span>
+      </div>
     </header>
+
+    <section
+      v-if="isUiPanelOpen"
+      data-testid="reading-settings-overlay"
+      class="fixed inset-0 z-20 px-4 pt-20"
+      @click.self="closeUiPanel"
+    >
+      <div
+        class="menu-fade mx-auto flex w-fit max-w-full flex-col items-stretch gap-2 rounded-[26px] border border-black/8 bg-surface/82 p-2 shadow-[0_20px_50px_rgba(44,44,44,0.12)] backdrop-blur-md md:flex-row md:flex-wrap md:items-center md:justify-center md:gap-3"
+      >
+        <div class="flex items-center gap-1 rounded-xl bg-paper p-1">
+          <span
+            class="px-2 text-xs font-medium uppercase tracking-wide text-inkLight"
+          >
+            {{ i18nMessages.fontSize }}
+          </span>
+          <button
+            type="button"
+            class="flex h-8 w-8 items-center justify-center rounded-lg transition-all"
+            :class="uiOptionButtonClass(readingUiSettings.fontSize === 'sm')"
+            @click="setFontSize('sm')"
+          >
+            <span class="text-xs font-medium">A-</span>
+          </button>
+          <button
+            type="button"
+            class="flex h-8 w-8 items-center justify-center rounded-lg transition-all"
+            :class="uiOptionButtonClass(readingUiSettings.fontSize === 'md')"
+            @click="setFontSize('md')"
+          >
+            <span class="text-sm font-medium">A</span>
+          </button>
+          <button
+            type="button"
+            class="flex h-8 w-8 items-center justify-center rounded-lg transition-all"
+            :class="uiOptionButtonClass(readingUiSettings.fontSize === 'lg')"
+            @click="setFontSize('lg')"
+          >
+            <span class="text-base font-medium">A+</span>
+          </button>
+        </div>
+
+        <div class="flex items-center gap-1 rounded-xl bg-paper p-1">
+          <span
+            class="px-2 text-xs font-medium uppercase tracking-wide text-inkLight"
+          >
+            {{ i18nMessages.spacing }}
+          </span>
+          <button
+            type="button"
+            class="flex h-8 w-8 items-center justify-center rounded-lg transition-all"
+            :class="uiOptionButtonClass(readingUiSettings.spacing === 'tight')"
+            @click="setSpacing('tight')"
+          >
+            <svg
+              class="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 8h16M4 16h16"
+              ></path>
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="flex h-8 w-8 items-center justify-center rounded-lg transition-all"
+            :class="uiOptionButtonClass(readingUiSettings.spacing === 'normal')"
+            @click="setSpacing('normal')"
+          >
+            <svg
+              class="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 6h16M4 12h16M4 18h16"
+              ></path>
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="flex h-8 w-8 items-center justify-center rounded-lg transition-all"
+            :class="uiOptionButtonClass(readingUiSettings.spacing === 'loose')"
+            @click="setSpacing('loose')"
+          >
+            <svg
+              class="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 4h16M4 12h16M4 20h16"
+              ></path>
+            </svg>
+          </button>
+        </div>
+
+        <div class="flex items-center gap-1 rounded-xl bg-paper p-1">
+          <span
+            class="px-2 text-xs font-medium uppercase tracking-wide text-inkLight"
+          >
+            {{ i18nMessages.theme }}
+          </span>
+          <button
+            type="button"
+            class="flex h-8 w-8 items-center justify-center rounded-lg transition-all"
+            :class="uiOptionButtonClass(readingUiSettings.theme === 'light')"
+            @click="setTheme('light')"
+            :title="i18nMessages.themeLight"
+          >
+            <svg
+              class="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0z"
+              ></path>
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="flex h-8 w-8 items-center justify-center rounded-lg transition-all"
+            :class="uiOptionButtonClass(readingUiSettings.theme === 'dark')"
+            @click="setTheme('dark')"
+            :title="i18nMessages.themeDark"
+          >
+            <svg
+              class="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M20.354 15.354A9 9 0 0 1 8.646 3.646 9.003 9.003 0 0 0 12 21a9.003 9.003 0 0 0 8.354-5.646z"
+              ></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </section>
 
     <main class="flex min-h-screen items-center justify-center px-8 py-24">
       <article class="w-full max-w-3xl text-center">
         <p
           v-if="isLoading"
-          class="sentence-fade font-serif text-3xl leading-[1.8] tracking-[0.02em] text-inkLight/65 md:text-5xl"
+          class="sentence-fade font-serif text-inkLight/65"
+          :class="sentenceTypographyClass"
         >
           {{ i18nMessages.loadingSentence }}
         </p>
 
         <p
           v-else-if="errorMessage"
-          class="sentence-fade font-serif text-3xl leading-[1.8] tracking-[0.02em] text-inkLight/75 md:text-5xl"
+          class="sentence-fade font-serif text-inkLight/75"
+          :class="sentenceTypographyClass"
         >
           {{ errorMessage }}
         </p>
 
         <p
           v-else
-          class="sentence-fade font-serif text-3xl leading-[1.8] tracking-[0.02em] text-ink md:text-5xl"
+          class="sentence-fade font-serif text-ink"
+          :class="sentenceTypographyClass"
         >
-          {{ sentence }}
+          <template
+            v-for="(token, index) in tokens"
+            :key="`${token.text}-${index}`"
+          >
+            <span v-if="needsLeadingSpace(index)" aria-hidden="true"
+              >&nbsp;</span
+            >
+            <button
+              v-if="token.isWord"
+              type="button"
+              class="cursor-pointer rounded-md px-[0.09em] py-[0.04em] transition-colors hover:bg-highlight/70 focus:outline-none"
+            >
+              {{ token.text }}
+            </button>
+            <span v-else>{{ token.text }}</span>
+          </template>
         </p>
       </article>
     </main>
@@ -109,39 +330,61 @@
             </div>
           </section>
 
-          <section>
-            <h2
-              class="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-inkLight"
-            >
-              {{ i18nMessages.language }}
-            </h2>
-            <div
-              class="inline-flex rounded-xl border border-black/8 bg-paper p-1"
-            >
-              <button
-                type="button"
-                class="rounded-lg px-3 py-1.5 text-sm transition-colors"
-                :class="
-                  locale === 'zh'
-                    ? 'bg-ink text-white'
-                    : 'text-inkLight hover:text-ink'
-                "
-                @click="switchLanguage('zh')"
+          <section class="grid gap-4 sm:grid-cols-2">
+            <div>
+              <h2
+                class="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-inkLight"
               >
-                中文
-              </button>
-              <button
-                type="button"
-                class="rounded-lg px-3 py-1.5 text-sm transition-colors"
-                :class="
-                  locale === 'en'
-                    ? 'bg-ink text-white'
-                    : 'text-inkLight hover:text-ink'
-                "
-                @click="switchLanguage('en')"
+                {{ i18nMessages.language }}
+              </h2>
+              <div
+                class="inline-flex rounded-xl border border-black/8 bg-paper p-1"
               >
-                English
-              </button>
+                <button
+                  type="button"
+                  class="rounded-lg px-3 py-1.5 text-sm transition-colors"
+                  :class="menuToggleButtonClass(locale === 'zh')"
+                  @click="switchLanguage('zh')"
+                >
+                  中文
+                </button>
+                <button
+                  type="button"
+                  class="rounded-lg px-3 py-1.5 text-sm transition-colors"
+                  :class="menuToggleButtonClass(locale === 'en')"
+                  @click="switchLanguage('en')"
+                >
+                  English
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <h2
+                class="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-inkLight"
+              >
+                {{ i18nMessages.systemFont }}
+              </h2>
+              <div
+                class="inline-flex rounded-xl border border-black/8 bg-paper p-1"
+              >
+                <button
+                  type="button"
+                  class="rounded-lg px-3 py-1.5 text-sm transition-colors"
+                  :class="menuToggleButtonClass(uiFontFamily === 'sans')"
+                  @click="setUiFontFamily('sans')"
+                >
+                  {{ i18nMessages.uiFontSans }}
+                </button>
+                <button
+                  type="button"
+                  class="rounded-lg px-3 py-1.5 text-sm transition-colors"
+                  :class="menuToggleButtonClass(uiFontFamily === 'serif')"
+                  @click="setUiFontFamily('serif')"
+                >
+                  {{ i18nMessages.uiFontSerif }}
+                </button>
+              </div>
             </div>
           </section>
 
@@ -218,7 +461,7 @@
           </button>
           <button
             type="button"
-            class="rounded-xl bg-ink px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-black"
+            class="rounded-xl bg-ink px-5 py-2.5 text-sm font-medium text-paper transition-opacity hover:opacity-90"
             @click="saveMenuChanges"
           >
             {{ i18nMessages.saveChanges }}
@@ -230,9 +473,12 @@
 </template>
 
 <script setup lang="ts">
-  import { onMounted, ref } from "vue";
+  import { computed, onMounted, ref, watch } from "vue";
 
-  import { fetchReadingSentence } from "../api/reading";
+  import {
+    fetchReadingSentence,
+    type ReadingSentenceToken,
+  } from "../api/reading";
   import {
     DEFAULT_READING_PREFERENCES,
     formatTargetWords,
@@ -243,17 +489,167 @@
   } from "../composables/readingPreferences";
   import { type Locale, useI18n } from "../composables/useI18n";
 
+  type FontSizeOption = "sm" | "md" | "lg";
+  type SpacingOption = "tight" | "normal" | "loose";
+  type ThemeOption = "light" | "dark";
+
+  interface ReadingUiSettings {
+    fontSize: FontSizeOption;
+    spacing: SpacingOption;
+    theme: ThemeOption;
+  }
+
+  const UI_SETTINGS_STORAGE_KEY = "openvoca.reading.ui.settings";
+  const FONT_SIZE_OPTIONS: FontSizeOption[] = ["sm", "md", "lg"];
+  const SPACING_OPTIONS: SpacingOption[] = ["tight", "normal", "loose"];
+  const THEME_OPTIONS: ThemeOption[] = ["light", "dark"];
+
+  type UiFontFamily = "sans" | "serif";
+
+  const DEFAULT_READING_UI_SETTINGS: ReadingUiSettings = {
+    fontSize: "md",
+    spacing: "normal",
+    theme: "light",
+  };
+
   const sentence = ref("");
+  const tokens = ref<ReadingSentenceToken[]>([]);
   const errorMessage = ref("");
   const isLoading = ref(true);
   const isMenuOpen = ref(false);
+  const isUiPanelOpen = ref(false);
   const menuErrorMessage = ref("");
   const draftTargetWords = ref("");
   const draftPromptTemplate = ref("");
   const targetWordsToken = "{{target_words}}";
 
   const preferences = ref<ReadingPreferences>(loadReadingPreferences());
+  const readingUiSettings = ref<ReadingUiSettings>(loadReadingUiSettings());
+  const uiFontFamily = ref<UiFontFamily>(loadUiFontFamily());
   const { locale, messages: i18nMessages, setLocale } = useI18n();
+
+  const sentenceTypographyClass = computed(() => {
+    const fontSizeMap: Record<FontSizeOption, string> = {
+      sm: "text-[1.9rem] md:text-[2.6rem]",
+      md: "text-[2.1rem] md:text-[2.9rem]",
+      lg: "text-[2.3rem] md:text-[3.15rem]",
+    };
+
+    const spacingMap: Record<SpacingOption, string> = {
+      tight: "leading-[1.78] tracking-[0.018em]",
+      normal: "leading-[1.92] tracking-[0.025em]",
+      loose: "leading-[2.02] tracking-[0.033em]",
+    };
+
+    return `${fontSizeMap[readingUiSettings.value.fontSize]} ${spacingMap[readingUiSettings.value.spacing]}`;
+  });
+
+  function loadReadingUiSettings(): ReadingUiSettings {
+    if (typeof window === "undefined") {
+      return DEFAULT_READING_UI_SETTINGS;
+    }
+
+    const savedValue = window.localStorage.getItem(UI_SETTINGS_STORAGE_KEY);
+    if (!savedValue) {
+      return DEFAULT_READING_UI_SETTINGS;
+    }
+
+    try {
+      const parsed = JSON.parse(savedValue) as Partial<ReadingUiSettings>;
+      const fontSize = FONT_SIZE_OPTIONS.includes(
+        parsed.fontSize as FontSizeOption,
+      )
+        ? (parsed.fontSize as FontSizeOption)
+        : DEFAULT_READING_UI_SETTINGS.fontSize;
+      const spacing = SPACING_OPTIONS.includes(parsed.spacing as SpacingOption)
+        ? (parsed.spacing as SpacingOption)
+        : DEFAULT_READING_UI_SETTINGS.spacing;
+      const theme = THEME_OPTIONS.includes(parsed.theme as ThemeOption)
+        ? (parsed.theme as ThemeOption)
+        : DEFAULT_READING_UI_SETTINGS.theme;
+
+      return {
+        fontSize,
+        spacing,
+        theme,
+      };
+    } catch {
+      return DEFAULT_READING_UI_SETTINGS;
+    }
+  }
+
+  function saveReadingUiSettings(): void {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(
+      UI_SETTINGS_STORAGE_KEY,
+      JSON.stringify(readingUiSettings.value),
+    );
+  }
+  function loadUiFontFamily(): UiFontFamily {
+    if (typeof window === "undefined") return "sans";
+    const saved = window.localStorage.getItem("openvoca.ui.fontFamily");
+    if (saved === "sans" || saved === "serif") return saved;
+    return "sans";
+  }
+
+  function setUiFontFamily(font: UiFontFamily) {
+    uiFontFamily.value = font;
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("openvoca.ui.fontFamily", font);
+    }
+  }
+  function applyTheme(theme: ThemeOption): void {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.document.documentElement.setAttribute("data-reading-theme", theme);
+  }
+
+  function toggleUiPanel(): void {
+    isUiPanelOpen.value = !isUiPanelOpen.value;
+  }
+
+  function closeUiPanel(): void {
+    isUiPanelOpen.value = false;
+  }
+
+  function setFontSize(nextSize: FontSizeOption): void {
+    readingUiSettings.value = {
+      ...readingUiSettings.value,
+      fontSize: nextSize,
+    };
+  }
+
+  function setSpacing(nextSpacing: SpacingOption): void {
+    readingUiSettings.value = {
+      ...readingUiSettings.value,
+      spacing: nextSpacing,
+    };
+  }
+
+  function setTheme(nextTheme: ThemeOption): void {
+    readingUiSettings.value = {
+      ...readingUiSettings.value,
+      theme: nextTheme,
+    };
+    applyTheme(nextTheme);
+  }
+
+  function uiOptionButtonClass(isActive: boolean): string {
+    return isActive
+      ? "bg-surface text-ink shadow-sm"
+      : "text-inkLight hover:bg-surface hover:text-ink";
+  }
+
+  function menuToggleButtonClass(isActive: boolean): string {
+    return isActive
+      ? "bg-ink text-paper shadow-sm"
+      : "text-inkLight hover:text-ink";
+  }
 
   async function loadSentence(): Promise<void> {
     isLoading.value = true;
@@ -262,11 +658,30 @@
     try {
       const response = await fetchReadingSentence(preferences.value);
       sentence.value = response.sentence;
+      tokens.value = response.tokens;
     } catch {
       errorMessage.value = i18nMessages.value.ollamaError;
+      tokens.value = [];
     } finally {
       isLoading.value = false;
     }
+  }
+
+  function needsLeadingSpace(index: number): boolean {
+    if (index === 0) {
+      return false;
+    }
+
+    const currentToken = tokens.value[index];
+    const previousToken = tokens.value[index - 1];
+
+    if (!currentToken?.isWord) {
+      return false;
+    }
+
+    return !new Set(['"', "'", "(", "[", "{", "-"]).has(
+      previousToken?.text ?? "",
+    );
   }
 
   function switchLanguage(nextLocale: Locale): void {
@@ -283,6 +698,7 @@
 
   function openMenu(): void {
     menuErrorMessage.value = "";
+    isUiPanelOpen.value = false;
     syncDraftFromPreferences();
     isMenuOpen.value = true;
   }
@@ -321,6 +737,15 @@
 
   onMounted(() => {
     syncDraftFromPreferences();
+    applyTheme(readingUiSettings.value.theme);
     void loadSentence();
   });
+
+  watch(
+    readingUiSettings,
+    () => {
+      saveReadingUiSettings();
+    },
+    { deep: true },
+  );
 </script>

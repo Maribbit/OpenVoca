@@ -14,6 +14,15 @@
   --font-sans: "Inter", sans-serif;
 }
 
+:root[data-reading-theme="dark"] {
+  --color-paper: #1E1E24;
+  --color-ink: #E2E8F0;
+  --color-inkLight: #9CA3AF;
+  --color-highlight: #784B13;
+  --color-selectionBg: #1E3A8A;
+  --color-surface: #2D2D36;
+}
+
 /* 根据 UI 设定，保证默认背景和字体生效 */
 @layer base {
   html,
@@ -28,6 +37,10 @@
 
   ::selection {
     @apply bg-selectionBg text-ink;
+  }
+
+  :root[data-reading-theme="dark"] ::selection {
+    color: #FFFFFF;
   }
 }
 

@@ -35,6 +35,32 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.2.0
+
+Date: 2026-03-22
+
+### Highlights
+This version focuses on two things: simple tokenization and reading page settings.
+
+### Backend
+- Added a tokenizer service at `backend/src/services/tokenizer.py`.
+- `POST /api/reading-sentence` now returns tokenized output (`tokens`) in addition to `sentence` and `words`.
+- Added/updated tokenizer and endpoint tests in `backend/tests/test_main.py`.
+
+### Frontend
+- Updated reading API typing to consume backend tokens and render per-token content.
+- Added an inline reading settings panel (size/spacing/theme) and click-outside-to-close behavior.
+- Added page-level settings improvements:
+  - Header interaction for the settings trigger.
+  - Language and system font controls in MENU.
+  - Reading theme support (light/dark) and UI theme variable updates.
+- Expanded i18n text for settings labels and updated tests in `frontend/tests/HomeView.spec.ts`.
+
+### Breaking Changes
+- `POST /api/reading-sentence` response contract now includes a `tokens` field.
+
+---
+
 ## v0.1.0
 
 Date: 2026-03-22

@@ -1,6 +1,12 @@
 export interface ReadingSentenceResponse {
   sentence: string;
   words: string[];
+  tokens: ReadingSentenceToken[];
+}
+
+export interface ReadingSentenceToken {
+  text: string;
+  isWord: boolean;
 }
 
 export interface GenerateReadingSentenceRequest {

@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 import src.main as main_module
 from src.main import app
 from src.integrations.ollama import OllamaClient
+from src.services.tokenizer import tokenize_sentence
 
 client = TestClient(app)
 
@@ -19,6 +20,58 @@ def test_read_root():
         "status": "ok",
         "message": "OpenVoca backend is running!",
     }
+
+
+def test_tokenize_sentence_splits_words_and_punctuation() -> None:
+    """The tokenizer should preserve punctuation while marking clickable word tokens."""
+
+    tokens = tokenize_sentence("A harbor lantern flickered in the rain.")
+
+    assert [token.text for token in tokens] == [
+        "A",
+        "harbor",
+        "lantern",
+        "flickered",
+        "in",
+        "the",
+        "rain",
+        ".",
+    ]
+    assert [token.is_word for token in tokens] == [
+        True,
+        True,
+        True,
+        True,
+        True,
+        True,
+        True,
+        False,
+    ]
+
+
+def test_tokenize_sentence_preserves_apostrophes_and_quotes() -> None:
+    """The tokenizer should keep common English word forms as single word tokens."""
+
+    tokens = tokenize_sentence('"It\'s" softly-lit.')
+
+    assert [token.text for token in tokens] == [
+        '"',
+        "It's",
+        '"',
+        "softly",
+        "-",
+        "lit",
+        ".",
+    ]
+    assert [token.is_word for token in tokens] == [
+        False,
+        True,
+        False,
+        True,
+        False,
+        True,
+        False,
+    ]
 
 
 @pytest.mark.anyio
@@ -111,4 +164,14 @@ def test_reading_sentence_endpoint_uses_frontend_configuration(
     assert response.json() == {
         "sentence": "A harbor lantern flickered in the rain.",
         "words": ["harbor", "lantern"],
+        "tokens": [
+            {"text": "A", "isWord": True},
+            {"text": "harbor", "isWord": True},
+            {"text": "lantern", "isWord": True},
+            {"text": "flickered", "isWord": True},
+            {"text": "in", "isWord": True},
+            {"text": "the", "isWord": True},
+            {"text": "rain", "isWord": True},
+            {"text": ".", "isWord": False},
+        ],
     }

@@ -3,6 +3,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from fastapi import FastAPI, HTTPException
 
 from src.integrations.ollama import OllamaClient
+from src.services.tokenizer import tokenize_sentence
 
 app = FastAPI(title="OpenVoca API")
 ollama_client = OllamaClient()
@@ -18,6 +19,14 @@ class ReadingSentenceRequest(BaseModel):
 class ReadingSentenceResponse(BaseModel):
     sentence: str
     words: list[str]
+    tokens: list["ReadingSentenceToken"]
+
+
+class ReadingSentenceToken(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    text: str
+    is_word: bool = Field(alias="isWord")
 
 
 @app.get("/")
@@ -44,4 +53,8 @@ async def get_reading_sentence(
     return ReadingSentenceResponse(
         sentence=sentence,
         words=words,
+        tokens=[
+            ReadingSentenceToken(text=token.text, isWord=token.is_word)
+            for token in tokenize_sentence(sentence)
+        ],
     )

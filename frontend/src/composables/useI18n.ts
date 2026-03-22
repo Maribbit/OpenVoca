@@ -5,6 +5,7 @@ export type Locale = "en" | "zh";
 interface LocaleMessages {
   menu: string;
   reading: string;
+  readingDisplaySettings: string;
   loadingSentence: string;
   ollamaError: string;
   refreshHint: string;
@@ -27,14 +28,26 @@ interface LocaleMessages {
   cancel: string;
   saveChanges: string;
   language: string;
+  fontSize: string;
+  spacing: string;
+  theme: string;
+  spacingTight: string;
+  spacingNormal: string;
+  spacingLoose: string;
+  themeLight: string;
+  themeDark: string;
+  systemFont: string;
+  uiFontSans: string;
+  uiFontSerif: string;
 }
 
 const STORAGE_KEY = "openvoca.ui.locale";
 
 export const MESSAGES: Record<Locale, LocaleMessages> = {
   en: {
-    menu: "Menu",
+    menu: "MENU",
     reading: "Reading",
+    readingDisplaySettings: "Reading display settings",
     loadingSentence: "Asking gemma3:4b for one sentence...",
     ollamaError: "Unable to reach the local Ollama model.",
     refreshHint: "Refresh the page for another sentence",
@@ -58,10 +71,22 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     cancel: "Cancel",
     saveChanges: "Save Changes",
     language: "Language",
+    fontSize: "Size",
+    spacing: "Spacing",
+    theme: "Theme",
+    spacingTight: "Tight",
+    spacingNormal: "Normal",
+    spacingLoose: "Loose",
+    themeLight: "Light",
+    themeDark: "Dark",
+    systemFont: "System Font",
+    uiFontSans: "Sans",
+    uiFontSerif: "Serif",
   },
   zh: {
     menu: "菜单",
     reading: "阅读",
+    readingDisplaySettings: "阅读显示设置",
     loadingSentence: "正在向 gemma3:4b 请求一句例句...",
     ollamaError: "无法连接本地 Ollama 模型。",
     refreshHint: "刷新页面即可生成下一句",
@@ -84,6 +109,17 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     cancel: "取消",
     saveChanges: "保存修改",
     language: "语言",
+    fontSize: "字号",
+    spacing: "间距",
+    theme: "主题",
+    spacingTight: "紧凑",
+    spacingNormal: "标准",
+    spacingLoose: "宽松",
+    themeLight: "明亮",
+    themeDark: "暗色",
+    systemFont: "系统字体",
+    uiFontSans: "标准 (Sans)",
+    uiFontSerif: "阅读 (Serif)",
   },
 };
 
