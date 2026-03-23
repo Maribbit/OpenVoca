@@ -1,6 +1,8 @@
 import re
 from dataclasses import dataclass
 
+from src.services.stopwords import ENGLISH_STOP_WORDS
+
 # Match standard tokens:
 # 1. Words (including contractions like "don't"): [A-Za-z]+(?:['’][A-Za-z]+)*
 # 2. Numbers: \d+
@@ -32,6 +34,7 @@ def tokenize_sentence(sentence: str) -> list[SentenceToken]:
         if target_group:
             # Strip ALL asterisks (one or many)
             text = target_group.strip("*")
+            # Target words from the LLM are ALWAYS treated as valid vocab words, even if they match a stopword
             tokens.append(SentenceToken(text=text, is_word=True, is_target=True))
         elif standard_group:
             text = standard_group
@@ -40,6 +43,11 @@ def tokenize_sentence(sentence: str) -> list[SentenceToken]:
                 # Fallback: if a lone * got matched in Group 2 (because it had no closing asterisk?)
                 # We treat it as punctuation.
                 is_word = False
+
+            # Stop word filter logic
+            if is_word and text.lower() in ENGLISH_STOP_WORDS:
+                is_word = False
+
             tokens.append(SentenceToken(text=text, is_word=is_word, is_target=False))
 
     return tokens

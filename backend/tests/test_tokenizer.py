@@ -5,7 +5,7 @@ def test_tokenize_plain_sentence() -> None:
     """It should tokenize a simple sentence without markup."""
     tokens = tokenize_sentence("A cat sat.")
     assert tokens == [
-        SentenceToken(text="A", is_word=True, is_target=False),
+        SentenceToken(text="A", is_word=False, is_target=False),
         SentenceToken(text="cat", is_word=True, is_target=False),
         SentenceToken(text="sat", is_word=True, is_target=False),
         SentenceToken(text=".", is_word=False, is_target=False),
@@ -17,7 +17,7 @@ def test_tokenize_with_target_words() -> None:
     tokens = tokenize_sentence("A *lantern* glowed.")
 
     assert tokens == [
-        SentenceToken(text="A", is_word=True, is_target=False),
+        SentenceToken(text="A", is_word=False, is_target=False),
         SentenceToken(text="lantern", is_word=True, is_target=True),
         SentenceToken(text="glowed", is_word=True, is_target=False),
         SentenceToken(text=".", is_word=False, is_target=False),
@@ -32,9 +32,22 @@ def test_tokenize_mixed_content() -> None:
         SentenceToken(text="Run", is_word=True, is_target=True),
         SentenceToken(text=",", is_word=False, is_target=False),
         SentenceToken(text="said", is_word=True, is_target=False),
-        SentenceToken(text="the", is_word=True, is_target=False),
+        SentenceToken(text="the", is_word=False, is_target=False),
         SentenceToken(text="fox", is_word=True, is_target=True),
         SentenceToken(text="!", is_word=False, is_target=False),
+    ]
+
+
+def test_target_word_bypasses_stopword_filter() -> None:
+    """A markdown-marked target must stay clickable even if it is a stop word."""
+    tokens = tokenize_sentence("She said *the* softly.")
+
+    assert tokens == [
+        SentenceToken(text="She", is_word=False, is_target=False),
+        SentenceToken(text="said", is_word=True, is_target=False),
+        SentenceToken(text="the", is_word=True, is_target=True),
+        SentenceToken(text="softly", is_word=True, is_target=False),
+        SentenceToken(text=".", is_word=False, is_target=False),
     ]
 
 

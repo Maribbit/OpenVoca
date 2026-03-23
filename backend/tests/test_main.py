@@ -52,12 +52,12 @@ def test_tokenize_sentence_splits_words_and_punctuation() -> None:
         ".",
     ]
     assert [token.is_word for token in tokens] == [
+        False,
         True,
         True,
         True,
-        True,
-        True,
-        True,
+        False,
+        False,
         True,
         False,
     ]
@@ -181,12 +181,12 @@ def test_reading_sentence_endpoint_uses_frontend_configuration(
         "sentence": "A *harbor* *lantern* flickered in the rain.",
         "words": ["harbor", "lantern"],
         "tokens": [
-            {"text": "A", "isWord": True, "isTarget": False},
+            {"text": "A", "isWord": False, "isTarget": False},
             {"text": "harbor", "isWord": True, "isTarget": True},
             {"text": "lantern", "isWord": True, "isTarget": True},
             {"text": "flickered", "isWord": True, "isTarget": False},
-            {"text": "in", "isWord": True, "isTarget": False},
-            {"text": "the", "isWord": True, "isTarget": False},
+            {"text": "in", "isWord": False, "isTarget": False},
+            {"text": "the", "isWord": False, "isTarget": False},
             {"text": "rain", "isWord": True, "isTarget": False},
             {"text": ".", "isWord": False, "isTarget": False},
         ],

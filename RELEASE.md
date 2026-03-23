@@ -35,6 +35,30 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.4.0
+
+Date: 2026-03-23
+
+### Highlights
+- Added backend stop-word filtering to reduce vocabulary noise from high-frequency structural words.
+- Preserved model-driven target-word behavior using Markdown markers while ensuring marked targets remain clickable.
+- Fixed reading text spacing for non-clickable word-like tokens and dash-like punctuation edge cases.
+- Simplified the reading header by removing model label text and keeping settings access available in the top-right controls.
+- Reached the planned Phase 1 objective: the full loop (pick words -> generate sentence -> mark words -> update familiarity) is stable and release-ready.
+
+### Backend
+- Added `backend/src/services/stopwords.py` with a static English stop-word set.
+- Updated tokenizer logic to downgrade stop words to `isWord=false` while preserving explicit Markdown-marked targets as `isTarget=true`.
+- Added tokenizer and API regression coverage for stop-word behavior and target-word override behavior.
+
+### Frontend
+- Updated sentence spacing logic to keep natural spacing for non-clickable but word-like tokens.
+- Fixed dash-related spacing behavior for `-`, `–`, `—`, and `‑`.
+- Removed the `gemma3:4b` header text while keeping the settings trigger discoverable and accessible.
+
+### Breaking Changes
+- None.
+
 ## v0.3.3
 
 Date: 2026-03-23

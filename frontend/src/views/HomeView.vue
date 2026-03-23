@@ -21,43 +21,42 @@
         </button>
       </div>
 
-      <div class="relative flex flex-1 items-center justify-center">
-        <div class="relative flex items-center justify-center">
-          <span>{{ i18nMessages.reading }}</span>
-          <button
-            type="button"
-            data-testid="reading-settings-trigger"
-            class="absolute left-full top-1/2 ml-1 -translate-y-1/2 cursor-pointer rounded-full p-2 opacity-0 transition-all hover:bg-black/4 hover:text-ink group-hover:opacity-100"
-            @click="toggleUiPanel"
-          >
-            <span class="sr-only">{{
-              i18nMessages.readingDisplaySettings
-            }}</span>
-            <svg
-              class="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="1.5"
-                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065Z"
-              />
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="1.5"
-                d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
-              />
-            </svg>
-          </button>
-        </div>
-      </div>
+      <!-- Keep center block empty so it doesn't overlap long texts -->
+      <div
+        class="pointer-events-none flex flex-1 items-center justify-center"
+      ></div>
 
-      <div class="flex flex-1 items-center justify-end gap-3">
-        <span class="hidden md:inline">gemma3:4b</span>
+      <div class="flex flex-1 items-center justify-end gap-1 md:gap-3">
+        <!-- Moved Settings Button from Center to Right -->
+        <button
+          type="button"
+          data-testid="reading-settings-trigger"
+          class="cursor-pointer rounded-full p-2 transition-all hover:bg-black/4 hover:text-ink opacity-0 group-hover:opacity-100 focus:opacity-100"
+          @click="toggleUiPanel"
+          :title="i18nMessages.readingDisplaySettings"
+        >
+          <span class="sr-only">{{ i18nMessages.readingDisplaySettings }}</span>
+          <svg
+            class="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.5"
+              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065Z"
+            />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.5"
+              d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+            />
+          </svg>
+        </button>
+
         <router-link
           to="/stats"
           class="cursor-pointer rounded-full px-3 py-2 transition-colors hover:bg-black/4 hover:text-ink"
@@ -914,20 +913,34 @@
   }
 
   function needsLeadingSpace(index: number): boolean {
-    if (index === 0) {
-      return false;
-    }
+    if (index === 0) return false;
 
     const currentToken = tokens.value[index];
     const previousToken = tokens.value[index - 1];
 
-    if (!currentToken?.isWord) {
+    if (!currentToken || !previousToken) return false;
+
+    // Treat both clickable words and stop words (which are alphanumeric) as words for spacing
+    const isTextWord =
+      currentToken.isWord || /^[A-Za-z0-9]/.test(currentToken.text);
+
+    if (!isTextWord) {
       return false;
     }
 
-    return !new Set(['"', "'", "(", "[", "{", "-"]).has(
-      previousToken?.text ?? "",
-    );
+    return !new Set([
+      '"',
+      "'",
+      "“",
+      "‘",
+      "(",
+      "[",
+      "{",
+      "-",
+      "–",
+      "—",
+      "‑",
+    ]).has(previousToken.text);
   }
 
   function switchLanguage(nextLocale: Locale): void {
