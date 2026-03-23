@@ -96,22 +96,19 @@ describe("HomeView.vue", () => {
     await flushPromises();
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/reading-sentence",
-      expect.any(Object),
-    );
-    expect(fetchMock).not.toHaveBeenCalledWith(
       "/api/reading-sentence/next",
-      expect.any(Object),
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringContaining('"targetWordCount":3'),
+      }),
     );
+    const initialCallCount = fetchMock.mock.calls.length;
 
     window.dispatchEvent(new KeyboardEvent("keydown", { code: "Space" }));
     vi.advanceTimersByTime(650);
     await flushPromises();
 
-    expect(fetchMock).not.toHaveBeenCalledWith(
-      "/api/reading-sentence/next",
-      expect.any(Object),
-    );
+    expect(fetchMock).toHaveBeenCalledTimes(initialCallCount);
 
     window.dispatchEvent(new KeyboardEvent("keyup", { code: "Space" }));
     await flushPromises();
@@ -120,6 +117,7 @@ describe("HomeView.vue", () => {
       "/api/reading-sentence/next",
       expect.any(Object),
     );
+    expect(fetchMock.mock.calls.length).toBeGreaterThan(initialCallCount);
     vi.useRealTimers();
   });
 

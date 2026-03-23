@@ -1,5 +1,3 @@
-from collections.abc import Sequence
-
 import httpx
 from pydantic import BaseModel
 
@@ -23,12 +21,7 @@ class OllamaClient:
         self.timeout = timeout
         self.transport = transport
 
-    async def generate_sentence(
-        self,
-        words: Sequence[str],
-        prompt_template: str,
-    ) -> str:
-        prompt = self._build_prompt(words, prompt_template)
+    async def generate_completion(self, prompt: str) -> str:
         payload = OllamaGenerateRequest(model=self.model, prompt=prompt)
 
         async with httpx.AsyncClient(
@@ -47,19 +40,3 @@ class OllamaClient:
             raise ValueError("Ollama response payload is missing the response field.")
 
         return " ".join(result.split())
-
-    @staticmethod
-    def _build_prompt(words: Sequence[str], prompt_template: str) -> str:
-        normalized_words = [word.strip() for word in words if word.strip()]
-        if not normalized_words:
-            raise ValueError("At least one word is required to generate a sentence.")
-
-        normalized_template = prompt_template.strip()
-        if not normalized_template:
-            raise ValueError("A prompt template is required to generate a sentence.")
-
-        words_text = ", ".join(normalized_words)
-        if "{{target_words}}" in normalized_template:
-            return normalized_template.replace("{{target_words}}", words_text)
-
-        return f"{normalized_template}\nTarget words: {words_text}."

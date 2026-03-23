@@ -505,17 +505,37 @@
               {{ i18nMessages.learningParameters }}
             </h2>
             <div class="space-y-2">
-              <label class="text-sm font-medium text-ink" for="target-words">
-                {{ i18nMessages.targetWords }}
+              <label
+                class="flex items-center justify-between gap-4 text-sm font-medium text-ink"
+                for="target-word-count"
+              >
+                <span>{{ i18nMessages.targetWordCount }}</span>
+                <span
+                  class="rounded-full border border-black/8 bg-paper px-3 py-1 font-mono text-xs text-inkLight"
+                >
+                  {{ draftTargetWordCount }}
+                </span>
               </label>
-              <textarea
-                id="target-words"
-                v-model="draftTargetWords"
-                rows="3"
-                class="w-full rounded-2xl border border-black/8 bg-paper px-4 py-3 text-sm leading-relaxed text-ink outline-none transition-shadow focus:ring-2 focus:ring-highlight"
+              <input
+                id="target-word-count"
+                v-model="draftTargetWordCount"
+                type="range"
+                min="1"
+                max="5"
+                step="1"
+                class="w-full accent-ink"
               />
+              <div
+                class="flex justify-between px-1 text-[11px] text-inkLight/70"
+              >
+                <span>1</span>
+                <span>2</span>
+                <span>3</span>
+                <span>4</span>
+                <span>5</span>
+              </div>
               <p class="text-xs text-inkLight">
-                {{ i18nMessages.targetWordsHint }}
+                {{ i18nMessages.targetWordCountHint }}
               </p>
             </div>
           </section>
@@ -586,16 +606,13 @@
   import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
   import {
-    fetchReadingSentence,
     fetchNextReadingSentence,
     submitFeedback,
     type ReadingSentenceToken,
   } from "../api/reading";
   import {
     DEFAULT_READING_PREFERENCES,
-    formatTargetWords,
     loadReadingPreferences,
-    parseTargetWordsInput,
     saveReadingPreferences,
     type ReadingPreferences,
   } from "../composables/readingPreferences";
@@ -632,7 +649,7 @@
   const isMenuOpen = ref(false);
   const isUiPanelOpen = ref(false);
   const menuErrorMessage = ref("");
-  const draftTargetWords = ref("");
+  const draftTargetWordCount = ref(3);
   const draftPromptTemplate = ref("");
   const targetWordsToken = "{{target_words}}";
   const markedWords = ref<Set<string>>(new Set());
@@ -802,7 +819,7 @@
     errorMessage.value = "";
 
     try {
-      const response = await fetchReadingSentence(preferences.value);
+      const response = await fetchNextReadingSentence(preferences.value);
       sentence.value = response.sentence;
       tokens.value = response.tokens;
       currentTargetWords.value = response.words;
@@ -925,7 +942,7 @@
   }
 
   function syncDraftFromPreferences(): void {
-    draftTargetWords.value = formatTargetWords(preferences.value.targetWords);
+    draftTargetWordCount.value = preferences.value.targetWordCount;
     draftPromptTemplate.value = preferences.value.promptTemplate;
   }
 
@@ -946,13 +963,7 @@
   }
 
   async function saveMenuChanges(): Promise<void> {
-    const targetWords = parseTargetWordsInput(draftTargetWords.value);
     const promptTemplate = draftPromptTemplate.value.trim();
-
-    if (targetWords.length === 0) {
-      menuErrorMessage.value = i18nMessages.value.menuErrorMissingWords;
-      return;
-    }
 
     if (!promptTemplate) {
       menuErrorMessage.value = i18nMessages.value.menuErrorMissingPrompt;
@@ -960,8 +971,8 @@
     }
 
     preferences.value = {
-      targetWords,
       promptTemplate,
+      targetWordCount: draftTargetWordCount.value,
     };
     saveReadingPreferences(preferences.value);
     closeMenu();

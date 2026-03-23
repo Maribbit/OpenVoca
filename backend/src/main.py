@@ -3,6 +3,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from fastapi import FastAPI, HTTPException
 
 from src.integrations.ollama import OllamaClient
+from src.services.prompt_builder import build_sentence_generation_prompt
 from src.services.tokenizer import tokenize_sentence
 from src.services.word_store import (
     apply_feedback,
@@ -18,8 +19,9 @@ ollama_client = OllamaClient()
 class ReadingSentenceRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    target_words: list[str] = Field(alias="targetWords", min_length=1)
+    target_words: list[str] = Field(default_factory=list, alias="targetWords")
     prompt_template: str = Field(alias="promptTemplate", min_length=1)
+    target_word_count: int = Field(default=3, alias="targetWordCount", ge=1, le=5)
 
 
 class ReadingSentenceResponse(BaseModel):
@@ -64,10 +66,11 @@ async def get_reading_sentence(
 ) -> ReadingSentenceResponse:
     try:
         words = [word.strip() for word in request.target_words if word.strip()]
-        sentence = await ollama_client.generate_sentence(
-            words,
-            request.prompt_template,
-        )
+        if not words:
+            words = pick_target_words(limit=request.target_word_count)
+
+        prompt = build_sentence_generation_prompt(words, request.prompt_template)
+        sentence = await ollama_client.generate_completion(prompt)
     except (httpx.HTTPError, ValueError) as exc:
         raise HTTPException(
             status_code=502,
@@ -90,18 +93,16 @@ async def get_next_reading_sentence(
 ) -> ReadingSentenceResponse:
     """Pick target words from the database and generate a sentence.
 
-    Falls back to the frontend-provided target words when the database is empty.
+    Falls back to frontend-provided words only for compatibility.
     """
-    db_words = pick_target_words(limit=3)
+    db_words = pick_target_words(limit=request.target_word_count)
     words = (
         db_words if db_words else [w.strip() for w in request.target_words if w.strip()]
     )
 
     try:
-        sentence = await ollama_client.generate_sentence(
-            words,
-            request.prompt_template,
-        )
+        prompt = build_sentence_generation_prompt(words, request.prompt_template)
+        sentence = await ollama_client.generate_completion(prompt)
     except (httpx.HTTPError, ValueError) as exc:
         raise HTTPException(
             status_code=502,

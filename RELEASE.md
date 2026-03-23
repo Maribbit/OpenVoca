@@ -35,6 +35,29 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.3.2
+
+Date: 2026-03-23
+
+### Highlights
+- Added configurable per-sentence review word count (1-5) in Preferences.
+- Removed the frontend concept of initial target words from user settings.
+- Kept target-word visual cues (dotted underlines) aligned with backend-selected words.
+
+### Backend
+- Updated reading sentence request schema to accept `targetWordCount` (1-5).
+- Updated `/api/reading-sentence/next` to select vocabulary words with dynamic `limit=targetWordCount` instead of hardcoded 3.
+- Kept `targetWords` as a compatibility fallback field for older clients.
+- Ensured that a sentence is generated without target words if the vocabulary is empty, maintaining the original fallback behavior.
+
+### Frontend
+- Added a 1-5 slider in Preferences (`Words Per Sentence` / `单轮取词量`) and persisted it to local storage.
+- Removed initial target words input and related validation in menu flow.
+- Unified initial sentence load and next-sentence flow to the same backend endpoint for consistent vocabulary-first behavior.
+
+### Breaking Changes
+- None.
+
 ## v0.3.1
 
 Date: 2026-03-22

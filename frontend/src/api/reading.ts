@@ -10,8 +10,8 @@ export interface ReadingSentenceToken {
 }
 
 export interface GenerateReadingSentenceRequest {
-  targetWords: string[];
   promptTemplate: string;
+  targetWordCount: number;
 }
 
 export interface FeedbackRequest {

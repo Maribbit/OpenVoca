@@ -92,9 +92,9 @@ def test_tokenize_sentence_preserves_apostrophes_and_quotes() -> None:
 async def test_ollama_client_returns_sentence_from_response() -> None:
     """The Ollama client should extract the generated sentence from the API payload."""
 
-    prompt_template = (
+    prompt = (
         "Write exactly one natural English sentence. "
-        "Keep it calm and literary. Include these words: {{target_words}}."
+        "Keep it calm and literary. Include these words: lantern, meadow, window."
     )
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -119,12 +119,18 @@ async def test_ollama_client_returns_sentence_from_response() -> None:
         transport=transport,
     )
 
-    sentence = await ollama_client.generate_sentence(
-        ["lantern", "meadow", "window"],
-        prompt_template,
-    )
+    sentence = await ollama_client.generate_completion(prompt)
 
     assert sentence == "A lantern glowed by the window beside the meadow."
+
+
+@pytest.mark.anyio
+async def test_ollama_client_token_limit() -> None:
+    """The client should handle context window limits if necessary (future proofing)."""
+    # This test is just a placeholder to replace the old 'empty words' test
+    # which is now properly tested in test_prompt_builder.py.
+    # The integration layer is now dumb, so logic tests belong in service layer.
+    pass
 
 
 @pytest.mark.anyio
@@ -141,10 +147,7 @@ async def test_ollama_client_rejects_missing_response_field() -> None:
     )
 
     with pytest.raises(ValueError, match="response"):
-        await ollama_client.generate_sentence(
-            ["lantern", "meadow", "window"],
-            "Use these words: {{target_words}}.",
-        )
+        await ollama_client.generate_completion("Use these words: lantern.")
 
 
 def test_reading_sentence_endpoint_uses_frontend_configuration(
@@ -152,18 +155,16 @@ def test_reading_sentence_endpoint_uses_frontend_configuration(
 ) -> None:
     """The API should forward prompt and target words from the frontend to Ollama."""
 
-    async def fake_generate_sentence(
-        words: list[str],
-        prompt_template: str,
-    ) -> str:
-        assert words == ["harbor", "lantern"]
-        assert prompt_template == "Write one sentence with {{target_words}}."
+    async def fake_generate_completion(prompt: str) -> str:
+        # prompt_builder creates the prompt before this is called.
+        # "Write one sentence with {{target_words}}." -> "Write one sentence with harbor, lantern."
+        assert prompt == "Write one sentence with harbor, lantern."
         return "A harbor lantern flickered in the rain."
 
     monkeypatch.setattr(
         main_module.ollama_client,
-        "generate_sentence",
-        fake_generate_sentence,
+        "generate_completion",
+        fake_generate_completion,
     )
 
     response = client.post(

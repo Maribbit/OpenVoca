@@ -16,14 +16,13 @@ interface LocaleMessages {
   localModelProvider: string;
   model: string;
   learningParameters: string;
-  targetWords: string;
-  targetWordsHint: string;
+  targetWordCount: string;
+  targetWordCountHint: string;
   promptEngineering: string;
   resetToDefault: string;
   generationPrompt: string;
   targetWordsTokenHintPrefix: string;
   targetWordsTokenHintSuffix: string;
-  menuErrorMissingWords: string;
   menuErrorMissingPrompt: string;
   cancel: string;
   saveChanges: string;
@@ -71,16 +70,15 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     localModelProvider: "Local Model (Ollama)",
     model: "Model",
     learningParameters: "Learning Parameters",
-    targetWords: "Initial Target Words",
-    targetWordsHint:
-      "Used for the first sentence, then words come from your vocabulary. Separate words with commas or new lines.",
+    targetWordCount: "Words Per Sentence",
+    targetWordCountHint:
+      "Choose how many review words the model should try to weave into each sentence.",
     promptEngineering: "Prompt Engineering",
     resetToDefault: "Reset to default",
     generationPrompt: "Generation Prompt",
     targetWordsTokenHintPrefix: "Use",
     targetWordsTokenHintSuffix:
       "where the menu should inject the selected words.",
-    menuErrorMissingWords: "Add at least one target word.",
     menuErrorMissingPrompt: "Generation prompt cannot be empty.",
     cancel: "Cancel",
     saveChanges: "Save Changes",
@@ -124,15 +122,13 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     localModelProvider: "本地模型 (Ollama)",
     model: "模型",
     learningParameters: "学习参数",
-    targetWords: "初始目标词",
-    targetWordsHint:
-      "仅用于首次生成，后续将从你的词库取词。使用逗号或换行分隔多个单词。",
+    targetWordCount: "单轮取词量",
+    targetWordCountHint: "决定每一句里尝试塞入多少个复习词，范围 1 到 5。",
     promptEngineering: "提示词设置",
     resetToDefault: "恢复默认",
     generationPrompt: "生成提示词",
     targetWordsTokenHintPrefix: "在提示词中使用",
     targetWordsTokenHintSuffix: "来注入目标词。",
-    menuErrorMissingWords: "请至少输入一个目标词。",
     menuErrorMissingPrompt: "生成提示词不能为空。",
     cancel: "取消",
     saveChanges: "保存修改",
