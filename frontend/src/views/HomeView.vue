@@ -273,7 +273,7 @@
             >
               <span
                 :class="
-                  currentTargetWordSet.has(token.text.toLowerCase())
+                  token.isTarget
                     ? 'border-b border-dotted border-inkLight/65 pb-[0.01em]'
                     : ''
                 "
@@ -663,10 +663,6 @@
   const uiFontFamily = ref<UiFontFamily>(loadUiFontFamily());
   const uiFontSize = ref<UiFontSizeOption>(loadUiFontSize());
   const { locale, messages: i18nMessages, setLocale } = useI18n();
-
-  const currentTargetWordSet = computed(
-    () => new Set(currentTargetWords.value.map((word) => word.toLowerCase())),
-  );
 
   const sentenceTypographyClass = computed(() => {
     const fontSizeMap: Record<FontSizeOption, string> = {

@@ -156,10 +156,11 @@ def test_reading_sentence_endpoint_uses_frontend_configuration(
     """The API should forward prompt and target words from the frontend to Ollama."""
 
     async def fake_generate_completion(prompt: str) -> str:
-        # prompt_builder creates the prompt before this is called.
-        # "Write one sentence with {{target_words}}." -> "Write one sentence with harbor, lantern."
-        assert prompt == "Write one sentence with harbor, lantern."
-        return "A harbor lantern flickered in the rain."
+        # Verify prompt includes the new formatting instruction
+        assert "Write one sentence with harbor, lantern." in prompt
+        assert "You MUST mark the target words" in prompt
+        # Return a sentence with Markdown italics
+        return "A *harbor* *lantern* flickered in the rain."
 
     monkeypatch.setattr(
         main_module.ollama_client,
@@ -177,17 +178,17 @@ def test_reading_sentence_endpoint_uses_frontend_configuration(
 
     assert response.status_code == 200
     assert response.json() == {
-        "sentence": "A harbor lantern flickered in the rain.",
+        "sentence": "A *harbor* *lantern* flickered in the rain.",
         "words": ["harbor", "lantern"],
         "tokens": [
-            {"text": "A", "isWord": True},
-            {"text": "harbor", "isWord": True},
-            {"text": "lantern", "isWord": True},
-            {"text": "flickered", "isWord": True},
-            {"text": "in", "isWord": True},
-            {"text": "the", "isWord": True},
-            {"text": "rain", "isWord": True},
-            {"text": ".", "isWord": False},
+            {"text": "A", "isWord": True, "isTarget": False},
+            {"text": "harbor", "isWord": True, "isTarget": True},
+            {"text": "lantern", "isWord": True, "isTarget": True},
+            {"text": "flickered", "isWord": True, "isTarget": False},
+            {"text": "in", "isWord": True, "isTarget": False},
+            {"text": "the", "isWord": True, "isTarget": False},
+            {"text": "rain", "isWord": True, "isTarget": False},
+            {"text": ".", "isWord": False, "isTarget": False},
         ],
     }
 

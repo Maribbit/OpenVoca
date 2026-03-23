@@ -35,6 +35,28 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.3.3
+
+Date: 2026-03-23
+
+### Highlights
+- Added model-driven target-word annotation using Markdown emphasis markers instead of frontend word matching.
+- Made sentence highlighting resilient to inflections, synonyms, empty target-word cases, and over-eager model annotations.
+- Stripped Markdown marker characters from rendered reading text while preserving explicit target-word metadata.
+
+### Backend
+- Added fixed prompt instruction that requires the model to mark review words with Markdown emphasis.
+- Updated the tokenizer to parse both `*word*` and `**word**` as target-word annotations and expose `isTarget` in token payloads.
+- Added service and endpoint coverage for Markdown-marked target tokens and markup stripping behavior.
+
+### Frontend
+- Switched reading underline rendering to trust backend token metadata instead of matching target-word strings in the sentence.
+- Kept rendered reading text free of raw `*` characters while preserving dotted underline cues on explicit target tokens.
+- Added regression coverage for backend-provided `isTarget` rendering behavior.
+
+### Breaking Changes
+- `POST /api/reading-sentence` token items now include `isTarget` in the response contract.
+
 ## v0.3.2
 
 Date: 2026-03-23

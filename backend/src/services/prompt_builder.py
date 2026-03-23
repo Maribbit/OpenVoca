@@ -24,6 +24,15 @@ def build_sentence_generation_prompt(words: Sequence[str], prompt_template: str)
 
     # Business Logic: Interpolate or Append
     if "{{target_words}}" in normalized_template:
-        return normalized_template.replace("{{target_words}}", words_text)
+        prompt = normalized_template.replace("{{target_words}}", words_text)
+    else:
+        prompt = f"{normalized_template}\nTarget words: {words_text}."
 
-    return f"{normalized_template}\nTarget words: {words_text}."
+    # Only enforce marking if there are actual target words to mark
+    if normalized_words:
+        prompt += (
+            " IMPORTANT: You MUST mark the target words in the sentence using Markdown italics, "
+            "like *word*. Do not use bold or quotes, only single asterisks."
+        )
+
+    return prompt

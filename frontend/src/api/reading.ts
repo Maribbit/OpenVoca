@@ -7,6 +7,7 @@ export interface ReadingSentenceResponse {
 export interface ReadingSentenceToken {
   text: string;
   isWord: boolean;
+  isTarget?: boolean;
 }
 
 export interface GenerateReadingSentenceRequest {

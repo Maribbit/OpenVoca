@@ -9,7 +9,7 @@ def test_build_prompt_interpolates_target_words() -> None:
     template = "Write a sentence with: {{target_words}}."
     prompt = build_sentence_generation_prompt(words, template)
 
-    assert prompt == "Write a sentence with: lantern, meadow."
+    assert "Write a sentence with: lantern, meadow." in prompt
 
 
 def test_build_prompt_appends_target_words_if_placeholder_missing() -> None:
@@ -18,7 +18,7 @@ def test_build_prompt_appends_target_words_if_placeholder_missing() -> None:
     template = "Write a sentence."
     prompt = build_sentence_generation_prompt(words, template)
 
-    assert prompt == "Write a sentence.\nTarget words: lantern, meadow."
+    assert "Write a sentence.\nTarget words: lantern, meadow." in prompt
 
 
 def test_build_prompt_uses_fallback_when_words_empty() -> None:

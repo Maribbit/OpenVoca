@@ -35,6 +35,7 @@ class ReadingSentenceToken(BaseModel):
 
     text: str
     is_word: bool = Field(alias="isWord")
+    is_target: bool = Field(default=False, alias="isTarget")
 
 
 class FeedbackRequest(BaseModel):
@@ -81,7 +82,11 @@ async def get_reading_sentence(
         sentence=sentence,
         words=words,
         tokens=[
-            ReadingSentenceToken(text=token.text, isWord=token.is_word)
+            ReadingSentenceToken(
+                text=token.text,
+                is_word=token.is_word,
+                is_target=token.is_target,
+            )
             for token in tokenize_sentence(sentence)
         ],
     )
@@ -113,7 +118,11 @@ async def get_next_reading_sentence(
         sentence=sentence,
         words=words,
         tokens=[
-            ReadingSentenceToken(text=token.text, isWord=token.is_word)
+            ReadingSentenceToken(
+                text=token.text,
+                is_word=token.is_word,
+                is_target=token.is_target,
+            )
             for token in tokenize_sentence(sentence)
         ],
     )

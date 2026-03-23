@@ -8,16 +8,16 @@ const tokenizedSentence = {
   sentence: "A lantern glowed by the window beside the meadow.",
   words: ["lantern", "meadow", "window"],
   tokens: [
-    { text: "A", isWord: true },
-    { text: "lantern", isWord: true },
-    { text: "glowed", isWord: true },
-    { text: "by", isWord: true },
-    { text: "the", isWord: true },
-    { text: "window", isWord: true },
-    { text: "beside", isWord: true },
-    { text: "the", isWord: true },
-    { text: "meadow", isWord: true },
-    { text: ".", isWord: false },
+    { text: "A", isWord: true, isTarget: false },
+    { text: "lantern", isWord: true, isTarget: true },
+    { text: "glowed", isWord: true, isTarget: false },
+    { text: "by", isWord: true, isTarget: false },
+    { text: "the", isWord: true, isTarget: false },
+    { text: "window", isWord: true, isTarget: true },
+    { text: "beside", isWord: true, isTarget: false },
+    { text: "the", isWord: true, isTarget: false },
+    { text: "meadow", isWord: true, isTarget: true },
+    { text: ".", isWord: false, isTarget: false },
   ],
 };
 
@@ -54,6 +54,20 @@ describe("HomeView.vue", () => {
       global: { plugins: [makeRouter()] },
     });
     await flushPromises();
+
+    // Verify marked words have the correct class
+    const markedWord = wrapper
+      .findAll("span")
+      .find((span) => span.text() === "lantern");
+    expect(markedWord?.classes()).toContain("border-dotted");
+    expect(markedWord?.classes()).toContain("border-b");
+
+    // Verify non-marked words do not have the class
+    const regularWord = wrapper
+      .findAll("span")
+      .find((span) => span.text() === "glowed");
+    expect(regularWord?.classes()).not.toContain("border-dotted");
+
     const wordButtons = wrapper
       .findAll("button")
       .map((button) => button.text())
