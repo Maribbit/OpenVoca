@@ -57,17 +57,25 @@
               class="border-b border-black/5 bg-surface text-xs uppercase tracking-widest text-inkLight"
             >
               <th class="px-6 py-4 font-medium">Word</th>
+              <th class="px-6 py-4 font-medium">{{ i18nMessages.pos }}</th>
               <th class="px-6 py-4 font-medium">Familiarity</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-black/3 text-sm">
             <tr
               v-for="word in words"
-              :key="word.word"
+              :key="`${word.word}-${word.pos}`"
               class="transition-colors hover:bg-black/2"
             >
               <td class="px-6 py-4">
                 <span class="font-serif text-lg text-ink">{{ word.word }}</span>
+              </td>
+              <td class="px-6 py-4">
+                <span
+                  class="inline-block rounded-full bg-black/5 px-2.5 py-0.5 font-mono text-xs text-inkLight"
+                >
+                  {{ word.pos }}
+                </span>
               </td>
               <td class="px-6 py-4">
                 <div class="flex items-center gap-2">

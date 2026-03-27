@@ -1,18 +1,14 @@
 import re
 from dataclasses import dataclass
 
+import spacy
+
 from src.services.stopwords import ENGLISH_STOP_WORDS
 
-# Match standard tokens:
-# 1. Words (including contractions like "don't"): [A-Za-z]+(?:['’][A-Za-z]+)*
-# 2. Numbers: \d+
-# 3. Everything else (punctuation): [^\w\s]
-# NOTE: The *...* syntax for targets must be handled FIRST.
-# We use (\*+[A-Za-z]...\*+) to match both single *word* and double **word** (bold) styles.
-TOKEN_PATTERN = re.compile(
-    r"(\*+[A-Za-z]+(?:['’][A-Za-z]+)*\*+)|"  # Group 1: Target word wrapped in *...* or **...**
-    r"([A-Za-z]+(?:['’][A-Za-z]+)*|\d+|[^\w\s])"  # Group 2: Standard tokens
-)
+_nlp = spacy.load("en_core_web_sm")
+
+# Regex to find *word* or **word** target markers in the raw LLM output.
+_TARGET_PATTERN = re.compile(r"\*+([A-Za-z]+(?:['\'\u2019][A-Za-z]+)*)\*+")
 
 
 @dataclass(frozen=True)
@@ -20,34 +16,57 @@ class SentenceToken:
     text: str
     is_word: bool
     is_target: bool = False
+    pos: str | None = None
 
 
 def tokenize_sentence(sentence: str) -> list[SentenceToken]:
+    """Tokenize a sentence using spaCy, with target-word markup and stopword filtering.
+
+    1. Extract target words from *...* / **...** markers.
+    2. Strip all asterisks to produce clean text for spaCy.
+    3. Run spaCy to get tokens with POS tags.
+    4. For each spaCy token: mark targets, filter stopwords, assign POS.
+    """
     if not sentence.strip():
         return []
 
+    # Step 1: collect lowercased target words from markdown markers.
+    target_words: dict[str, int] = {}
+    for match in _TARGET_PATTERN.finditer(sentence):
+        word = match.group(1).lower()
+        target_words[word] = target_words.get(word, 0) + 1
+
+    # Step 2: strip all asterisks for clean spaCy input.
+    clean = sentence.replace("*", "")
+
+    # Step 3: run spaCy.
+    doc = _nlp(clean)
+
+    # Step 4: build token list from spaCy output.
+    remaining_targets = dict(target_words)
     tokens: list[SentenceToken] = []
-    for match in TOKEN_PATTERN.finditer(sentence):
-        target_group = match.group(1)
-        standard_group = match.group(2)
+    for spacy_token in doc:
+        text = spacy_token.text
+        is_alpha = spacy_token.is_alpha
+        pos = spacy_token.pos_ if is_alpha else None
 
-        if target_group:
-            # Strip ALL asterisks (one or many)
-            text = target_group.strip("*")
-            # Target words from the LLM are ALWAYS treated as valid vocab words, even if they match a stopword
-            tokens.append(SentenceToken(text=text, is_word=True, is_target=True))
-        elif standard_group:
-            text = standard_group
-            is_word = bool(re.fullmatch(r"[A-Za-z]+(?:['’][A-Za-z]+)*|\d+", text))
-            if is_word and text == "*":
-                # Fallback: if a lone * got matched in Group 2 (because it had no closing asterisk?)
-                # We treat it as punctuation.
-                is_word = False
+        # Check if this word was marked as a target by the LLM.
+        is_target = False
+        low = text.lower()
+        if is_alpha and low in remaining_targets and remaining_targets[low] > 0:
+            is_target = True
+            remaining_targets[low] -= 1
 
-            # Stop word filter logic
-            if is_word and text.lower() in ENGLISH_STOP_WORDS:
-                is_word = False
+        # Determine if the token is a clickable word.
+        if is_target:
+            is_word = True
+        elif is_alpha:
+            is_word = low not in ENGLISH_STOP_WORDS
+        else:
+            is_word = False
 
-            tokens.append(SentenceToken(text=text, is_word=is_word, is_target=False))
+        tokens.append(
+            SentenceToken(text=text, is_word=is_word, is_target=is_target, pos=pos)
+        )
 
     return tokens

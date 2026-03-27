@@ -51,6 +51,7 @@ interface LocaleMessages {
   showingWords: string;
   emptyVocabulary: string;
   stats: string;
+  pos: string;
 }
 
 const STORAGE_KEY = "openvoca.ui.locale";
@@ -107,6 +108,7 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     showingWords: "words total",
     emptyVocabulary: "No words yet. Start reading to build your vocabulary.",
     stats: "Stats",
+    pos: "POS",
   },
   zh: {
     menu: "菜单",
@@ -157,6 +159,7 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     showingWords: "个单词",
     emptyVocabulary: "暂无单词，开始阅读以积累你的词库。",
     stats: "统计",
+    pos: "词性",
   },
 };
 

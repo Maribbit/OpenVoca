@@ -1,12 +1,13 @@
 [project]
 name = "backend"
-version = "0.4.0"
+version = "0.4.1"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi[standard]>=0.135.1",
     "httpx>=0.28.1",
+    "spacy>=3.8.13",
     "sqlmodel>=0.0.37",
     "uvicorn[standard]>=0.42.0",
 ]

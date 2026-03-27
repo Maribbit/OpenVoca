@@ -35,6 +35,35 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.4.1
+
+Date: 2026-03-27
+
+### Highlights
+- Unified tokenization pipeline: replaced the two-stage regex+spaCy architecture with a single spaCy-based tokenizer that handles tokenization, POS tagging, target-word markup parsing, and stopword filtering in one pass.
+- Added context-aware POS (part-of-speech) tagging to every word token, enabling the system to distinguish "leaves" (noun) from "leaves" (verb).
+- Upgraded the vocabulary store to a composite `(word, pos)` primary key so that the same spelling with different parts of speech tracks independent familiarity.
+- Added a POS column to the Stats page.
+
+### Backend
+- Rewrote `tokenizer.py` to use spaCy as the sole tokenizer. Regex is now only used to extract `*target*` markers from raw LLM output before stripping asterisks.
+- Removed the `pos_tagger.py` module; its alignment logic is no longer needed.
+- Updated `main.py` routes to call `tokenize_sentence()` directly instead of the former two-step `tokenize_sentence()` + `enrich_tokens_with_pos()`.
+- Updated `word_store.py` with composite `(word, pos)` primary key on `WordRecord`.
+- Updated `apply_feedback` to accept `(word, pos)` tuples; `pick_target_words` deduplicates by word string.
+- 28 tests passing (9 tokenizer, 4 prompt builder, 15 integration).
+
+### Frontend
+- API types (`ReadingSentenceToken`, `FeedbackRequest`, `WordRecordOut`) now include `pos` fields.
+- `HomeView` extracts `(word, pos)` pairs from tokens when submitting feedback.
+- `StatsView` displays a POS pill badge column.
+- i18n keys added for POS label (EN: "POS", ZH: "词性").
+- 5 tests passing.
+
+### Breaking Changes
+- `POST /api/feedback` body now requires `targetWords` and `markedWords` as `[{word, pos}]` instead of `[string]`.
+- `GET /api/vocabulary` response items now include a `pos` field.
+
 ## v0.4.0
 
 Date: 2026-03-23

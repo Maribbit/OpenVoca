@@ -1,6 +1,7 @@
 import httpx
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel, create_engine
 
 import src.main as main_module
@@ -19,7 +20,12 @@ client = TestClient(app)
 
 def _in_memory_engine():
     """Create a fresh in-memory SQLite engine for test isolation."""
-    engine = create_engine("sqlite://", echo=False)
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+        echo=False,
+    )
     SQLModel.metadata.create_all(engine)
     return engine
 
@@ -61,31 +67,32 @@ def test_tokenize_sentence_splits_words_and_punctuation() -> None:
         True,
         False,
     ]
+    # All alphabetic tokens should have POS; punctuation should not.
+    assert all(t.pos is not None for t in tokens if t.text.isalpha())
+    assert all(t.pos is None for t in tokens if not t.text.isalpha())
 
 
-def test_tokenize_sentence_preserves_apostrophes_and_quotes() -> None:
-    """The tokenizer should keep common English word forms as single word tokens."""
+def test_tokenize_sentence_handles_contractions() -> None:
+    """spaCy splits contractions; each part should be tokenized correctly."""
 
     tokens = tokenize_sentence('"It\'s" softly-lit.')
 
-    assert [token.text for token in tokens] == [
-        '"',
-        "It's",
-        '"',
-        "softly",
-        "-",
-        "lit",
-        ".",
-    ]
-    assert [token.is_word for token in tokens] == [
-        False,
-        True,
-        False,
-        True,
-        False,
-        True,
-        False,
-    ]
+    texts = [t.text for t in tokens]
+    # spaCy splits "It's" into "It" + "'s"
+    assert '"' in texts
+    assert "It" in texts
+    assert "softly" in texts
+    assert "lit" in texts
+
+    # "It" is a stopword → not a clickable word
+    it_tok = next(t for t in tokens if t.text == "It")
+    assert it_tok.is_word is False
+
+    # Content words should be clickable
+    softly_tok = next(t for t in tokens if t.text == "softly")
+    assert softly_tok.is_word is True
+    lit_tok = next(t for t in tokens if t.text == "lit")
+    assert lit_tok.is_word is True
 
 
 @pytest.mark.anyio
@@ -177,20 +184,27 @@ def test_reading_sentence_endpoint_uses_frontend_configuration(
     )
 
     assert response.status_code == 200
-    assert response.json() == {
-        "sentence": "A *harbor* *lantern* flickered in the rain.",
-        "words": ["harbor", "lantern"],
-        "tokens": [
-            {"text": "A", "isWord": False, "isTarget": False},
-            {"text": "harbor", "isWord": True, "isTarget": True},
-            {"text": "lantern", "isWord": True, "isTarget": True},
-            {"text": "flickered", "isWord": True, "isTarget": False},
-            {"text": "in", "isWord": False, "isTarget": False},
-            {"text": "the", "isWord": False, "isTarget": False},
-            {"text": "rain", "isWord": True, "isTarget": False},
-            {"text": ".", "isWord": False, "isTarget": False},
-        ],
-    }
+    data = response.json()
+    assert data["sentence"] == "A *harbor* *lantern* flickered in the rain."
+    assert data["words"] == ["harbor", "lantern"]
+
+    # Verify tokens have POS tags for word tokens
+    tokens = data["tokens"]
+    harbor_tok = next(t for t in tokens if t["text"] == "harbor")
+    assert harbor_tok["isWord"] is True
+    assert harbor_tok["isTarget"] is True
+    assert harbor_tok["pos"] == "NOUN"
+
+    lantern_tok = next(t for t in tokens if t["text"] == "lantern")
+    assert lantern_tok["pos"] == "NOUN"
+
+    flickered_tok = next(t for t in tokens if t["text"] == "flickered")
+    assert flickered_tok["isWord"] is True
+    assert flickered_tok["pos"] == "VERB"
+
+    # Non-words should have no POS
+    dot_tok = next(t for t in tokens if t["text"] == ".")
+    assert dot_tok["pos"] is None
 
 
 # ---------------------------------------------------------------------------
@@ -203,15 +217,15 @@ def test_apply_feedback_creates_new_records() -> None:
     engine = _in_memory_engine()
 
     apply_feedback(
-        target_words=["lantern", "meadow"],
-        marked_words=["meadow"],
+        target_words=[("lantern", "NOUN"), ("meadow", "NOUN")],
+        marked_words=[("meadow", "NOUN")],
         sentence="A lantern glowed beside the meadow.",
         engine=engine,
     )
 
-    words = {r.word: r.familiarity for r in list_all_words(engine)}
-    assert words["lantern"] == 1  # unmarked target → +1
-    assert words["meadow"] == 0  # marked (unknown) → stays at 0
+    words = {(r.word, r.pos): r.familiarity for r in list_all_words(engine)}
+    assert words[("lantern", "NOUN")] == 1  # unmarked target → +1
+    assert words[("meadow", "NOUN")] == 0  # marked (unknown) → stays at 0
 
 
 def test_apply_feedback_decreases_familiarity_for_marked_words() -> None:
@@ -220,7 +234,7 @@ def test_apply_feedback_decreases_familiarity_for_marked_words() -> None:
 
     # First round: word becomes familiar
     apply_feedback(
-        target_words=["harbor"],
+        target_words=[("harbor", "NOUN")],
         marked_words=[],
         sentence="The harbor was calm.",
         engine=engine,
@@ -230,8 +244,8 @@ def test_apply_feedback_decreases_familiarity_for_marked_words() -> None:
 
     # Second round: user marks it as unknown
     apply_feedback(
-        target_words=["harbor"],
-        marked_words=["harbor"],
+        target_words=[("harbor", "NOUN")],
+        marked_words=[("harbor", "NOUN")],
         sentence="Ships lined the harbor.",
         engine=engine,
     )
@@ -246,7 +260,7 @@ def test_apply_feedback_caps_familiarity_at_boundaries() -> None:
     # Increase to max
     for _ in range(6):
         apply_feedback(
-            target_words=["resolve"],
+            target_words=[("resolve", "NOUN")],
             marked_words=[],
             sentence="They showed resolve.",
             engine=engine,
@@ -258,7 +272,7 @@ def test_apply_feedback_caps_familiarity_at_boundaries() -> None:
     for _ in range(6):
         apply_feedback(
             target_words=[],
-            marked_words=["resolve"],
+            marked_words=[("resolve", "NOUN")],
             sentence="They showed resolve.",
             engine=engine,
         )
@@ -270,10 +284,15 @@ def test_pick_target_words_returns_least_familiar() -> None:
     """pick_target_words should return words with lowest familiarity first."""
     engine = _in_memory_engine()
 
-    apply_feedback(["alpha", "beta", "gamma", "delta"], [], "sentence", engine=engine)
+    apply_feedback(
+        [("alpha", "NOUN"), ("beta", "NOUN"), ("gamma", "NOUN"), ("delta", "NOUN")],
+        [],
+        "sentence",
+        engine=engine,
+    )
     # All start at familiarity 1. Boost alpha twice more.
-    apply_feedback(["alpha"], [], "sentence", engine=engine)
-    apply_feedback(["alpha"], [], "sentence", engine=engine)
+    apply_feedback([("alpha", "NOUN")], [], "sentence", engine=engine)
+    apply_feedback([("alpha", "NOUN")], [], "sentence", engine=engine)
 
     picked = pick_target_words(limit=3, engine=engine)
     assert "alpha" not in picked  # alpha has familiarity 3, others have 1
@@ -284,9 +303,84 @@ def test_clear_all_words_empties_database() -> None:
     """clear_all_words should delete every record."""
     engine = _in_memory_engine()
 
-    apply_feedback(["a", "b", "c"], [], "sentence", engine=engine)
+    apply_feedback(
+        [("a", "NOUN"), ("b", "NOUN"), ("c", "NOUN")],
+        [],
+        "sentence",
+        engine=engine,
+    )
     assert len(list_all_words(engine)) == 3
 
     deleted = clear_all_words(engine)
     assert deleted == 3
     assert len(list_all_words(engine)) == 0
+
+
+# ---------------------------------------------------------------------------
+# POS-aware word store tests
+# ---------------------------------------------------------------------------
+
+
+def test_same_word_different_pos_stored_separately() -> None:
+    """'leaves' as NOUN and 'leaves' as VERB should be separate records."""
+    engine = _in_memory_engine()
+
+    apply_feedback(
+        target_words=[("leaves", "NOUN")],
+        marked_words=[("leaves", "NOUN")],
+        sentence="The leaves are beautiful.",
+        engine=engine,
+    )
+    apply_feedback(
+        target_words=[("leaves", "VERB")],
+        marked_words=[],
+        sentence="She leaves the room.",
+        engine=engine,
+    )
+
+    records = {(r.word, r.pos): r.familiarity for r in list_all_words(engine)}
+    assert records[("leaves", "NOUN")] == 0  # marked unknown
+    assert records[("leaves", "VERB")] == 1  # unmarked target
+    assert len(records) == 2
+
+
+def test_feedback_with_pos_via_api(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The /api/feedback endpoint should accept and store word+POS pairs."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    response = client.post(
+        "/api/feedback",
+        json={
+            "targetWords": [
+                {"word": "harbor", "pos": "NOUN"},
+                {"word": "glowed", "pos": "VERB"},
+            ],
+            "markedWords": [{"word": "harbor", "pos": "NOUN"}],
+            "sentence": "The harbor glowed at dusk.",
+        },
+    )
+
+    assert response.status_code == 200
+    records = {(r.word, r.pos): r.familiarity for r in list_all_words(engine)}
+    assert records[("harbor", "NOUN")] == 0
+    assert records[("glowed", "VERB")] == 1
+
+
+def test_vocabulary_includes_pos(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The /api/vocabulary endpoint should include POS in the response."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    apply_feedback(
+        target_words=[("lantern", "NOUN")],
+        marked_words=[],
+        sentence="The lantern glowed.",
+        engine=engine,
+    )
+
+    response = client.get("/api/vocabulary")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["words"][0] == {"word": "lantern", "pos": "NOUN", "familiarity": 1}

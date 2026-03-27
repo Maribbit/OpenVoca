@@ -36,18 +36,25 @@ class ReadingSentenceToken(BaseModel):
     text: str
     is_word: bool = Field(alias="isWord")
     is_target: bool = Field(default=False, alias="isTarget")
+    pos: str | None = None
+
+
+class WordPosEntry(BaseModel):
+    word: str
+    pos: str
 
 
 class FeedbackRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    target_words: list[str] = Field(alias="targetWords")
-    marked_words: list[str] = Field(alias="markedWords")
+    target_words: list[WordPosEntry] = Field(alias="targetWords")
+    marked_words: list[WordPosEntry] = Field(alias="markedWords")
     sentence: str
 
 
 class WordRecordOut(BaseModel):
     word: str
+    pos: str
     familiarity: int
 
 
@@ -78,16 +85,18 @@ async def get_reading_sentence(
             detail="Unable to generate a sentence from the local Ollama model.",
         ) from exc
 
+    tokens = tokenize_sentence(sentence)
     return ReadingSentenceResponse(
         sentence=sentence,
         words=words,
         tokens=[
             ReadingSentenceToken(
-                text=token.text,
-                is_word=token.is_word,
-                is_target=token.is_target,
+                text=t.text,
+                is_word=t.is_word,
+                is_target=t.is_target,
+                pos=t.pos,
             )
-            for token in tokenize_sentence(sentence)
+            for t in tokens
         ],
     )
 
@@ -114,16 +123,18 @@ async def get_next_reading_sentence(
             detail="Unable to generate a sentence from the local Ollama model.",
         ) from exc
 
+    tokens = tokenize_sentence(sentence)
     return ReadingSentenceResponse(
         sentence=sentence,
         words=words,
         tokens=[
             ReadingSentenceToken(
-                text=token.text,
-                is_word=token.is_word,
-                is_target=token.is_target,
+                text=t.text,
+                is_word=t.is_word,
+                is_target=t.is_target,
+                pos=t.pos,
             )
-            for token in tokenize_sentence(sentence)
+            for t in tokens
         ],
     )
 
@@ -131,8 +142,8 @@ async def get_next_reading_sentence(
 @app.post("/api/feedback")
 def submit_feedback(request: FeedbackRequest) -> dict[str, str]:
     apply_feedback(
-        target_words=request.target_words,
-        marked_words=request.marked_words,
+        target_words=[(e.word, e.pos) for e in request.target_words],
+        marked_words=[(e.word, e.pos) for e in request.marked_words],
         sentence=request.sentence,
     )
     return {"status": "ok"}
@@ -142,7 +153,10 @@ def submit_feedback(request: FeedbackRequest) -> dict[str, str]:
 def get_vocabulary() -> VocabularyResponse:
     records = list_all_words()
     return VocabularyResponse(
-        words=[WordRecordOut(word=r.word, familiarity=r.familiarity) for r in records],
+        words=[
+            WordRecordOut(word=r.word, pos=r.pos, familiarity=r.familiarity)
+            for r in records
+        ],
         total=len(records),
     )
 

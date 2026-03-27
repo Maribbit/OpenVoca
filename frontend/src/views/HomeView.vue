@@ -843,9 +843,19 @@
 
     // Submit feedback for the current sentence (fire-and-forget)
     if (sentence.value) {
+      const targetEntries = tokens.value
+        .filter((t) => t.isTarget && t.pos)
+        .map((t) => ({ word: t.text.toLowerCase(), pos: t.pos! }));
+      const markedEntries = tokens.value
+        .filter(
+          (t) =>
+            t.isWord && t.pos && markedWords.value.has(t.text.toLowerCase()),
+        )
+        .map((t) => ({ word: t.text.toLowerCase(), pos: t.pos! }));
+
       void submitFeedback({
-        targetWords: currentTargetWords.value,
-        markedWords: [...markedWords.value],
+        targetWords: targetEntries,
+        markedWords: markedEntries,
         sentence: sentence.value,
       });
     }

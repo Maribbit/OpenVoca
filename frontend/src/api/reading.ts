@@ -8,6 +8,7 @@ export interface ReadingSentenceToken {
   text: string;
   isWord: boolean;
   isTarget?: boolean;
+  pos?: string | null;
 }
 
 export interface GenerateReadingSentenceRequest {
@@ -15,14 +16,20 @@ export interface GenerateReadingSentenceRequest {
   targetWordCount: number;
 }
 
+export interface WordPosEntry {
+  word: string;
+  pos: string;
+}
+
 export interface FeedbackRequest {
-  targetWords: string[];
-  markedWords: string[];
+  targetWords: WordPosEntry[];
+  markedWords: WordPosEntry[];
   sentence: string;
 }
 
 export interface WordRecordOut {
   word: string;
+  pos: string;
   familiarity: number;
 }
 
