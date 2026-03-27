@@ -35,6 +35,21 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.4.5
+
+Date: 2026-03-27
+
+### Highlights
+- Refactored duplicate route logic: the two reading-sentence endpoints (`/api/reading-sentence` and `/api/reading-sentence/next`) now share a single `_generate_reading_response` helper for prompt building, Ollama calling, tokenization, and response construction.
+
+### Backend
+- Extracted `_generate_reading_response()` private async helper in `main.py`, eliminating ~25 duplicated lines.
+- Each route retains only its unique word-selection strategy.
+- No behavior changes; 38 tests still passing.
+
+### Frontend
+- No changes.
+
 ## v0.4.4
 
 Date: 2026-03-27

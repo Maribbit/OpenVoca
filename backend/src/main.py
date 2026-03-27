@@ -69,16 +69,12 @@ def read_root() -> dict[str, str]:
     return {"status": "ok", "message": "OpenVoca backend is running!"}
 
 
-@app.post("/api/reading-sentence", response_model=ReadingSentenceResponse)
-async def get_reading_sentence(
-    request: ReadingSentenceRequest,
+async def _generate_reading_response(
+    words: list[str], prompt_template: str
 ) -> ReadingSentenceResponse:
+    """Shared logic: build prompt, call Ollama, tokenize, return response."""
     try:
-        words = [word.strip() for word in request.target_words if word.strip()]
-        if not words:
-            words = pick_target_words(limit=request.target_word_count)
-
-        prompt = build_sentence_generation_prompt(words, request.prompt_template)
+        prompt = build_sentence_generation_prompt(words, prompt_template)
         sentence = await ollama_client.generate_completion(prompt)
     except (httpx.HTTPError, ValueError) as exc:
         raise HTTPException(
@@ -101,6 +97,16 @@ async def get_reading_sentence(
             for t in tokens
         ],
     )
+
+
+@app.post("/api/reading-sentence", response_model=ReadingSentenceResponse)
+async def get_reading_sentence(
+    request: ReadingSentenceRequest,
+) -> ReadingSentenceResponse:
+    words = [word.strip() for word in request.target_words if word.strip()]
+    if not words:
+        words = pick_target_words(limit=request.target_word_count)
+    return await _generate_reading_response(words, request.prompt_template)
 
 
 @app.post("/api/reading-sentence/next", response_model=ReadingSentenceResponse)
@@ -115,31 +121,7 @@ async def get_next_reading_sentence(
     words = (
         db_words if db_words else [w.strip() for w in request.target_words if w.strip()]
     )
-
-    try:
-        prompt = build_sentence_generation_prompt(words, request.prompt_template)
-        sentence = await ollama_client.generate_completion(prompt)
-    except (httpx.HTTPError, ValueError) as exc:
-        raise HTTPException(
-            status_code=502,
-            detail="Unable to generate a sentence from the local Ollama model.",
-        ) from exc
-
-    tokens = tokenize_sentence(sentence)
-    return ReadingSentenceResponse(
-        sentence=sentence,
-        words=words,
-        tokens=[
-            ReadingSentenceToken(
-                text=t.text,
-                is_word=t.is_word,
-                is_target=t.is_target,
-                pos=t.pos,
-                lemma=t.lemma,
-            )
-            for t in tokens
-        ],
-    )
+    return await _generate_reading_response(words, request.prompt_template)
 
 
 @app.post("/api/feedback")
