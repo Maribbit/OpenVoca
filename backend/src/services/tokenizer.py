@@ -17,6 +17,7 @@ class SentenceToken:
     is_word: bool
     is_target: bool = False
     pos: str | None = None
+    lemma: str | None = None
 
 
 def tokenize_sentence(sentence: str) -> list[SentenceToken]:
@@ -53,6 +54,7 @@ def tokenize_sentence(sentence: str) -> list[SentenceToken]:
         text = spacy_token.text
         is_alpha = spacy_token.is_alpha
         pos = spacy_token.pos_ if is_alpha else None
+        lemma = spacy_token.lemma_.lower() if is_alpha else None
 
         # Check if this word was marked as a target by the LLM.
         is_target = False
@@ -70,7 +72,9 @@ def tokenize_sentence(sentence: str) -> list[SentenceToken]:
             is_word = False
 
         tokens.append(
-            SentenceToken(text=text, is_word=is_word, is_target=is_target, pos=pos)
+            SentenceToken(
+                text=text, is_word=is_word, is_target=is_target, pos=pos, lemma=lemma
+            )
         )
 
     return tokens

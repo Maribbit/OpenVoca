@@ -35,6 +35,26 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.4.4
+
+Date: 2026-03-27
+
+### Highlights
+- Added `lemma` field to `SentenceToken`, exposing spaCy's lemmatization (e.g., "running" → "run"). This unblocks dictionary integration and vocabulary normalization for upcoming features.
+- Fixed POS-aware word marking in the frontend: clicking "well" (NOUN) no longer highlights a separate "well" (ADV) in the same sentence. The `markedWords` set now keys on `word/POS` instead of just the word string.
+
+### Backend
+- `SentenceToken` dataclass gains a `lemma: str | None` field, populated from `token.lemma_.lower()` for alphabetic tokens.
+- `ReadingSentenceToken` Pydantic model updated to include `lemma` in API responses.
+- Added `test_tokens_include_lemma` test (cats→cat, running→run, punctuation→None).
+- 38 tests passing (16 tokenizer, 4 prompt builder, 18 integration).
+
+### Frontend
+- `ReadingSentenceToken` interface updated with optional `lemma` field.
+- `markedWords` keyed on `text.toLowerCase()/pos` composite instead of plain text, preventing cross-POS highlight bleeding.
+- Test fixture tokens updated with `pos` values for accurate assertions.
+- 5 tests passing.
+
 ## v0.4.3
 
 Date: 2026-03-27

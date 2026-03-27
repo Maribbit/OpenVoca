@@ -264,11 +264,11 @@
               type="button"
               class="cursor-pointer rounded-md px-[0.09em] py-[0.04em] transition-colors focus:outline-none"
               :class="[
-                markedWords.has(token.text.toLowerCase())
+                markedWords.has(tokenKey(token))
                   ? 'bg-highlight'
                   : 'hover:bg-highlight/70',
               ]"
-              @click="toggleWordMark(token.text)"
+              @click="toggleWordMark(token)"
             >
               <span
                 :class="
@@ -827,8 +827,12 @@
     }
   }
 
-  function toggleWordMark(word: string): void {
-    const key = word.toLowerCase();
+  function tokenKey(token: ReadingSentenceToken): string {
+    return `${token.text.toLowerCase()}/${token.pos ?? ""}`;
+  }
+
+  function toggleWordMark(token: ReadingSentenceToken): void {
+    const key = tokenKey(token);
     const next = new Set(markedWords.value);
     if (next.has(key)) {
       next.delete(key);
@@ -849,7 +853,7 @@
       const markedEntries = tokens.value
         .filter(
           (t) =>
-            t.isWord && t.pos && markedWords.value.has(t.text.toLowerCase()),
+            t.isWord && t.pos && markedWords.value.has(tokenKey(t)),
         )
         .map((t) => ({ word: t.text.toLowerCase(), pos: t.pos! }));
 

@@ -9,6 +9,7 @@ export interface ReadingSentenceToken {
   isWord: boolean;
   isTarget?: boolean;
   pos?: string | null;
+  lemma?: string | null;
 }
 
 export interface GenerateReadingSentenceRequest {

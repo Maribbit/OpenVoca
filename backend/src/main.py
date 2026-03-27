@@ -37,6 +37,7 @@ class ReadingSentenceToken(BaseModel):
     is_word: bool = Field(alias="isWord")
     is_target: bool = Field(default=False, alias="isTarget")
     pos: str | None = None
+    lemma: str | None = None
 
 
 class WordPosEntry(BaseModel):
@@ -95,6 +96,7 @@ async def get_reading_sentence(
                 is_word=t.is_word,
                 is_target=t.is_target,
                 pos=t.pos,
+                lemma=t.lemma,
             )
             for t in tokens
         ],
@@ -133,6 +135,7 @@ async def get_next_reading_sentence(
                 is_word=t.is_word,
                 is_target=t.is_target,
                 pos=t.pos,
+                lemma=t.lemma,
             )
             for t in tokens
         ],

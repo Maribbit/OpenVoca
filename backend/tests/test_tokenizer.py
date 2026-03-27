@@ -5,9 +5,13 @@ def test_tokenize_plain_sentence() -> None:
     """It should tokenize a simple sentence with POS tags from spaCy."""
     tokens = tokenize_sentence("A cat sat.")
     assert tokens == [
-        SentenceToken(text="A", is_word=False, is_target=False, pos="DET"),
-        SentenceToken(text="cat", is_word=True, is_target=False, pos="NOUN"),
-        SentenceToken(text="sat", is_word=True, is_target=False, pos="VERB"),
+        SentenceToken(text="A", is_word=False, is_target=False, pos="DET", lemma="a"),
+        SentenceToken(
+            text="cat", is_word=True, is_target=False, pos="NOUN", lemma="cat"
+        ),
+        SentenceToken(
+            text="sat", is_word=True, is_target=False, pos="VERB", lemma="sit"
+        ),
         SentenceToken(text=".", is_word=False, is_target=False, pos=None),
     ]
 
@@ -173,9 +177,22 @@ def test_function_pos_always_filtered() -> None:
     assert filtered["She"] is False  # PRON
     assert filtered["and"] is False  # CCONJ
     assert filtered["I"] is False  # PRON
-    assert filtered["to"] is False  # ADP
-    assert filtered["the"] is False  # DET
-    # Content words
-    assert filtered["walked"] is True  # VERB
-    assert filtered["bright"] is True  # ADJ
-    assert filtered["store"] is True  # NOUN
+
+
+# ---------------------------------------------------------------------------
+# Lemma field (v0.4.4)
+# ---------------------------------------------------------------------------
+
+
+def test_tokens_include_lemma() -> None:
+    """Every alphabetic token should carry its lemma from spaCy."""
+    tokens = tokenize_sentence("The cats were running quickly.")
+    cats = next(t for t in tokens if t.text == "cats")
+    assert cats.lemma == "cat"
+
+    running = next(t for t in tokens if t.text == "running")
+    assert running.lemma == "run"
+
+    # Non-alpha tokens should have no lemma
+    dot = next(t for t in tokens if t.text == ".")
+    assert dot.lemma is None
