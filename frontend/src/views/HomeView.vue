@@ -95,6 +95,15 @@
       />
     </main>
 
+    <Transition name="fade">
+      <p
+        v-if="feedbackError"
+        class="fixed bottom-6 left-1/2 -translate-x-1/2 rounded-lg bg-red-600 px-4 py-2 text-sm text-white shadow-lg"
+      >
+        {{ feedbackError }}
+      </p>
+    </Transition>
+
     <PreferencesModal
       v-if="isMenuOpen"
       :preferences="preferences"
@@ -130,7 +139,10 @@
   import HoldButton from "../components/HoldButton.vue";
   import PreferencesModal from "../components/PreferencesModal.vue";
   import ReadingSettingsBar from "../components/ReadingSettingsBar.vue";
-  import type { ReadingUiSettings, ThemeOption } from "../components/ReadingSettingsBar.vue";
+  import type {
+    ReadingUiSettings,
+    ThemeOption,
+  } from "../components/ReadingSettingsBar.vue";
   import SentenceDisplay from "../components/SentenceDisplay.vue";
 
   type FontSizeOption = "sm" | "md" | "lg";
@@ -152,6 +164,7 @@
   const sentence = ref("");
   const tokens = ref<ReadingSentenceToken[]>([]);
   const errorMessage = ref("");
+  const feedbackError = ref("");
   const isLoading = ref(true);
   const isMenuOpen = ref(false);
   const isUiPanelOpen = ref(false);
@@ -315,10 +328,15 @@
         .filter((t) => t.isWord && t.pos && markedWords.value.has(tokenKey(t)))
         .map((t) => ({ word: t.text.toLowerCase(), pos: t.pos! }));
 
-      void submitFeedback({
+      submitFeedback({
         targetWords: targetEntries,
         markedWords: markedEntries,
         sentence: sentence.value,
+      }).catch(() => {
+        feedbackError.value = i18nMessages.value.feedbackError;
+        setTimeout(() => {
+          feedbackError.value = "";
+        }, 4000);
       });
     }
 

@@ -35,6 +35,23 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.4.9
+
+Date: 2026-03-27
+
+### Highlights
+- Added error handling for `submitFeedback`: a 4-second auto-dismissing toast warns when word feedback fails to save.
+
+### Frontend
+- `submitFeedback()` now checks `response.ok` and throws on failure.
+- HomeView catches feedback errors and shows a red toast notification that fades out after 4 seconds.
+- Added `feedbackError` i18n messages (en/zh) in `useI18n.ts`.
+- Added `.fade-enter/leave` CSS transition in `main.css`.
+- 5 tests passing.
+
+### Breaking Changes
+- None.
+
 ## v0.4.8
 
 Date: 2026-03-27

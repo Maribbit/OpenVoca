@@ -8,6 +8,7 @@ interface LocaleMessages {
   readingDisplaySettings: string;
   loadingSentence: string;
   ollamaError: string;
+  feedbackError: string;
   refreshHint: string;
   preferences: string;
   closeMenu: string;
@@ -63,6 +64,7 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     readingDisplaySettings: "Reading display settings",
     loadingSentence: "Asking gemma3:4b for one sentence...",
     ollamaError: "Unable to reach the local Ollama model.",
+    feedbackError: "Failed to save your word feedback.",
     refreshHint: "Refresh the page for another sentence",
     preferences: "Preferences",
     closeMenu: "Close menu",
@@ -116,6 +118,7 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     readingDisplaySettings: "阅读显示设置",
     loadingSentence: "正在向 gemma3:4b 请求一句例句...",
     ollamaError: "无法连接本地 Ollama 模型。",
+    feedbackError: "保存词汇反馈失败。",
     refreshHint: "刷新页面即可生成下一句",
     preferences: "偏好设置",
     closeMenu: "关闭菜单",

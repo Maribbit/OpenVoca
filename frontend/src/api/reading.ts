@@ -61,7 +61,7 @@ export async function fetchNextReadingSentence(
 }
 
 export async function submitFeedback(request: FeedbackRequest): Promise<void> {
-  await fetch("/api/feedback", {
+  const response = await fetch("/api/feedback", {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -69,6 +69,10 @@ export async function submitFeedback(request: FeedbackRequest): Promise<void> {
     },
     body: JSON.stringify(request),
   });
+
+  if (!response.ok) {
+    throw new Error("Failed to submit feedback.");
+  }
 }
 
 export async function fetchVocabulary(): Promise<VocabularyResponse> {
