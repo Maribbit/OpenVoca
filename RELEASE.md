@@ -35,6 +35,27 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.4.2
+
+Date: 2026-03-27
+
+### Highlights
+- Replaced the static stopword list with POS-aware function-word filtering, fixing false positives where content words like "well" (noun), "can" (noun), "will" (noun), "shell" (noun) were incorrectly blocked.
+- The system now uses spaCy's Universal POS tags to decide which tokens are non-clickable function words (DET, PRON, ADP, AUX, CCONJ, SCONJ, PART, NUM), making the filter context-aware.
+- Removed ~200 lines of dead stopword entries (stripped contractions that never matched under spaCy tokenization).
+
+### Backend
+- Rewrote `stopwords.py`: replaced `ENGLISH_STOP_WORDS` word set with `FUNCTION_POS` frozenset of 8 Universal POS tags.
+- Updated `tokenizer.py` to filter by POS tag instead of word string: `pos not in FUNCTION_POS`.
+- Added 5 new regression tests covering ambiguous words (well/NOUN, can/NOUN, will/NOUN) and function-word POS filtering.
+- 33 tests passing (14 tokenizer, 4 prompt builder, 15 integration).
+
+### Frontend
+- No changes.
+
+### Breaking Changes
+- Some high-frequency adverbs (e.g., "very", "also", "just") are now clickable. This is by design: false negatives (blocking real content words) are worse than false positives (allowing common adverbs).
+
 ## v0.4.1
 
 Date: 2026-03-27

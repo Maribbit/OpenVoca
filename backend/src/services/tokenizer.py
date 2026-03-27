@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 import spacy
 
-from src.services.stopwords import ENGLISH_STOP_WORDS
+from src.services.stopwords import FUNCTION_POS
 
 _nlp = spacy.load("en_core_web_sm")
 
@@ -61,7 +61,7 @@ def tokenize_sentence(sentence: str) -> list[SentenceToken]:
         if is_target:
             is_word = True
         elif is_alpha:
-            is_word = low not in ENGLISH_STOP_WORDS
+            is_word = pos not in FUNCTION_POS
         else:
             is_word = False
 

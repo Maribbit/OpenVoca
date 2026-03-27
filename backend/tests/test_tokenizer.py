@@ -104,3 +104,61 @@ def test_tokenize_contraction() -> None:
     # spaCy splits "Don't" into "Do" + "n't"
     assert "Do" in texts
     assert "n't" in texts
+
+
+# ---------------------------------------------------------------------------
+# POS-aware stopword filtering (v0.4.2)
+# ---------------------------------------------------------------------------
+
+
+def test_well_noun_is_clickable() -> None:
+    """'well' as a NOUN (water well) should NOT be filtered as a stopword."""
+    tokens = tokenize_sentence("The well was deep.")
+    well_tok = next(t for t in tokens if t.text == "well")
+    assert well_tok.pos == "NOUN"
+    assert well_tok.is_word is True
+
+
+def test_can_noun_is_clickable() -> None:
+    """'can' as a NOUN (tin can) should NOT be filtered as a stopword."""
+    tokens = tokenize_sentence("She opened the can quickly.")
+    can_tok = next(t for t in tokens if t.text == "can")
+    assert can_tok.pos == "NOUN"
+    assert can_tok.is_word is True
+
+
+def test_will_noun_is_clickable() -> None:
+    """'will' as a NOUN (testament) should NOT be filtered as a stopword."""
+    tokens = tokenize_sentence("He left his will on the desk.")
+    will_tok = next(t for t in tokens if t.text == "will")
+    assert will_tok.pos == "NOUN"
+    assert will_tok.is_word is True
+
+
+def test_auxiliaries_always_filtered() -> None:
+    """Auxiliary uses of ambiguous words should still be filtered."""
+    tokens = tokenize_sentence("She can run fast.")
+    can_tok = next(t for t in tokens if t.text == "can")
+    assert can_tok.pos == "AUX"
+    assert can_tok.is_word is False
+
+    tokens2 = tokenize_sentence("It will rain tomorrow.")
+    will_tok = next(t for t in tokens2 if t.text == "will")
+    assert will_tok.pos == "AUX"
+    assert will_tok.is_word is False
+
+
+def test_function_pos_always_filtered() -> None:
+    """Determiners, pronouns, prepositions, conjunctions should all be filtered."""
+    tokens = tokenize_sentence("She and I walked to the bright store.")
+    filtered = {t.text: t.is_word for t in tokens}
+    # Function words
+    assert filtered["She"] is False  # PRON
+    assert filtered["and"] is False  # CCONJ
+    assert filtered["I"] is False  # PRON
+    assert filtered["to"] is False  # ADP
+    assert filtered["the"] is False  # DET
+    # Content words
+    assert filtered["walked"] is True  # VERB
+    assert filtered["bright"] is True  # ADJ
+    assert filtered["store"] is True  # NOUN
