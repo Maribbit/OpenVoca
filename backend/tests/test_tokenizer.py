@@ -106,6 +106,23 @@ def test_tokenize_contraction() -> None:
     assert "n't" in texts
 
 
+def test_hyphenated_target_word() -> None:
+    """A *hyphenated-compound* target should mark each part as a target."""
+    tokens = tokenize_sentence("It was a *well-known* fact.")
+    # spaCy splits "well-known" into "well" + "-" + "known"
+    well_tok = next(t for t in tokens if t.text == "well")
+    assert well_tok.is_target is True
+    assert well_tok.is_word is True
+
+    known_tok = next(t for t in tokens if t.text == "known")
+    assert known_tok.is_target is True
+    assert known_tok.is_word is True
+
+    # The hyphen itself should not be a target
+    hyphen_tok = next(t for t in tokens if t.text == "-")
+    assert hyphen_tok.is_target is False
+
+
 # ---------------------------------------------------------------------------
 # POS-aware stopword filtering (v0.4.2)
 # ---------------------------------------------------------------------------

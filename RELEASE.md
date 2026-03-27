@@ -35,6 +35,24 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.4.3
+
+Date: 2026-03-27
+
+### Highlights
+- Fixed hyphenated target words (e.g., `*well-known*`) being silently dropped — the target regex now captures hyphens and splits compounds into sub-tokens for correct matching.
+- Added missing endpoint tests for `/api/reading-sentence/next`, `DELETE /api/vocabulary`, and the 502 error path.
+
+### Backend
+- Expanded `_TARGET_PATTERN` regex to include hyphens in the character class.
+- Added compound target splitting: hyphenated captures like "well-known" are decomposed into ["well", "known"] so each sub-token is correctly marked `is_target=True`.
+- Added `test_hyphenated_target_word` to tokenizer tests.
+- Added 3 new integration tests: `test_next_sentence_endpoint_picks_from_vocabulary`, `test_delete_vocabulary_endpoint`, `test_reading_sentence_returns_502_on_ollama_failure`.
+- 37 tests passing (15 tokenizer, 4 prompt builder, 18 integration).
+
+### Frontend
+- No changes.
+
 ## v0.4.2
 
 Date: 2026-03-27

@@ -207,6 +207,89 @@ def test_reading_sentence_endpoint_uses_frontend_configuration(
     assert dot_tok["pos"] is None
 
 
+def test_next_sentence_endpoint_picks_from_vocabulary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The /next endpoint should prefer words from the vocabulary database."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    apply_feedback(
+        target_words=[("meadow", "NOUN")],
+        marked_words=[("meadow", "NOUN")],
+        sentence="A meadow bloomed.",
+        engine=engine,
+    )
+
+    async def fake_generate_completion(prompt: str) -> str:
+        assert "meadow" in prompt
+        return "The *meadow* was green."
+
+    monkeypatch.setattr(
+        main_module.ollama_client,
+        "generate_completion",
+        fake_generate_completion,
+    )
+
+    response = client.post(
+        "/api/reading-sentence/next",
+        json={
+            "targetWords": [],
+            "promptTemplate": "Write one sentence with {{target_words}}.",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "meadow" in data["words"]
+    meadow_tok = next(t for t in data["tokens"] if t["text"] == "meadow")
+    assert meadow_tok["isTarget"] is True
+
+
+def test_delete_vocabulary_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    """DELETE /api/vocabulary should clear all records and return the count."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    apply_feedback(
+        target_words=[("alpha", "NOUN"), ("beta", "NOUN")],
+        marked_words=[],
+        sentence="test",
+        engine=engine,
+    )
+    assert len(list_all_words(engine)) == 2
+
+    response = client.delete("/api/vocabulary")
+    assert response.status_code == 200
+    assert response.json() == {"deleted": 2}
+    assert len(list_all_words(engine)) == 0
+
+
+def test_reading_sentence_returns_502_on_ollama_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The API should return 502 when Ollama is unreachable."""
+
+    async def failing_generate(prompt: str) -> str:
+        raise httpx.ConnectError("Connection refused")
+
+    monkeypatch.setattr(
+        main_module.ollama_client,
+        "generate_completion",
+        failing_generate,
+    )
+
+    response = client.post(
+        "/api/reading-sentence",
+        json={
+            "targetWords": ["test"],
+            "promptTemplate": "Write a sentence with {{target_words}}.",
+        },
+    )
+
+    assert response.status_code == 502
+
+
 # ---------------------------------------------------------------------------
 # Word store / familiarity update tests
 # ---------------------------------------------------------------------------

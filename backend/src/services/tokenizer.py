@@ -7,8 +7,8 @@ from src.services.stopwords import FUNCTION_POS
 
 _nlp = spacy.load("en_core_web_sm")
 
-# Regex to find *word* or **word** target markers in the raw LLM output.
-_TARGET_PATTERN = re.compile(r"\*+([A-Za-z]+(?:['\'\u2019][A-Za-z]+)*)\*+")
+# Regex to find *word*, **word**, or *hyphen-compound* target markers.
+_TARGET_PATTERN = re.compile(r"\*+([A-Za-z]+(?:[-'\'\u2019][A-Za-z]+)*)\*+")
 
 
 @dataclass(frozen=True)
@@ -31,10 +31,14 @@ def tokenize_sentence(sentence: str) -> list[SentenceToken]:
         return []
 
     # Step 1: collect lowercased target words from markdown markers.
+    # Compound captures (e.g. "well-known", "cat's") are split into
+    # individual alphabetic parts so they match spaCy's sub-tokens.
     target_words: dict[str, int] = {}
     for match in _TARGET_PATTERN.finditer(sentence):
-        word = match.group(1).lower()
-        target_words[word] = target_words.get(word, 0) + 1
+        raw = match.group(1).lower()
+        parts = [p for p in re.split(r"[^a-z]+", raw) if p]
+        for part in parts:
+            target_words[part] = target_words.get(part, 0) + 1
 
     # Step 2: strip all asterisks for clean spaCy input.
     clean = sentence.replace("*", "")
