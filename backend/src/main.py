@@ -102,16 +102,6 @@ async def _generate_reading_response(
     )
 
 
-@app.post("/api/reading-sentence", response_model=ReadingSentenceResponse)
-async def get_reading_sentence(
-    request: ReadingSentenceRequest,
-) -> ReadingSentenceResponse:
-    words = [word.strip() for word in request.target_words if word.strip()]
-    if not words:
-        words = pick_target_words(limit=request.target_word_count)
-    return await _generate_reading_response(words, request.prompt_template)
-
-
 @app.post("/api/reading-sentence/next", response_model=ReadingSentenceResponse)
 async def get_next_reading_sentence(
     request: ReadingSentenceRequest,

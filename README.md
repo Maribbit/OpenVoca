@@ -9,7 +9,7 @@ A minimalistic, LLM-powered language learning application focused on reading con
 ## Architecture 
 OpenVoca is designed as a Mono-repository containing both frontend and backend.
 
-- **Frontend**: Vue 3 + TypeScript + Vite + Tailwind CSS v4 + Pinia
+- **Frontend**: Vue 3 + TypeScript + Vite + Tailwind CSS v4
   *👉 See [frontend/README.md](./frontend/README.md) for startup & testing details.*
 - **Backend**: Python 3.12+ (managed by uv) + FastAPI + SQLModel + SQLite
   *👉 See [backend/README.md](./backend/README.md) for API & testing details.*

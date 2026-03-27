@@ -7,7 +7,6 @@ This is the frontend component for OpenVoca, responsible for delivering the "Zen
 - **Language**: TypeScript
 - **Tooling**: [Vite](https://vitejs.dev/)
 - **Routing**: Vue Router
-- **State Management**: Pinia
 - **Styling**: Tailwind CSS v4
 - **Package Manager**: pnpm
 

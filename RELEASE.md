@@ -35,6 +35,30 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.4.8
+
+Date: 2026-03-27
+
+### Highlights
+- Dead code cleanup: removed unused `POST /api/reading-sentence` endpoint, `fetchReadingSentence()` frontend function, placeholder test, and Pinia dependency.
+- Declared `anyio` as an explicit dev dependency for pytest-anyio compatibility.
+- Roadmap updated: test coverage and vocabulary pagination moved to Phase 3; API version prefix and CORS skipped for desktop-only deployment.
+
+### Backend
+- Removed `POST /api/reading-sentence` endpoint (replaced by `/api/reading-sentence/next`).
+- Removed `test_ollama_client_token_limit` placeholder test.
+- Migrated two endpoint tests from old route to `/next` with proper word store setup.
+- Added `anyio>=4.12.0` to `[dependency-groups].dev` in `pyproject.toml`.
+- 39 tests passing (18 integration, 4 prompt builder, 17 tokenizer).
+
+### Frontend
+- Removed `fetchReadingSentence()` from `api/reading.ts` (unused, superseded by `fetchNextReadingSentence`).
+- Removed Pinia from `package.json`, `main.ts`, and both READMEs (no stores in use).
+- 5 tests passing.
+
+### Breaking Changes
+- `POST /api/reading-sentence` removed. Use `POST /api/reading-sentence/next` instead.
+
 ## v0.4.7
 
 Date: 2026-03-27

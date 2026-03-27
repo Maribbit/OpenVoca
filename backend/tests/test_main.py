@@ -138,15 +138,6 @@ async def test_ollama_client_returns_sentence_from_response() -> None:
 
 
 @pytest.mark.anyio
-async def test_ollama_client_token_limit() -> None:
-    """The client should handle context window limits if necessary (future proofing)."""
-    # This test is just a placeholder to replace the old 'empty words' test
-    # which is now properly tested in test_prompt_builder.py.
-    # The integration layer is now dumb, so logic tests belong in service layer.
-    pass
-
-
-@pytest.mark.anyio
 async def test_ollama_client_rejects_missing_response_field() -> None:
     """The client should fail fast when Ollama returns an invalid payload."""
 
@@ -163,16 +154,24 @@ async def test_ollama_client_rejects_missing_response_field() -> None:
         await ollama_client.generate_completion("Use these words: lantern.")
 
 
-def test_reading_sentence_endpoint_uses_frontend_configuration(
+def test_reading_sentence_endpoint_returns_pos_tags(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The API should forward prompt and target words from the frontend to Ollama."""
+    """The /next endpoint should return POS-tagged tokens with Markdown target markers."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    apply_feedback(
+        target_words=[("harbor", "NOUN"), ("lantern", "NOUN")],
+        marked_words=[("harbor", "NOUN"), ("lantern", "NOUN")],
+        sentence="A harbor lantern.",
+        engine=engine,
+    )
 
     async def fake_generate_completion(prompt: str) -> str:
-        # Verify prompt includes the new formatting instruction
-        assert "Write one sentence with harbor, lantern." in prompt
+        assert "harbor" in prompt
+        assert "lantern" in prompt
         assert "You MUST mark the target words" in prompt
-        # Return a sentence with Markdown italics
         return "A *harbor* *lantern* flickered in the rain."
 
     monkeypatch.setattr(
@@ -182,9 +181,9 @@ def test_reading_sentence_endpoint_uses_frontend_configuration(
     )
 
     response = client.post(
-        "/api/reading-sentence",
+        "/api/reading-sentence/next",
         json={
-            "targetWords": ["harbor", "lantern"],
+            "targetWords": [],
             "promptTemplate": "Write one sentence with {{target_words}}.",
         },
     )
@@ -192,9 +191,7 @@ def test_reading_sentence_endpoint_uses_frontend_configuration(
     assert response.status_code == 200
     data = response.json()
     assert data["sentence"] == "A *harbor* *lantern* flickered in the rain."
-    assert data["words"] == ["harbor", "lantern"]
 
-    # Verify tokens have POS tags for word tokens
     tokens = data["tokens"]
     harbor_tok = next(t for t in tokens if t["text"] == "harbor")
     assert harbor_tok["isWord"] is True
@@ -208,7 +205,6 @@ def test_reading_sentence_endpoint_uses_frontend_configuration(
     assert flickered_tok["isWord"] is True
     assert flickered_tok["pos"] == "VERB"
 
-    # Non-words should have no POS
     dot_tok = next(t for t in tokens if t["text"] == ".")
     assert dot_tok["pos"] is None
 
@@ -275,6 +271,15 @@ def test_reading_sentence_returns_502_on_ollama_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The API should return 502 when Ollama is unreachable."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    apply_feedback(
+        target_words=[("test", "NOUN")],
+        marked_words=[("test", "NOUN")],
+        sentence="test",
+        engine=engine,
+    )
 
     async def failing_generate(prompt: str) -> str:
         raise httpx.ConnectError("Connection refused")
@@ -286,9 +291,9 @@ def test_reading_sentence_returns_502_on_ollama_failure(
     )
 
     response = client.post(
-        "/api/reading-sentence",
+        "/api/reading-sentence/next",
         json={
-            "targetWords": ["test"],
+            "targetWords": [],
             "promptTemplate": "Write a sentence with {{target_words}}.",
         },
     )
