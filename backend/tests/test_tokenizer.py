@@ -7,12 +7,23 @@ def test_tokenize_plain_sentence() -> None:
     assert tokens == [
         SentenceToken(text="A", is_word=False, is_target=False, pos="DET", lemma="a"),
         SentenceToken(
-            text="cat", is_word=True, is_target=False, pos="NOUN", lemma="cat"
+            text="cat",
+            is_word=True,
+            is_target=False,
+            pos="NOUN",
+            lemma="cat",
         ),
         SentenceToken(
-            text="sat", is_word=True, is_target=False, pos="VERB", lemma="sit"
+            text="sat",
+            is_word=True,
+            is_target=False,
+            pos="VERB",
+            lemma="sit",
+            trailing_space=False,
         ),
-        SentenceToken(text=".", is_word=False, is_target=False, pos=None),
+        SentenceToken(
+            text=".", is_word=False, is_target=False, pos=None, trailing_space=False
+        ),
     ]
 
 
@@ -108,6 +119,23 @@ def test_tokenize_contraction() -> None:
     # spaCy splits "Don't" into "Do" + "n't"
     assert "Do" in texts
     assert "n't" in texts
+
+
+def test_trailing_space_on_contractions() -> None:
+    """'Do' in 'Don't' should have no trailing space so it renders as 'Don't'."""
+    tokens = tokenize_sentence("Don't stop now.")
+    do_tok = next(t for t in tokens if t.text == "Do")
+    assert do_tok.trailing_space is False
+
+    nt_tok = next(t for t in tokens if t.text == "n't")
+    assert nt_tok.trailing_space is True
+
+    stop_tok = next(t for t in tokens if t.text == "stop")
+    assert stop_tok.trailing_space is True
+
+    # Period at end typically has no trailing space
+    dot_tok = next(t for t in tokens if t.text == ".")
+    assert dot_tok.trailing_space is False
 
 
 def test_hyphenated_target_word() -> None:

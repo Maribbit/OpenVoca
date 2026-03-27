@@ -16,8 +16,14 @@ const tokenizedSentence = {
     { text: "window", isWord: true, isTarget: true, pos: "NOUN" },
     { text: "beside", isWord: true, isTarget: false, pos: "ADP" },
     { text: "the", isWord: true, isTarget: false, pos: "DET" },
-    { text: "meadow", isWord: true, isTarget: true, pos: "NOUN" },
-    { text: ".", isWord: false, isTarget: false },
+    {
+      text: "meadow",
+      isWord: true,
+      isTarget: true,
+      pos: "NOUN",
+      trailingSpace: false,
+    },
+    { text: ".", isWord: false, isTarget: false, trailingSpace: false },
   ],
 };
 

@@ -38,6 +38,7 @@ class ReadingSentenceToken(BaseModel):
     is_target: bool = Field(default=False, alias="isTarget")
     pos: str | None = None
     lemma: str | None = None
+    trailing_space: bool = Field(default=True, alias="trailingSpace")
 
 
 class WordPosEntry(BaseModel):
@@ -93,6 +94,7 @@ async def _generate_reading_response(
                 is_target=t.is_target,
                 pos=t.pos,
                 lemma=t.lemma,
+                trailing_space=t.trailing_space,
             )
             for t in tokens
         ],

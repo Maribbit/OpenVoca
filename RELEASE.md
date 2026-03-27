@@ -35,6 +35,26 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.4.6
+
+Date: 2026-03-27
+
+### Highlights
+- Fixed contraction display spacing: "Don't" now renders as "Don't" instead of "Do n't". The backend now provides a `trailingSpace` flag per token (derived from spaCy's `whitespace_`), and the frontend uses it directly instead of a heuristic-based spacing function.
+- Refactored the duplicate reading-sentence route logic into a shared `_generate_reading_response` helper (done in v0.4.5, release notes consolidated here).
+
+### Backend
+- `SentenceToken` gains `trailing_space: bool` field, populated from `spacy_token.whitespace_`.
+- `ReadingSentenceToken` API model includes `trailingSpace` in JSON output.
+- Added `test_trailing_space_on_contractions` test verifying correct spacing for "Don't stop now."
+- 39 tests passing (17 tokenizer, 4 prompt builder, 18 integration).
+
+### Frontend
+- `ReadingSentenceToken` interface updated with optional `trailingSpace` field.
+- `needsLeadingSpace()` reduced from 20-line heuristic to a 4-line check: `prev?.trailingSpace !== false`.
+- Test fixture tokens updated with `trailingSpace` values.
+- 5 tests passing.
+
 ## v0.4.5
 
 Date: 2026-03-27

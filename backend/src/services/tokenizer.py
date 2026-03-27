@@ -18,6 +18,7 @@ class SentenceToken:
     is_target: bool = False
     pos: str | None = None
     lemma: str | None = None
+    trailing_space: bool = True
 
 
 def tokenize_sentence(sentence: str) -> list[SentenceToken]:
@@ -73,7 +74,12 @@ def tokenize_sentence(sentence: str) -> list[SentenceToken]:
 
         tokens.append(
             SentenceToken(
-                text=text, is_word=is_word, is_target=is_target, pos=pos, lemma=lemma
+                text=text,
+                is_word=is_word,
+                is_target=is_target,
+                pos=pos,
+                lemma=lemma,
+                trailing_space=len(spacy_token.whitespace_) > 0,
             )
         )
 

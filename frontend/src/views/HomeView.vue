@@ -851,10 +851,7 @@
         .filter((t) => t.isTarget && t.pos)
         .map((t) => ({ word: t.text.toLowerCase(), pos: t.pos! }));
       const markedEntries = tokens.value
-        .filter(
-          (t) =>
-            t.isWord && t.pos && markedWords.value.has(tokenKey(t)),
-        )
+        .filter((t) => t.isWord && t.pos && markedWords.value.has(tokenKey(t)))
         .map((t) => ({ word: t.text.toLowerCase(), pos: t.pos! }));
 
       void submitFeedback({
@@ -928,33 +925,8 @@
 
   function needsLeadingSpace(index: number): boolean {
     if (index === 0) return false;
-
-    const currentToken = tokens.value[index];
-    const previousToken = tokens.value[index - 1];
-
-    if (!currentToken || !previousToken) return false;
-
-    // Treat both clickable words and stop words (which are alphanumeric) as words for spacing
-    const isTextWord =
-      currentToken.isWord || /^[A-Za-z0-9]/.test(currentToken.text);
-
-    if (!isTextWord) {
-      return false;
-    }
-
-    return !new Set([
-      '"',
-      "'",
-      "“",
-      "‘",
-      "(",
-      "[",
-      "{",
-      "-",
-      "–",
-      "—",
-      "‑",
-    ]).has(previousToken.text);
+    const prev = tokens.value[index - 1];
+    return prev?.trailingSpace !== false;
   }
 
   function switchLanguage(nextLocale: Locale): void {
