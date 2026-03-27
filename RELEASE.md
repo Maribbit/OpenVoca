@@ -35,6 +35,34 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.4.7
+
+Date: 2026-03-27
+
+### Highlights
+- Split the 998-line `HomeView.vue` into four focused child components (`SentenceDisplay`, `HoldButton`, `ReadingSettingsBar`, `PreferencesModal`), reducing the parent to 397 lines and clearing the path for Phase 3 features (pronunciation button, async sentence queue UI).
+- Introduced an abstract `LLMProvider` protocol in the backend, decoupling API routes from the Ollama-specific client. This enables future multi-model support (OpenAI, Anthropic) with zero route-layer changes.
+
+### Backend
+- Added `src/integrations/provider.py` with `LLMProvider` runtime-checkable protocol defining `async generate_completion(prompt: str) -> str`.
+- Module-level variable renamed from `ollama_client` to `llm: LLMProvider`, typed against the protocol.
+- `OllamaClient` structurally satisfies `LLMProvider` without inheritance.
+- Added `test_ollama_client_satisfies_llm_provider_protocol` conformance test.
+- All monkeypatch targets updated from `ollama_client` to `llm`.
+- 40 tests passing (19 tokenizer, 4 prompt builder, 17 integration).
+
+### Frontend
+- Extracted `SentenceDisplay.vue`: sentence rendering, token spacing, word-mark toggle.
+- Extracted `HoldButton.vue`: hold-to-continue capsule with progress animation and 600ms timer.
+- Extracted `ReadingSettingsBar.vue`: inline floating panel for font size / spacing / theme.
+- Extracted `PreferencesModal.vue`: full preferences dialog (LLM config, language, fonts, prompt editor, word count slider).
+- `HomeView.vue` reduced to orchestration (state management, keyboard events, API calls).
+- No API changes; no new dependencies.
+- 5 tests passing (all existing HomeView tests pass without modification).
+
+### Breaking Changes
+- None.
+
 ## v0.4.6
 
 Date: 2026-03-27

@@ -3,6 +3,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from fastapi import FastAPI, HTTPException
 
 from src.integrations.ollama import OllamaClient
+from src.integrations.provider import LLMProvider
 from src.services.prompt_builder import build_sentence_generation_prompt
 from src.services.tokenizer import tokenize_sentence
 from src.services.word_store import (
@@ -13,7 +14,7 @@ from src.services.word_store import (
 )
 
 app = FastAPI(title="OpenVoca API")
-ollama_client = OllamaClient()
+llm: LLMProvider = OllamaClient()
 
 
 class ReadingSentenceRequest(BaseModel):
@@ -73,10 +74,10 @@ def read_root() -> dict[str, str]:
 async def _generate_reading_response(
     words: list[str], prompt_template: str
 ) -> ReadingSentenceResponse:
-    """Shared logic: build prompt, call Ollama, tokenize, return response."""
+    """Shared logic: build prompt, call LLM, tokenize, return response."""
     try:
         prompt = build_sentence_generation_prompt(words, prompt_template)
-        sentence = await ollama_client.generate_completion(prompt)
+        sentence = await llm.generate_completion(prompt)
     except (httpx.HTTPError, ValueError) as exc:
         raise HTTPException(
             status_code=502,

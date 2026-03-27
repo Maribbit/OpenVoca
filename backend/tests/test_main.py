@@ -7,6 +7,7 @@ from sqlmodel import SQLModel, create_engine
 import src.main as main_module
 from src.main import app
 from src.integrations.ollama import OllamaClient
+from src.integrations.provider import LLMProvider
 from src.services.tokenizer import tokenize_sentence
 from src.services.word_store import (
     apply_feedback,
@@ -40,6 +41,11 @@ def test_read_root():
         "status": "ok",
         "message": "OpenVoca backend is running!",
     }
+
+
+def test_ollama_client_satisfies_llm_provider_protocol() -> None:
+    """OllamaClient must be a structural subtype of LLMProvider."""
+    assert isinstance(OllamaClient(), LLMProvider)
 
 
 def test_tokenize_sentence_splits_words_and_punctuation() -> None:
@@ -170,7 +176,7 @@ def test_reading_sentence_endpoint_uses_frontend_configuration(
         return "A *harbor* *lantern* flickered in the rain."
 
     monkeypatch.setattr(
-        main_module.ollama_client,
+        main_module.llm,
         "generate_completion",
         fake_generate_completion,
     )
@@ -226,7 +232,7 @@ def test_next_sentence_endpoint_picks_from_vocabulary(
         return "The *meadow* was green."
 
     monkeypatch.setattr(
-        main_module.ollama_client,
+        main_module.llm,
         "generate_completion",
         fake_generate_completion,
     )
@@ -274,7 +280,7 @@ def test_reading_sentence_returns_502_on_ollama_failure(
         raise httpx.ConnectError("Connection refused")
 
     monkeypatch.setattr(
-        main_module.ollama_client,
+        main_module.llm,
         "generate_completion",
         failing_generate,
     )
