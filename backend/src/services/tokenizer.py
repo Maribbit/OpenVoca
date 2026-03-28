@@ -58,11 +58,22 @@ def tokenize_sentence(sentence: str) -> list[SentenceToken]:
         lemma = spacy_token.lemma_.lower() if is_alpha else None
 
         # Check if this word was marked as a target by the LLM.
+        # Match by lemma so inflected forms (e.g. "ran" → "run") still hit.
         is_target = False
-        low = text.lower()
-        if is_alpha and low in remaining_targets and remaining_targets[low] > 0:
+        if (
+            is_alpha
+            and lemma
+            and lemma in remaining_targets
+            and remaining_targets[lemma] > 0
+        ):
             is_target = True
-            remaining_targets[low] -= 1
+            remaining_targets[lemma] -= 1
+        elif is_alpha:
+            # Fallback: match by surface text for compound/irregular cases.
+            low = text.lower()
+            if low in remaining_targets and remaining_targets[low] > 0:
+                is_target = True
+                remaining_targets[low] -= 1
 
         # Determine if the token is a clickable word.
         if is_target:

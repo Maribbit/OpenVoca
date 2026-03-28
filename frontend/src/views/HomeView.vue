@@ -322,11 +322,14 @@
 
     if (sentence.value) {
       const targetEntries = tokens.value
-        .filter((t) => t.isTarget && t.pos)
-        .map((t) => ({ word: t.text.toLowerCase(), pos: t.pos! }));
+        .filter((t) => t.isTarget && t.pos && t.lemma)
+        .map((t) => ({ lemma: t.lemma!, pos: t.pos! }));
       const markedEntries = tokens.value
-        .filter((t) => t.isWord && t.pos && markedWords.value.has(tokenKey(t)))
-        .map((t) => ({ word: t.text.toLowerCase(), pos: t.pos! }));
+        .filter(
+          (t) =>
+            t.isWord && t.pos && t.lemma && markedWords.value.has(tokenKey(t)),
+        )
+        .map((t) => ({ lemma: t.lemma!, pos: t.pos! }));
 
       submitFeedback({
         targetWords: targetEntries,

@@ -11,6 +11,7 @@ from src.services.word_store import (
     clear_all_words,
     list_all_words,
     pick_target_words,
+    tick_cooldowns,
 )
 
 app = FastAPI(title="OpenVoca API")
@@ -43,7 +44,7 @@ class ReadingSentenceToken(BaseModel):
 
 
 class WordPosEntry(BaseModel):
-    word: str
+    lemma: str
     pos: str
 
 
@@ -56,9 +57,13 @@ class FeedbackRequest(BaseModel):
 
 
 class WordRecordOut(BaseModel):
-    word: str
+    model_config = ConfigDict(populate_by_name=True)
+
+    lemma: str
     pos: str
-    familiarity: int
+    interval: int
+    cooldown: int
+    last_context: str | None = Field(default=None, alias="lastContext")
 
 
 class VocabularyResponse(BaseModel):
@@ -108,8 +113,10 @@ async def get_next_reading_sentence(
 ) -> ReadingSentenceResponse:
     """Pick target words from the database and generate a sentence.
 
+    Ticks cooldowns before picking so words become available on schedule.
     Falls back to frontend-provided words only for compatibility.
     """
+    tick_cooldowns()
     db_words = pick_target_words(limit=request.target_word_count)
     words = (
         db_words if db_words else [w.strip() for w in request.target_words if w.strip()]
@@ -120,8 +127,8 @@ async def get_next_reading_sentence(
 @app.post("/api/feedback")
 def submit_feedback(request: FeedbackRequest) -> dict[str, str]:
     apply_feedback(
-        target_words=[(e.word, e.pos) for e in request.target_words],
-        marked_words=[(e.word, e.pos) for e in request.marked_words],
+        target_words=[(e.lemma, e.pos) for e in request.target_words],
+        marked_words=[(e.lemma, e.pos) for e in request.marked_words],
         sentence=request.sentence,
     )
     return {"status": "ok"}
@@ -132,7 +139,13 @@ def get_vocabulary() -> VocabularyResponse:
     records = list_all_words()
     return VocabularyResponse(
         words=[
-            WordRecordOut(word=r.word, pos=r.pos, familiarity=r.familiarity)
+            WordRecordOut(
+                lemma=r.lemma,
+                pos=r.pos,
+                interval=r.interval,
+                cooldown=r.cooldown,
+                last_context=r.last_context,
+            )
             for r in records
         ],
         total=len(records),

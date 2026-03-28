@@ -56,19 +56,21 @@
             <tr
               class="border-b border-black/5 bg-surface text-xs uppercase tracking-widest text-inkLight"
             >
-              <th class="px-6 py-4 font-medium">Word</th>
+              <th class="px-6 py-4 font-medium">Lemma</th>
               <th class="px-6 py-4 font-medium">{{ i18nMessages.pos }}</th>
-              <th class="px-6 py-4 font-medium">Familiarity</th>
+              <th class="px-6 py-4 font-medium">Status</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-black/3 text-sm">
             <tr
               v-for="word in words"
-              :key="`${word.word}-${word.pos}`"
+              :key="`${word.lemma}-${word.pos}`"
               class="transition-colors hover:bg-black/2"
             >
               <td class="px-6 py-4">
-                <span class="font-serif text-lg text-ink">{{ word.word }}</span>
+                <span class="font-serif text-lg text-ink">{{
+                  word.lemma
+                }}</span>
               </td>
               <td class="px-6 py-4">
                 <span
@@ -79,20 +81,18 @@
               </td>
               <td class="px-6 py-4">
                 <div class="flex items-center gap-2">
-                  <div class="flex gap-1">
-                    <div
-                      v-for="dot in 4"
-                      :key="dot"
-                      class="h-2 w-2 rounded-full"
-                      :class="
-                        dot <= word.familiarity
-                          ? familiarityDotColor(word.familiarity)
-                          : 'bg-black/10'
-                      "
-                    />
-                  </div>
+                  <div
+                    class="h-2 w-2 rounded-full"
+                    :class="intervalDotColor(word.interval)"
+                  />
                   <span class="text-xs font-medium text-inkLight">
-                    {{ familiarityLabel(word.familiarity) }}
+                    {{ intervalLabel(word.interval) }}
+                  </span>
+                  <span
+                    v-if="word.cooldown > 0"
+                    class="ml-1 text-xs text-inkLight/60"
+                  >
+                    ({{ word.cooldown }})
                   </span>
                 </div>
               </td>
@@ -137,17 +137,17 @@
     words.value = [];
   }
 
-  function familiarityDotColor(level: number): string {
-    if (level <= 1) return "bg-orange-400";
-    if (level <= 2) return "bg-yellow-400";
-    if (level <= 3) return "bg-green-400";
+  function intervalDotColor(interval: number): string {
+    if (interval <= 2) return "bg-orange-400";
+    if (interval <= 8) return "bg-yellow-400";
+    if (interval <= 32) return "bg-green-400";
     return "bg-green-500";
   }
 
-  function familiarityLabel(level: number): string {
-    if (level === 0) return i18nMessages.value.familiarityNeedsReview;
-    if (level <= 1) return i18nMessages.value.familiarityLearning;
-    if (level <= 3) return i18nMessages.value.familiarityFamiliar;
+  function intervalLabel(interval: number): string {
+    if (interval <= 2) return i18nMessages.value.familiarityNeedsReview;
+    if (interval <= 8) return i18nMessages.value.familiarityLearning;
+    if (interval <= 32) return i18nMessages.value.familiarityFamiliar;
     return i18nMessages.value.familiarityMastered;
   }
 

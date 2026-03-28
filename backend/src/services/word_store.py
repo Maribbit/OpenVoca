@@ -2,12 +2,17 @@ from datetime import datetime, timezone
 
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
+INTERVAL_BASE = 2
+INTERVAL_MAX = 64
+
 
 class WordRecord(SQLModel, table=True):
-    word: str = Field(primary_key=True)
+    lemma: str = Field(primary_key=True)
     pos: str = Field(primary_key=True)
-    familiarity: int = Field(default=0, ge=0, le=4)
+    interval: int = Field(default=INTERVAL_BASE, ge=INTERVAL_BASE)
+    cooldown: int = Field(default=0, ge=0)
     last_seen: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_context: str | None = Field(default=None)
 
 
 _engine = create_engine("sqlite:///openvoca.db")
@@ -30,11 +35,11 @@ def apply_feedback(
     sentence: str,
     engine=None,
 ) -> None:
-    """Update familiarity based on user feedback.
+    """Update interval/cooldown based on user feedback.
 
-    Each word is a (word, pos) tuple.
-    - Marked words (user flagged as unknown): decrease familiarity (min 0).
-    - Unmarked target words (user already knows): increase familiarity (max 4).
+    Each word is a (lemma, pos) tuple.
+    - Marked words (user flagged as unknown): halve interval (min INTERVAL_BASE).
+    - Unmarked target words (user already knows): double interval (max INTERVAL_MAX).
     """
     target = engine or _engine
     now = datetime.now(timezone.utc)
@@ -44,66 +49,96 @@ def apply_feedback(
     unmarked_targets = target_set - marked_set
 
     with Session(target) as session:
-        # Decrease familiarity for marked (unknown) words
-        for word, pos in marked_set:
+        # Miss: halve interval for marked (unknown) words
+        for lemma, pos in marked_set:
             record = session.exec(
-                select(WordRecord).where(WordRecord.word == word, WordRecord.pos == pos)
+                select(WordRecord).where(
+                    WordRecord.lemma == lemma, WordRecord.pos == pos
+                )
             ).first()
             if record is None:
-                record = WordRecord(word=word, pos=pos, familiarity=0, last_seen=now)
+                record = WordRecord(
+                    lemma=lemma,
+                    pos=pos,
+                    interval=INTERVAL_BASE,
+                    cooldown=INTERVAL_BASE,
+                    last_seen=now,
+                    last_context=sentence,
+                )
                 session.add(record)
             else:
-                record.familiarity = max(0, record.familiarity - 1)
+                record.interval = max(INTERVAL_BASE, record.interval // 2)
+                record.cooldown = record.interval
                 record.last_seen = now
-            session.add(record)
+                record.last_context = sentence
 
-        # Increase familiarity for unmarked target words
-        for word, pos in unmarked_targets:
+        # Hit: double interval for unmarked target words
+        for lemma, pos in unmarked_targets:
             record = session.exec(
-                select(WordRecord).where(WordRecord.word == word, WordRecord.pos == pos)
+                select(WordRecord).where(
+                    WordRecord.lemma == lemma, WordRecord.pos == pos
+                )
             ).first()
             if record is None:
-                record = WordRecord(word=word, pos=pos, familiarity=1, last_seen=now)
+                record = WordRecord(
+                    lemma=lemma,
+                    pos=pos,
+                    interval=INTERVAL_BASE * 2,
+                    cooldown=INTERVAL_BASE * 2,
+                    last_seen=now,
+                    last_context=sentence,
+                )
                 session.add(record)
             else:
-                record.familiarity = min(4, record.familiarity + 1)
+                record.interval = min(record.interval * 2, INTERVAL_MAX)
+                record.cooldown = record.interval
                 record.last_seen = now
-            session.add(record)
+                record.last_context = sentence
 
         session.commit()
 
 
-def pick_target_words(limit: int = 3, engine=None) -> list[str]:
-    """Return up to `limit` unique words with lowest familiarity.
+def tick_cooldowns(engine=None) -> None:
+    """Decrement cooldown by 1 for all words with cooldown > 0."""
+    target = engine or _engine
+    with Session(target) as session:
+        records = session.exec(select(WordRecord).where(WordRecord.cooldown > 0)).all()
+        for record in records:
+            record.cooldown -= 1
+        session.commit()
 
-    When the same word exists with multiple POS tags, it is counted once
-    (using the lowest-familiarity variant).
+
+def pick_target_words(limit: int = 3, engine=None) -> list[str]:
+    """Return up to `limit` unique lemmas that are due for review.
+
+    Only words with cooldown == 0 and interval < INTERVAL_MAX are eligible.
+    Sorted by interval ASC (least familiar first), then last_seen ASC (oldest first).
     """
     target = engine or _engine
     with Session(target) as session:
         statement = (
             select(WordRecord)
-            .where(WordRecord.familiarity < 4)
-            .order_by(WordRecord.familiarity, WordRecord.last_seen.desc())
+            .where(WordRecord.cooldown == 0, WordRecord.interval < INTERVAL_MAX)
+            .order_by(WordRecord.interval, WordRecord.last_seen)
         )
         results = session.exec(statement).all()
         seen: set[str] = set()
         words: list[str] = []
         for r in results:
-            if r.word not in seen:
-                seen.add(r.word)
-                words.append(r.word)
+            if r.lemma not in seen:
+                seen.add(r.lemma)
+                words.append(r.lemma)
                 if len(words) >= limit:
                     break
         return words
 
 
 def list_all_words(engine=None) -> list[WordRecord]:
-    """Return all word records ordered by familiarity ascending."""
+    """Return all word records ordered by interval ascending."""
     target = engine or _engine
     with Session(target) as session:
         statement = select(WordRecord).order_by(
-            WordRecord.familiarity, WordRecord.last_seen.desc()
+            WordRecord.interval, WordRecord.last_seen
         )
         results = session.exec(statement).all()
         return list(results)

@@ -19,7 +19,7 @@ export interface GenerateReadingSentenceRequest {
 }
 
 export interface WordPosEntry {
-  word: string;
+  lemma: string;
   pos: string;
 }
 
@@ -30,9 +30,11 @@ export interface FeedbackRequest {
 }
 
 export interface WordRecordOut {
-  word: string;
+  lemma: string;
   pos: string;
-  familiarity: number;
+  interval: number;
+  cooldown: number;
+  lastContext?: string | null;
 }
 
 export interface VocabularyResponse {

@@ -35,6 +35,40 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.5.0
+
+Date: 2026-03-28
+
+### Highlights
+- **Cooldown queue algorithm**: replaced the 0–4 `familiarity` scale with an `interval` + `cooldown` dual-field model. Miss → interval halves; Hit → interval doubles. Words enter a cooldown countdown after each review, emerging automatically when due. See `design/Algorithm.md` for the full specification.
+- **Lemma normalization**: vocabulary now keys on `(lemma, pos)` instead of `(word, pos)`. All inflected forms (running/runs/ran) collapse into a single record ("run", VERB). The tokenizer matches targets by lemma, dramatically improving hit rates when the LLM chooses a different inflection than the prompt.
+- **`last_context` field**: each word record stores the most recent sentence it appeared in, enabling future Anki export with example sentences.
+
+### Backend
+- `WordRecord` schema rewritten: `word` → `lemma`, removed `familiarity`, added `interval` (≥2, max 64), `cooldown` (≥0), `last_context` (nullable).
+- New `tick_cooldowns()` function decrements all active cooldowns by 1 per round.
+- `apply_feedback()` implements interval halving (miss) and doubling (hit) with `INTERVAL_BASE=2` / `INTERVAL_MAX=64` boundaries.
+- `pick_target_words()` now filters by `cooldown == 0` and `interval < INTERVAL_MAX`, sorted by `interval ASC, last_seen ASC`.
+- `/api/reading-sentence/next` calls `tick_cooldowns()` before picking words.
+- `/api/feedback` accepts `lemma` field instead of `word`.
+- `/api/vocabulary` returns `lemma`, `interval`, `cooldown`, `lastContext` instead of `word`, `familiarity`.
+- Tokenizer `isTarget` matching changed from `token.text` to `token.lemma_`, with surface-form fallback.
+- 48 tests passing (27 integration, 4 prompt builder, 17 tokenizer).
+
+### Frontend
+- `WordPosEntry` uses `lemma` instead of `word`; feedback sends `token.lemma` directly.
+- `WordRecordOut` updated: `lemma`, `interval`, `cooldown`, `lastContext`.
+- `StatsView` displays interval-based status (Needs Review / Learning / Familiar / Mastered) with a single dot indicator and cooldown counter, replacing the 4-dot familiarity display.
+- 5 tests passing.
+
+### Design Documents
+- New `design/Algorithm.md`: complete cooldown queue specification with schema, state transitions, edge cases, worked examples, and state diagram.
+- Updated `design/Roadmap.md`: Phase 3 features revised; streaming moved to Phase 4; async sentence pool moved to future vision.
+
+### Breaking Changes
+- **Database incompatible**: `openvoca.db` must be deleted and recreated. The schema changed from `(word, pos, familiarity, last_seen)` to `(lemma, pos, interval, cooldown, last_seen, last_context)`.
+- **API contract changed**: `/api/feedback` now expects `{ lemma, pos }` instead of `{ word, pos }`. `/api/vocabulary` returns `{ lemma, pos, interval, cooldown, lastContext }` instead of `{ word, pos, familiarity }`.
+
 ## v0.4.9
 
 Date: 2026-03-27
