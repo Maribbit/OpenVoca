@@ -1,7 +1,6 @@
 <template>
   <div
-    class="relative min-h-screen overflow-hidden bg-paper text-ink transition-colors duration-300"
-    :class="uiFontFamily === 'serif' ? 'font-serif' : 'font-sans'"
+    class="relative min-h-screen overflow-hidden bg-paper font-sans text-ink transition-colors duration-300"
   >
     <div class="fixed inset-x-0 top-0 z-10 h-px bg-black/6">
       <div class="h-full w-1/3 bg-inkLight/55"></div>
@@ -12,13 +11,12 @@
       :class="uiHeaderSizeClass"
     >
       <div class="flex flex-1 justify-start">
-        <button
-          type="button"
+        <router-link
+          to="/settings"
           class="cursor-pointer rounded-full px-3 py-2 transition-colors hover:bg-black/4 hover:text-ink"
-          @click="openMenu"
         >
           {{ i18nMessages.menu }}
-        </button>
+        </router-link>
       </div>
 
       <div
@@ -87,7 +85,7 @@
 
       <HoldButton
         ref="holdButtonRef"
-        :disabled="isLoading || isMenuOpen || isUiPanelOpen"
+        :disabled="isLoading || isUiPanelOpen"
         :hold-text="i18nMessages.nextSentenceHint"
         :release-text="i18nMessages.releaseHint"
         :header-size-class="uiHeaderSizeClass"
@@ -103,21 +101,6 @@
         {{ feedbackError }}
       </p>
     </Transition>
-
-    <PreferencesModal
-      v-if="isMenuOpen"
-      :preferences="preferences"
-      :default-prompt-template="DEFAULT_READING_PREFERENCES.promptTemplate"
-      :locale="locale"
-      :font-family="uiFontFamily"
-      :font-size="uiFontSize"
-      :messages="i18nMessages"
-      @close="closeMenu"
-      @save="onMenuSave"
-      @switch-language="switchLanguage"
-      @update:font-family="setUiFontFamily"
-      @update:font-size="setUiFontSize"
-    />
   </div>
 </template>
 
@@ -130,14 +113,11 @@
     type ReadingSentenceToken,
   } from "../api/reading";
   import {
-    DEFAULT_READING_PREFERENCES,
     loadReadingPreferences,
-    saveReadingPreferences,
     type ReadingPreferences,
   } from "../composables/readingPreferences";
-  import { type Locale, useI18n } from "../composables/useI18n";
+  import { useI18n } from "../composables/useI18n";
   import HoldButton from "../components/HoldButton.vue";
-  import PreferencesModal from "../components/PreferencesModal.vue";
   import ReadingSettingsBar from "../components/ReadingSettingsBar.vue";
   import type {
     ReadingUiSettings,
@@ -147,7 +127,6 @@
 
   type FontSizeOption = "sm" | "md" | "lg";
   type SpacingOption = "tight" | "normal" | "loose";
-  type UiFontFamily = "sans" | "serif";
   type UiFontSizeOption = "sm" | "md" | "lg";
 
   const UI_SETTINGS_STORAGE_KEY = "openvoca.reading.ui.settings";
@@ -166,7 +145,6 @@
   const errorMessage = ref("");
   const feedbackError = ref("");
   const isLoading = ref(true);
-  const isMenuOpen = ref(false);
   const isUiPanelOpen = ref(false);
   const markedWords = ref<Set<string>>(new Set());
 
@@ -174,9 +152,8 @@
 
   const preferences = ref<ReadingPreferences>(loadReadingPreferences());
   const readingUiSettings = ref<ReadingUiSettings>(loadReadingUiSettings());
-  const uiFontFamily = ref<UiFontFamily>(loadUiFontFamily());
   const uiFontSize = ref<UiFontSizeOption>(loadUiFontSize());
-  const { locale, messages: i18nMessages, setLocale } = useI18n();
+  const { messages: i18nMessages } = useI18n();
 
   const sentenceTypographyClass = computed(() => {
     const fontSizeMap: Record<FontSizeOption, string> = {
@@ -236,32 +213,11 @@
     );
   }
 
-  function loadUiFontFamily(): UiFontFamily {
-    if (typeof window === "undefined") return "sans";
-    const saved = window.localStorage.getItem("openvoca.ui.fontFamily");
-    if (saved === "sans" || saved === "serif") return saved;
-    return "sans";
-  }
-
-  function setUiFontFamily(font: UiFontFamily): void {
-    uiFontFamily.value = font;
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("openvoca.ui.fontFamily", font);
-    }
-  }
-
   function loadUiFontSize(): UiFontSizeOption {
     if (typeof window === "undefined") return "md";
     const saved = window.localStorage.getItem("openvoca.ui.fontSize");
     if (saved === "sm" || saved === "md" || saved === "lg") return saved;
     return "md";
-  }
-
-  function setUiFontSize(size: UiFontSizeOption): void {
-    uiFontSize.value = size;
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("openvoca.ui.fontSize", size);
-    }
   }
 
   function applyTheme(theme: ThemeOption): void {
@@ -346,38 +302,10 @@
     await loadSentence();
   }
 
-  // --- Menu ---
-
-  function openMenu(): void {
-    isUiPanelOpen.value = false;
-    isMenuOpen.value = true;
-  }
-
-  function closeMenu(): void {
-    isMenuOpen.value = false;
-  }
-
-  async function onMenuSave(next: {
-    promptTemplate: string;
-    targetWordCount: number;
-  }): Promise<void> {
-    preferences.value = next;
-    saveReadingPreferences(preferences.value);
-    closeMenu();
-    await loadSentence();
-  }
-
-  function switchLanguage(nextLocale: Locale): void {
-    setLocale(nextLocale);
-    if (errorMessage.value) {
-      errorMessage.value = i18nMessages.value.ollamaError;
-    }
-  }
-
   // --- Keyboard ---
 
   function handleKeydown(event: KeyboardEvent): void {
-    if (event.code === "Space" && !isMenuOpen.value && !isUiPanelOpen.value) {
+    if (event.code === "Space" && !isUiPanelOpen.value) {
       const target = event.target as HTMLElement;
       if (target.tagName === "TEXTAREA" || target.tagName === "INPUT") return;
       event.preventDefault();

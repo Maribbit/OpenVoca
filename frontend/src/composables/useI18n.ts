@@ -4,41 +4,23 @@ export type Locale = "en" | "zh";
 
 interface LocaleMessages {
   menu: string;
-  reading: string;
   readingDisplaySettings: string;
   loadingSentence: string;
   ollamaError: string;
   feedbackError: string;
-  refreshHint: string;
-  preferences: string;
-  closeMenu: string;
-  llmConfiguration: string;
   provider: string;
-  localModelProvider: string;
   model: string;
-  learningParameters: string;
   targetWordCount: string;
   targetWordCountHint: string;
-  promptEngineering: string;
   resetToDefault: string;
-  generationPrompt: string;
   targetWordsTokenHintPrefix: string;
   targetWordsTokenHintSuffix: string;
-  menuErrorMissingPrompt: string;
-  cancel: string;
-  saveChanges: string;
   language: string;
   fontSize: string;
   spacing: string;
   theme: string;
-  spacingTight: string;
-  spacingNormal: string;
-  spacingLoose: string;
   themeLight: string;
   themeDark: string;
-  systemFont: string;
-  uiFontSans: string;
-  uiFontSerif: string;
   uiSize: string;
   nextSentenceHint: string;
   releaseHint: string;
@@ -53,6 +35,22 @@ interface LocaleMessages {
   emptyVocabulary: string;
   stats: string;
   pos: string;
+  settings: string;
+  settingsSubtitle: string;
+  interfaceSection: string;
+  llmProvider: string;
+  generationDefaults: string;
+  generationDefaultsHint: string;
+  promptTemplate: string;
+  dangerZone: string;
+  endpoint: string;
+  apiKey: string;
+  apiKeyPlaceholder: string;
+  apiKeyHint: string;
+  ollamaLocal: string;
+  clearAllVocabulary: string;
+  clearAllVocabularyDescription: string;
+  clearDatabase: string;
 }
 
 const STORAGE_KEY = "openvoca.ui.locale";
@@ -60,43 +58,25 @@ const STORAGE_KEY = "openvoca.ui.locale";
 export const MESSAGES: Record<Locale, LocaleMessages> = {
   en: {
     menu: "MENU",
-    reading: "Reading",
     readingDisplaySettings: "Reading display settings",
     loadingSentence: "Asking gemma3:4b for one sentence...",
     ollamaError: "Unable to reach the local Ollama model.",
     feedbackError: "Failed to save your word feedback.",
-    refreshHint: "Refresh the page for another sentence",
-    preferences: "Preferences",
-    closeMenu: "Close menu",
-    llmConfiguration: "LLM Configuration",
     provider: "Provider",
-    localModelProvider: "Local Model (Ollama)",
     model: "Model",
-    learningParameters: "Learning Parameters",
     targetWordCount: "Words Per Sentence",
     targetWordCountHint:
       "Choose how many review words the model should try to weave into each sentence.",
-    promptEngineering: "Prompt Engineering",
     resetToDefault: "Reset to default",
-    generationPrompt: "Generation Prompt",
     targetWordsTokenHintPrefix: "Use",
     targetWordsTokenHintSuffix:
       "where the menu should inject the selected words.",
-    menuErrorMissingPrompt: "Generation prompt cannot be empty.",
-    cancel: "Cancel",
-    saveChanges: "Save Changes",
     language: "Language",
     fontSize: "Size",
     spacing: "Spacing",
     theme: "Theme",
-    spacingTight: "Tight",
-    spacingNormal: "Normal",
-    spacingLoose: "Loose",
     themeLight: "Light",
     themeDark: "Dark",
-    systemFont: "System Font",
-    uiFontSans: "Sans",
-    uiFontSerif: "Serif",
     uiSize: "Interface Size",
     nextSentenceHint: "Hold to continue",
     releaseHint: "Release!",
@@ -111,44 +91,45 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     emptyVocabulary: "No words yet. Start reading to build your vocabulary.",
     stats: "Stats",
     pos: "POS",
+    settings: "Settings",
+    settingsSubtitle: "Application configuration and preferences.",
+    interfaceSection: "Interface",
+    llmProvider: "LLM Provider",
+    generationDefaults: "Generation Defaults",
+    generationDefaultsHint:
+      "These can be overridden per-sentence in the reading view.",
+    promptTemplate: "Prompt Template",
+    dangerZone: "Danger Zone",
+    endpoint: "Endpoint",
+    apiKey: "API Key",
+    apiKeyPlaceholder: "Not required for local models",
+    apiKeyHint:
+      "Stored locally on your machine. Never transmitted to third parties.",
+    ollamaLocal: "Ollama (Local)",
+    clearAllVocabulary: "Clear all vocabulary",
+    clearAllVocabularyDescription:
+      "Permanently delete all word records and learning progress.",
+    clearDatabase: "Clear Database",
   },
   zh: {
     menu: "菜单",
-    reading: "阅读",
     readingDisplaySettings: "阅读显示设置",
     loadingSentence: "正在向 gemma3:4b 请求一句例句...",
     ollamaError: "无法连接本地 Ollama 模型。",
     feedbackError: "保存词汇反馈失败。",
-    refreshHint: "刷新页面即可生成下一句",
-    preferences: "偏好设置",
-    closeMenu: "关闭菜单",
-    llmConfiguration: "模型配置",
     provider: "提供商",
-    localModelProvider: "本地模型 (Ollama)",
     model: "模型",
-    learningParameters: "学习参数",
     targetWordCount: "单轮取词量",
     targetWordCountHint: "决定每一句里尝试塞入多少个复习词，范围 1 到 5。",
-    promptEngineering: "提示词设置",
     resetToDefault: "恢复默认",
-    generationPrompt: "生成提示词",
     targetWordsTokenHintPrefix: "在提示词中使用",
     targetWordsTokenHintSuffix: "来注入目标词。",
-    menuErrorMissingPrompt: "生成提示词不能为空。",
-    cancel: "取消",
-    saveChanges: "保存修改",
     language: "语言",
     fontSize: "字号",
     spacing: "间距",
     theme: "主题",
-    spacingTight: "紧凑",
-    spacingNormal: "标准",
-    spacingLoose: "宽松",
     themeLight: "明亮",
     themeDark: "暗色",
-    systemFont: "系统字体",
-    uiFontSans: "标准 (Sans)",
-    uiFontSerif: "阅读 (Serif)",
     uiSize: "界面字号",
     nextSentenceHint: "长按进入下一句",
     releaseHint: "松手！",
@@ -163,6 +144,22 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     emptyVocabulary: "暂无单词，开始阅读以积累你的词库。",
     stats: "统计",
     pos: "词性",
+    settings: "设置",
+    settingsSubtitle: "应用配置与偏好。",
+    interfaceSection: "界面",
+    llmProvider: "模型提供商",
+    generationDefaults: "生成默认值",
+    generationDefaultsHint: "可在阅读界面中逐句覆盖。",
+    promptTemplate: "提示词模板",
+    dangerZone: "危险操作",
+    endpoint: "端点",
+    apiKey: "API 密钥",
+    apiKeyPlaceholder: "本地模型无需填写",
+    apiKeyHint: "仅存储在本地，不会传输给第三方。",
+    ollamaLocal: "Ollama（本地）",
+    clearAllVocabulary: "清空所有词汇",
+    clearAllVocabularyDescription: "永久删除所有单词记录和学习进度。",
+    clearDatabase: "清空数据库",
   },
 };
 

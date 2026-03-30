@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createRouter, createMemoryHistory } from "vue-router";
 
 import HomeView from "../src/views/HomeView.vue";
+import SettingsView from "../src/views/SettingsView.vue";
 
 const tokenizedSentence = {
   sentence: "A lantern glowed by the window beside the meadow.",
@@ -41,6 +42,7 @@ describe("HomeView.vue", () => {
       routes: [
         { path: "/", component: HomeView },
         { path: "/stats", component: { template: "<div>Stats</div>" } },
+        { path: "/settings", component: SettingsView },
       ],
     });
   }
@@ -152,17 +154,13 @@ describe("HomeView.vue", () => {
       }),
     );
 
-    const wrapper = mount(HomeView, {
-      global: { plugins: [makeRouter()] },
-    });
+    const router = makeRouter();
+    const wrapper = mount(
+      { template: "<router-view />" },
+      { global: { plugins: [router] } },
+    );
+    await router.push("/settings");
     await flushPromises();
-
-    const menuTrigger = wrapper
-      .findAll("button")
-      .find((button) => button.text().includes("MENU"));
-
-    expect(menuTrigger).toBeDefined();
-    await menuTrigger!.trigger("click");
 
     const zhToggle = wrapper
       .findAll("button")
@@ -172,9 +170,8 @@ describe("HomeView.vue", () => {
     await zhToggle!.trigger("click");
     await flushPromises();
 
-    expect(wrapper.text()).toContain("菜单");
-    expect(wrapper.text()).toContain("偏好设置");
-    expect(wrapper.text()).toContain("保存修改");
+    expect(wrapper.text()).toContain("设置");
+    expect(wrapper.text()).toContain("界面");
     expect(window.localStorage.getItem("openvoca.ui.locale")).toBe("zh");
   });
 
