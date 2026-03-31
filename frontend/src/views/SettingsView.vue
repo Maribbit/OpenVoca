@@ -329,23 +329,28 @@
   import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 
   import { clearVocabulary } from "../api/reading";
-  import {
-    DEFAULT_READING_PREFERENCES,
-    loadReadingPreferences,
-    saveReadingPreferences,
-  } from "../composables/readingPreferences";
+  import { DEFAULT_READING_PREFERENCES } from "../composables/readingPreferences";
   import { type Locale, useI18n } from "../composables/useI18n";
+  import { useSettings } from "../composables/useSettings";
 
   type ThemeOption = "light" | "dark";
   type UiFontSizeOption = "sm" | "md" | "lg";
 
-  const THEME_STORAGE_KEY = "openvoca.reading.ui.settings";
   const THEME_OPTIONS: ThemeOption[] = ["light", "dark"];
 
+  const { get, set } = useSettings();
   const { locale, messages: i18nMessages, setLocale } = useI18n();
-  const preferences = ref(loadReadingPreferences());
-  const draftTargetWordCount = ref(preferences.value.targetWordCount);
-  const draftPromptTemplate = ref(preferences.value.promptTemplate);
+
+  const draftTargetWordCount = ref(
+    Number(get("generation", "targetWordCount", "3")),
+  );
+  const draftPromptTemplate = ref(
+    get(
+      "generation",
+      "promptTemplate",
+      DEFAULT_READING_PREFERENCES.promptTemplate,
+    ),
+  );
   const targetWordsToken = "{{target_words}}";
 
   const currentTheme = ref<ThemeOption>(loadTheme());
@@ -360,33 +365,10 @@
   // --- Persistence helpers ---
 
   function loadTheme(): ThemeOption {
-    if (typeof window === "undefined") return "light";
-    const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
-    if (!saved) return "light";
-    try {
-      const parsed = JSON.parse(saved) as { theme?: string };
-      if (THEME_OPTIONS.includes(parsed.theme as ThemeOption)) {
-        return parsed.theme as ThemeOption;
-      }
-    } catch {
-      // ignore
-    }
-    return "light";
-  }
-
-  function saveTheme(theme: ThemeOption): void {
-    if (typeof window === "undefined") return;
-    const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
-    let settings = { fontSize: "md", spacing: "normal", theme: "light" };
-    if (saved) {
-      try {
-        settings = { ...settings, ...JSON.parse(saved) };
-      } catch {
-        // ignore
-      }
-    }
-    settings.theme = theme;
-    window.localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(settings));
+    const saved = get("reading", "theme", "light");
+    return THEME_OPTIONS.includes(saved as ThemeOption)
+      ? (saved as ThemeOption)
+      : "light";
   }
 
   function applyTheme(theme: ThemeOption): void {
@@ -397,7 +379,7 @@
   function setTheme(theme: ThemeOption): void {
     currentTheme.value = theme;
     applyTheme(theme);
-    saveTheme(theme);
+    set("reading", { theme });
   }
 
   const ROOT_FONT_SIZE_MAP: Record<UiFontSizeOption, string> = {
@@ -407,8 +389,7 @@
   };
 
   function loadUiFontSize(): UiFontSizeOption {
-    if (typeof window === "undefined") return "md";
-    const saved = window.localStorage.getItem("openvoca.ui.fontSize");
+    const saved = get("interface", "uiFontSize", "md");
     if (saved === "sm" || saved === "md" || saved === "lg") return saved;
     return "md";
   }
@@ -421,13 +402,12 @@
   function setUiFontSize(size: UiFontSizeOption): void {
     uiFontSize.value = size;
     applyRootFontSize(size);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("openvoca.ui.fontSize", size);
-    }
+    set("interface", { uiFontSize: size });
   }
 
   function switchLanguage(nextLocale: Locale): void {
     setLocale(nextLocale);
+    set("interface", { locale: nextLocale });
   }
 
   function toggleClass(isActive: boolean): string {
@@ -440,13 +420,13 @@
     await clearVocabulary();
   }
 
-  // Auto-save preferences when drafts change
+  // Auto-save generation preferences when drafts change
   watch([draftTargetWordCount, draftPromptTemplate], () => {
     const trimmed = draftPromptTemplate.value.trim();
     if (!trimmed) return;
-    saveReadingPreferences({
+    set("generation", {
       promptTemplate: trimmed,
-      targetWordCount: Number(draftTargetWordCount.value),
+      targetWordCount: String(draftTargetWordCount.value),
     });
   });
 
@@ -459,9 +439,9 @@
   onBeforeUnmount(() => {
     const trimmed = draftPromptTemplate.value.trim();
     if (!trimmed) return;
-    saveReadingPreferences({
+    set("generation", {
       promptTemplate: trimmed,
-      targetWordCount: Number(draftTargetWordCount.value),
+      targetWordCount: String(draftTargetWordCount.value),
     });
   });
 </script>

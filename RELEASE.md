@@ -35,6 +35,34 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.5.1
+
+Date: 2026-03-31
+
+### Highlights
+- **Persistent settings store**: all user preferences (interface, reading, generation) are now stored in the backend SQLite database via a new `SettingRecord` model, replacing scattered `localStorage` keys.
+- **Settings page refactor**: replaced the modal-based preferences dialog with a full-page `/settings` route, aligning with the `ui_guide_settings.html` design spec.
+- **Unified settings composable**: new `useSettings()` reactive singleton provides `get`/`set`/`hydrate` API with instant localStorage cache and async backend sync.
+
+### Backend
+- New `settings_store.py` module: `SettingRecord` SQLModel with composite PK `(namespace, key)`, plus `get_setting`, `get_namespace`, `get_all_settings`, `upsert_setting`, `upsert_namespace`, `delete_namespace` functions.
+- New API endpoints: `GET /api/settings`, `GET /api/settings/{namespace}`, `PUT /api/settings/{namespace}/{key}`, `PUT /api/settings/{namespace}`.
+- Settings table auto-created on app startup via `init_settings_table()`.
+- 15 new settings tests (10 unit + 5 API integration); 63 total backend tests passing.
+
+### Frontend
+- Removed `PreferencesModal.vue`; added `/settings` route with full-page `SettingsView.vue`.
+- New `useSettings()` composable (`composables/useSettings.ts`): reactive store backed by `localStorage` cache (`openvoca.settings.cache`) with async API hydration.
+- New `api/settings.ts`: typed `fetchAllSettings`, `fetchNamespace`, `putSetting`, `putNamespace` client functions.
+- `App.vue` hydrates settings on mount, applying persisted UI font size.
+- `HomeView.vue` reads generation/reading preferences from the settings store instead of `readingPreferences` module.
+- `SettingsView.vue` reads/writes all settings via `useSettings()`, removing manual `localStorage` calls.
+- `useI18n.ts` detects initial locale from settings store with legacy `localStorage` fallback.
+- 5 frontend tests passing.
+
+### Breaking Changes
+- None. Existing `localStorage` preferences are transparently migrated on first load.
+
 ## v0.5.0
 
 Date: 2026-03-28

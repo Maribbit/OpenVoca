@@ -4,6 +4,7 @@ import { createRouter, createMemoryHistory } from "vue-router";
 
 import HomeView from "../src/views/HomeView.vue";
 import SettingsView from "../src/views/SettingsView.vue";
+import { useSettings } from "../src/composables/useSettings";
 
 const tokenizedSentence = {
   sentence: "A lantern glowed by the window beside the meadow.",
@@ -31,6 +32,7 @@ const tokenizedSentence = {
 describe("HomeView.vue", () => {
   afterEach(() => {
     vi.useRealTimers();
+    useSettings()._reset();
     window.localStorage.clear();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
@@ -209,9 +211,10 @@ describe("HomeView.vue", () => {
       "dark",
     );
 
-    expect(
-      window.localStorage.getItem("openvoca.reading.ui.settings"),
-    ).toContain('"theme":"dark"');
+    const cache = window.localStorage.getItem("openvoca.settings.cache");
+    expect(cache).not.toBeNull();
+    const parsed = JSON.parse(cache!) as Record<string, Record<string, string>>;
+    expect(parsed.reading?.theme).toBe("dark");
   });
 
   it("closes inline settings when clicking the blank overlay", async () => {

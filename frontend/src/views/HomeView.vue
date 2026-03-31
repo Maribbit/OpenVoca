@@ -112,11 +112,9 @@
     submitFeedback,
     type ReadingSentenceToken,
   } from "../api/reading";
-  import {
-    loadReadingPreferences,
-    type ReadingPreferences,
-  } from "../composables/readingPreferences";
+  import { DEFAULT_READING_PREFERENCES } from "../composables/readingPreferences";
   import { useI18n } from "../composables/useI18n";
+  import { useSettings } from "../composables/useSettings";
   import HoldButton from "../components/HoldButton.vue";
   import ReadingSettingsBar from "../components/ReadingSettingsBar.vue";
   import type {
@@ -129,7 +127,6 @@
   type SpacingOption = "tight" | "normal" | "loose";
   type UiFontSizeOption = "sm" | "md" | "lg";
 
-  const UI_SETTINGS_STORAGE_KEY = "openvoca.reading.ui.settings";
   const FONT_SIZE_OPTIONS: FontSizeOption[] = ["sm", "md", "lg"];
   const SPACING_OPTIONS: SpacingOption[] = ["tight", "normal", "loose"];
   const THEME_OPTIONS: ThemeOption[] = ["light", "dark"];
@@ -139,6 +136,8 @@
     spacing: "normal",
     theme: "light",
   };
+
+  const { get, set } = useSettings();
 
   const sentence = ref("");
   const tokens = ref<ReadingSentenceToken[]>([]);
@@ -150,7 +149,6 @@
 
   const holdButtonRef = ref<InstanceType<typeof HoldButton> | null>(null);
 
-  const preferences = ref<ReadingPreferences>(loadReadingPreferences());
   const readingUiSettings = ref<ReadingUiSettings>(loadReadingUiSettings());
   const uiFontSize = ref<UiFontSizeOption>(loadUiFontSize());
   const { messages: i18nMessages } = useI18n();
@@ -183,39 +181,33 @@
   // --- Persistence helpers ---
 
   function loadReadingUiSettings(): ReadingUiSettings {
-    if (typeof window === "undefined") return DEFAULT_READING_UI_SETTINGS;
-    const savedValue = window.localStorage.getItem(UI_SETTINGS_STORAGE_KEY);
-    if (!savedValue) return DEFAULT_READING_UI_SETTINGS;
-
-    try {
-      const parsed = JSON.parse(savedValue) as Partial<ReadingUiSettings>;
-      return {
-        fontSize: FONT_SIZE_OPTIONS.includes(parsed.fontSize as FontSizeOption)
-          ? (parsed.fontSize as FontSizeOption)
-          : DEFAULT_READING_UI_SETTINGS.fontSize,
-        spacing: SPACING_OPTIONS.includes(parsed.spacing as SpacingOption)
-          ? (parsed.spacing as SpacingOption)
-          : DEFAULT_READING_UI_SETTINGS.spacing,
-        theme: THEME_OPTIONS.includes(parsed.theme as ThemeOption)
-          ? (parsed.theme as ThemeOption)
-          : DEFAULT_READING_UI_SETTINGS.theme,
-      };
-    } catch {
-      return DEFAULT_READING_UI_SETTINGS;
-    }
+    const fs = get("reading", "fontSize", "md");
+    const sp = get("reading", "spacing", "normal");
+    const th = get("reading", "theme", "light");
+    return {
+      fontSize: FONT_SIZE_OPTIONS.includes(fs as FontSizeOption)
+        ? (fs as FontSizeOption)
+        : DEFAULT_READING_UI_SETTINGS.fontSize,
+      spacing: SPACING_OPTIONS.includes(sp as SpacingOption)
+        ? (sp as SpacingOption)
+        : DEFAULT_READING_UI_SETTINGS.spacing,
+      theme: THEME_OPTIONS.includes(th as ThemeOption)
+        ? (th as ThemeOption)
+        : DEFAULT_READING_UI_SETTINGS.theme,
+    };
   }
 
   function saveReadingUiSettings(): void {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(
-      UI_SETTINGS_STORAGE_KEY,
-      JSON.stringify(readingUiSettings.value),
-    );
+    const s = readingUiSettings.value;
+    set("reading", {
+      fontSize: s.fontSize,
+      spacing: s.spacing,
+      theme: s.theme,
+    });
   }
 
   function loadUiFontSize(): UiFontSizeOption {
-    if (typeof window === "undefined") return "md";
-    const saved = window.localStorage.getItem("openvoca.ui.fontSize");
+    const saved = get("interface", "uiFontSize", "md");
     if (saved === "sm" || saved === "md" || saved === "lg") return saved;
     return "md";
   }
@@ -261,7 +253,14 @@
     isLoading.value = true;
     errorMessage.value = "";
     try {
-      const response = await fetchNextReadingSentence(preferences.value);
+      const response = await fetchNextReadingSentence({
+        promptTemplate: get(
+          "generation",
+          "promptTemplate",
+          DEFAULT_READING_PREFERENCES.promptTemplate,
+        ),
+        targetWordCount: Number(get("generation", "targetWordCount", "3")),
+      });
       sentence.value = response.sentence;
       tokens.value = response.tokens;
       markedWords.value = new Set();

@@ -13,9 +13,17 @@ from src.services.word_store import (
     pick_target_words,
     tick_cooldowns,
 )
+from src.services.settings_store import (
+    get_all_settings,
+    get_namespace,
+    init_settings_table,
+    upsert_namespace,
+    upsert_setting,
+)
 
 app = FastAPI(title="OpenVoca API")
 llm: LLMProvider = OllamaClient()
+init_settings_table()
 
 
 class ReadingSentenceRequest(BaseModel):
@@ -156,3 +164,32 @@ def get_vocabulary() -> VocabularyResponse:
 def delete_vocabulary() -> dict[str, int]:
     count = clear_all_words()
     return {"deleted": count}
+
+
+# --- Settings ---
+
+
+class SettingValueBody(BaseModel):
+    value: str = Field(min_length=1)
+
+
+@app.get("/api/settings")
+def get_settings_all() -> dict[str, dict[str, str]]:
+    return get_all_settings()
+
+
+@app.get("/api/settings/{namespace}")
+def get_settings_namespace(namespace: str) -> dict[str, str]:
+    return get_namespace(namespace)
+
+
+@app.put("/api/settings/{namespace}/{key}")
+def put_setting(namespace: str, key: str, body: SettingValueBody) -> dict[str, str]:
+    upsert_setting(namespace, key, body.value)
+    return {"status": "ok"}
+
+
+@app.put("/api/settings/{namespace}")
+def put_settings_namespace(namespace: str, settings: dict[str, str]) -> dict[str, str]:
+    upsert_namespace(namespace, settings)
+    return {"status": "ok"}

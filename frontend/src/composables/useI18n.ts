@@ -1,5 +1,7 @@
 import { computed, ref } from "vue";
 
+import { useSettings } from "./useSettings";
+
 export type Locale = "en" | "zh";
 
 interface LocaleMessages {
@@ -164,17 +166,21 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
 };
 
 function detectInitialLocale(): Locale {
-  if (typeof window === "undefined") {
-    return "en";
+  // Try settings store (backed by localStorage cache) first
+  const { get } = useSettings();
+  const stored = get("interface", "locale", "");
+  if (stored === "en" || stored === "zh") return stored;
+
+  // Fall back to legacy localStorage key
+  if (typeof window !== "undefined") {
+    const legacy = window.localStorage.getItem(STORAGE_KEY);
+    if (legacy === "en" || legacy === "zh") return legacy;
+
+    const browserLanguage = window.navigator.language.toLowerCase();
+    return browserLanguage.startsWith("zh") ? "zh" : "en";
   }
 
-  const savedValue = window.localStorage.getItem(STORAGE_KEY);
-  if (savedValue === "en" || savedValue === "zh") {
-    return savedValue;
-  }
-
-  const browserLanguage = window.navigator.language.toLowerCase();
-  return browserLanguage.startsWith("zh") ? "zh" : "en";
+  return "en";
 }
 
 export function useI18n() {
