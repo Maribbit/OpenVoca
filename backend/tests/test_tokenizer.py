@@ -139,20 +139,39 @@ def test_trailing_space_on_contractions() -> None:
 
 
 def test_hyphenated_target_word() -> None:
-    """A *hyphenated-compound* target should mark each part as a target."""
+    """A *hyphenated-compound* target should become a single merged target token."""
     tokens = tokenize_sentence("It was a *well-known* fact.")
-    # spaCy splits "well-known" into "well" + "-" + "known"
-    well_tok = next(t for t in tokens if t.text == "well")
-    assert well_tok.is_target is True
-    assert well_tok.is_word is True
+    # After merging, "well-known" should be a single token
+    compound = next(t for t in tokens if t.text == "well-known")
+    assert compound.is_target is True
+    assert compound.is_word is True
+    assert compound.lemma == "well-known"
 
-    known_tok = next(t for t in tokens if t.text == "known")
-    assert known_tok.is_target is True
-    assert known_tok.is_word is True
+    # No separate "well", "-", or "known" tokens
+    texts = [t.text for t in tokens]
+    assert "well" not in texts
+    assert "known" not in texts
 
-    # The hyphen itself should not be a target
-    hyphen_tok = next(t for t in tokens if t.text == "-")
-    assert hyphen_tok.is_target is False
+
+def test_hyphenated_non_target_word() -> None:
+    """Non-target hyphenated words should also be merged into one token."""
+    tokens = tokenize_sentence("I love lo-fi music.")
+    compound = next(t for t in tokens if t.text == "lo-fi")
+    assert compound.is_word is True
+    assert compound.is_target is False
+    assert compound.lemma == "lo-fi"
+
+    texts = [t.text for t in tokens]
+    assert "lo" not in texts
+    assert "fi" not in texts
+
+
+def test_hyphenated_chain() -> None:
+    """Multi-part hyphenated words like 'state-of-the-art' are merged."""
+    tokens = tokenize_sentence("It is a state-of-the-art design.")
+    compound = next(t for t in tokens if t.text == "state-of-the-art")
+    assert compound.is_word is True
+    assert compound.lemma == "state-of-the-art"
 
 
 # ---------------------------------------------------------------------------

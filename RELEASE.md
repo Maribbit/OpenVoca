@@ -35,6 +35,24 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.6.6
+
+Date: 2025-07-25
+
+### Highlights
+- **Hyphenated word merging**: compound words like "lo-fi", "well-known", and "state-of-the-art" are now treated as single clickable tokens instead of being split into separate parts by spaCy.
+- **Dictionary default changed to bilingual**: the definition language setting now defaults to "Both" (Chinese + English) instead of Chinese only.
+
+### Backend
+- New `_merge_hyphenated()` post-processing pass in `tokenizer.py` — after spaCy tokenization, adjacent `word-hyphen-word` sequences with no intervening whitespace are merged back into a single `SentenceToken`.
+- Target matching updated: hyphenated targets like `*lo-fi*` are stored as whole keys, matching merged tokens directly.
+- 2 new tests: `test_hyphenated_non_target_word`, `test_hyphenated_chain`. Updated `test_hyphenated_target_word` for merged behavior. Total: 87 backend tests.
+
+### Frontend
+- `SettingsView.vue` / `HomeView.vue`: dictionary display default changed from `"zh"` to `"both"`.
+
+---
+
 ## v0.6.5
 
 Date: 2025-07-24

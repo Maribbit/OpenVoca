@@ -186,9 +186,9 @@
   const { messages: i18nMessages } = useI18n();
 
   const dictionaryDisplayMode = computed<DictionaryDisplayMode>(() => {
-    const v = get("dictionary", "display", "zh");
-    if (v === "en" || v === "both") return v;
-    return "zh";
+    const v = get("dictionary", "display", "both");
+    if (v === "zh" || v === "en") return v;
+    return "both";
   });
 
   const sentenceTypographyClass = computed(() => {
@@ -364,16 +364,18 @@
         )
         .map((t) => ({ lemma: t.lemma!, pos: t.pos! }));
 
-      submitFeedback({
-        targetWords: targetEntries,
-        markedWords: markedEntries,
-        sentence: sentence.value,
-      }).catch(() => {
+      try {
+        await submitFeedback({
+          targetWords: targetEntries,
+          markedWords: markedEntries,
+          sentence: sentence.value,
+        });
+      } catch {
         feedbackError.value = i18nMessages.value.feedbackError;
         setTimeout(() => {
           feedbackError.value = "";
         }, 4000);
-      });
+      }
     }
 
     showComposer.value = true;

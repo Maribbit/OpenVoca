@@ -68,18 +68,16 @@ def test_tokenize_sentence_handles_contractions() -> None:
     # spaCy splits "It's" into "It" + "'s"
     assert '"' in texts
     assert "It" in texts
-    assert "softly" in texts
-    assert "lit" in texts
+    # "softly-lit" is merged into a single hyphenated token
+    assert "softly-lit" in texts
 
     # "It" is a stopword → not a clickable word
     it_tok = next(t for t in tokens if t.text == "It")
     assert it_tok.is_word is False
 
-    # Content words should be clickable
-    softly_tok = next(t for t in tokens if t.text == "softly")
-    assert softly_tok.is_word is True
-    lit_tok = next(t for t in tokens if t.text == "lit")
-    assert lit_tok.is_word is True
+    # Hyphenated compound should be a single clickable word
+    compound = next(t for t in tokens if t.text == "softly-lit")
+    assert compound.is_word is True
 
 
 def test_reading_sentence_endpoint_returns_pos_tags(

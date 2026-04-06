@@ -94,15 +94,17 @@ describe("HomeView.vue", () => {
 
     // Verify marked words have the correct class
     const markedWord = wrapper
-      .findAll("span")
-      .find((span) => span.text() === "lantern");
+      .findAll("button")
+      .find((btn) => btn.text() === "lantern")
+      ?.find("span");
     expect(markedWord?.classes()).toContain("border-dotted");
     expect(markedWord?.classes()).toContain("border-b");
 
     // Verify non-marked words do not have the class
     const regularWord = wrapper
-      .findAll("span")
-      .find((span) => span.text() === "glowed");
+      .findAll("button")
+      .find((btn) => btn.text() === "glowed")
+      ?.find("span");
     expect(regularWord?.classes()).not.toContain("border-dotted");
 
     const wordButtons = wrapper

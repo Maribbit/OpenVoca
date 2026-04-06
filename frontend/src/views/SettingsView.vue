@@ -526,10 +526,10 @@
   }
 
   function loadDictDisplay(): DictionaryDisplayOption {
-    const saved = get("dictionary", "display", "zh");
+    const saved = get("dictionary", "display", "both");
     return DICT_DISPLAY_OPTIONS.includes(saved as DictionaryDisplayOption)
       ? (saved as DictionaryDisplayOption)
-      : "zh";
+      : "both";
   }
 
   function setDictionaryDisplay(mode: DictionaryDisplayOption): void {
