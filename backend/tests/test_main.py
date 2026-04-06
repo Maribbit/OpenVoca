@@ -212,16 +212,6 @@ def test_reading_sentence_endpoint_returns_pos_tags(
     engine = _in_memory_engine()
     monkeypatch.setattr("src.services.word_store._engine", engine)
 
-    apply_feedback(
-        target_words=[("harbor", "NOUN"), ("lantern", "NOUN")],
-        marked_words=[("harbor", "NOUN"), ("lantern", "NOUN")],
-        sentence="A harbor lantern.",
-        engine=engine,
-    )
-    # Tick cooldowns so words become available
-    for _ in range(INTERVAL_BASE):
-        tick_cooldowns(engine)
-
     async def fake_generate_completion(prompt: str) -> str:
         assert "harbor" in prompt
         assert "lantern" in prompt
@@ -238,6 +228,7 @@ def test_reading_sentence_endpoint_returns_pos_tags(
         "/api/reading-sentence/next",
         json={
             "promptTemplate": "Write one sentence with {{target_words}}.",
+            "targetWords": ["harbor", "lantern"],
         },
     )
 
@@ -262,10 +253,10 @@ def test_reading_sentence_endpoint_returns_pos_tags(
     assert dot_tok["pos"] is None
 
 
-def test_next_sentence_endpoint_picks_from_vocabulary(
+def test_target_words_endpoint_picks_from_vocabulary(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The /next endpoint should prefer words from the vocabulary database."""
+    """GET /api/target-words should tick cooldowns and pick words from the vocabulary."""
     engine = _in_memory_engine()
     monkeypatch.setattr("src.services.word_store._engine", engine)
 
@@ -279,28 +270,11 @@ def test_next_sentence_endpoint_picks_from_vocabulary(
     for _ in range(INTERVAL_BASE):
         tick_cooldowns(engine)
 
-    async def fake_generate_completion(prompt: str) -> str:
-        assert "meadow" in prompt
-        return "The *meadow* was green."
-
-    monkeypatch.setattr(
-        main_module.llm,
-        "generate_completion",
-        fake_generate_completion,
-    )
-
-    response = client.post(
-        "/api/reading-sentence/next",
-        json={
-            "promptTemplate": "Write one sentence with {{target_words}}.",
-        },
-    )
+    response = client.get("/api/target-words?limit=3")
 
     assert response.status_code == 200
     data = response.json()
     assert "meadow" in data["words"]
-    meadow_tok = next(t for t in data["tokens"] if t["text"] == "meadow")
-    assert meadow_tok["isTarget"] is True
 
 
 def test_delete_vocabulary_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -325,19 +299,9 @@ def test_delete_vocabulary_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_reading_sentence_returns_502_on_ollama_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The API should return 502 when Ollama is unreachable."""
+    """The API should return 502 when the LLM is unreachable."""
     engine = _in_memory_engine()
     monkeypatch.setattr("src.services.word_store._engine", engine)
-
-    apply_feedback(
-        target_words=[("test", "NOUN")],
-        marked_words=[("test", "NOUN")],
-        sentence="test",
-        engine=engine,
-    )
-    # Tick cooldowns so word becomes available
-    for _ in range(INTERVAL_BASE):
-        tick_cooldowns(engine)
 
     async def failing_generate(prompt: str) -> str:
         raise httpx.ConnectError("Connection refused")
@@ -352,6 +316,7 @@ def test_reading_sentence_returns_502_on_ollama_failure(
         "/api/reading-sentence/next",
         json={
             "promptTemplate": "Write a sentence with {{target_words}}.",
+            "targetWords": ["test"],
         },
     )
 
@@ -840,12 +805,14 @@ def test_full_round_simulation() -> None:
     assert "lantern" not in picked
 
 
-def test_next_endpoint_ticks_cooldowns(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The /next endpoint should call tick_cooldowns before picking words."""
+def test_next_endpoint_ticks_cooldowns(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """POST /api/reading-sentence/next should tick cooldowns each generation cycle."""
     engine = _in_memory_engine()
     monkeypatch.setattr("src.services.word_store._engine", engine)
 
-    # Create a word with cooldown=1 (one tick away from being available)
+    # Create a word with cooldown=2
     apply_feedback(
         target_words=[("harbor", "NOUN")],
         marked_words=[("harbor", "NOUN")],
@@ -860,8 +827,6 @@ def test_next_endpoint_ticks_cooldowns(monkeypatch: pytest.MonkeyPatch) -> None:
     assert records["harbor"].cooldown == 1
 
     async def fake_generate_completion(prompt: str) -> str:
-        # The endpoint should have ticked, making harbor available
-        assert "harbor" in prompt
         return "The *harbor* was calm."
 
     monkeypatch.setattr(
@@ -870,15 +835,45 @@ def test_next_endpoint_ticks_cooldowns(monkeypatch: pytest.MonkeyPatch) -> None:
         fake_generate_completion,
     )
 
-    response = client.post(
+    # After /next, the tick should have decremented cooldown to 0
+    client.post(
         "/api/reading-sentence/next",
         json={
             "promptTemplate": "Write one sentence with {{target_words}}.",
+            "targetWords": ["harbor"],
         },
     )
 
-    assert response.status_code == 200
-    assert "harbor" in response.json()["words"]
+    records = {r.lemma: r for r in list_all_words(engine)}
+    assert records["harbor"].cooldown == 0
+
+
+def test_target_words_endpoint_does_not_tick(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """GET /api/target-words should NOT tick cooldowns (to avoid burning on refresh)."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    apply_feedback(
+        target_words=[("harbor", "NOUN")],
+        marked_words=[("harbor", "NOUN")],
+        sentence="The harbor.",
+        engine=engine,
+    )
+    # Tick to cooldown=1
+    for _ in range(INTERVAL_BASE - 1):
+        tick_cooldowns(engine)
+
+    records = {r.lemma: r for r in list_all_words(engine)}
+    assert records["harbor"].cooldown == 1
+
+    # Multiple calls to /api/target-words should NOT change cooldown
+    client.get("/api/target-words?limit=3")
+    client.get("/api/target-words?limit=3")
+
+    records = {r.lemma: r for r in list_all_words(engine)}
+    assert records["harbor"].cooldown == 1
 
 
 # ---------------------------------------------------------------------------
@@ -909,6 +904,7 @@ def test_next_endpoint_accepts_composer_instructions(
         "/api/reading-sentence/next",
         json={
             "promptTemplate": "Write a sentence: {{target_words}}",
+            "targetWords": ["sunset"],
             "composerInstructions": "[Scenario] You are a deadpan news anchor.\n[Difficulty] Use simple vocabulary.\n[Length] The sentence MUST be approximately 40 words long.",
         },
     )
@@ -939,6 +935,7 @@ def test_next_endpoint_works_without_composer(
         "/api/reading-sentence/next",
         json={
             "promptTemplate": "Write a sentence: {{target_words}}",
+            "targetWords": ["hello"],
         },
     )
 

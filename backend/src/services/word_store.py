@@ -148,11 +148,15 @@ def pick_target_words(limit: int = 3, engine=None) -> list[str]:
 
 
 def list_all_words(engine=None) -> list[WordRecord]:
-    """Return all word records ordered by interval ascending."""
+    """Return all word records sorted by review priority.
+
+    Order: cooldown ASC (ready-to-review first), then interval ASC
+    (least familiar first).
+    """
     target = engine or _engine
     with Session(target) as session:
         statement = select(WordRecord).order_by(
-            WordRecord.interval, WordRecord.last_seen
+            WordRecord.cooldown, WordRecord.interval
         )
         results = session.exec(statement).all()
         return list(results)

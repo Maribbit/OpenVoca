@@ -15,7 +15,7 @@ export interface ReadingSentenceToken {
 
 export interface GenerateReadingSentenceRequest {
   promptTemplate: string;
-  targetWordCount: number;
+  targetWords: string[];
   composerInstructions?: string;
 }
 
@@ -92,4 +92,17 @@ export async function fetchVocabulary(): Promise<VocabularyResponse> {
 
 export async function clearVocabulary(): Promise<void> {
   await fetch("/api/vocabulary", { method: "DELETE" });
+}
+
+export async function fetchTargetWords(limit: number): Promise<string[]> {
+  const response = await fetch(`/api/target-words?limit=${limit}`, {
+    headers: { Accept: "application/json" },
+  });
+
+  if (!response.ok) {
+    throw new Error("Unable to load target words.");
+  }
+
+  const data = (await response.json()) as { words: string[] };
+  return data.words;
 }

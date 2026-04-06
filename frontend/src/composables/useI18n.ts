@@ -80,6 +80,12 @@ interface LocaleMessages {
   composerLenNarrative: string;
   composerGenerate: string;
   composerPreview: string;
+  composerTargetWords: string;
+  composerTargetWordsHint: string;
+  composerAddWordPlaceholder: string;
+  statsLemma: string;
+  statsInterval: string;
+  statsCooldown: string;
 }
 
 const STORAGE_KEY = "openvoca.ui.locale";
@@ -169,6 +175,12 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     composerLenNarrative: "Narrative",
     composerGenerate: "Generate next sentence",
     composerPreview: "Preview prompt",
+    composerTargetWords: "Target Words",
+    composerTargetWordsHint: "auto-selected from vocabulary",
+    composerAddWordPlaceholder: "type & enter",
+    statsLemma: "Lemma",
+    statsInterval: "Interval",
+    statsCooldown: "Cooldown",
   },
   zh: {
     menu: "菜单",
@@ -249,6 +261,12 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     composerLenNarrative: "长句",
     composerGenerate: "生成下一句",
     composerPreview: "预览提示词",
+    composerTargetWords: "目标词",
+    composerTargetWordsHint: "从词库自动选取",
+    composerAddWordPlaceholder: "输入并回车",
+    statsLemma: "词元",
+    statsInterval: "复习间隔",
+    statsCooldown: "冷却剩余",
   },
 };
 

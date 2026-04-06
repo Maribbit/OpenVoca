@@ -58,7 +58,7 @@ class ReadingSentenceRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     prompt_template: str = Field(alias="promptTemplate", min_length=1)
-    target_word_count: int = Field(default=3, alias="targetWordCount", ge=1, le=5)
+    target_words: list[str] = Field(alias="targetWords")
     composer_instructions: str = Field(
         default="", alias="composerInstructions", max_length=2000
     )
@@ -210,21 +210,29 @@ async def _generate_reading_response(
     )
 
 
+@app.get("/api/target-words")
+def get_target_words(limit: int = 3) -> dict[str, list[str]]:
+    """Pick target words that are currently available (cooldown == 0).
+
+    Does NOT tick cooldowns — ticking happens in /api/reading-sentence/next
+    to avoid burning through cooldowns on repeated page loads.
+    """
+    words = pick_target_words(limit=limit)
+    return {"words": words}
+
+
 @app.post("/api/reading-sentence/next", response_model=ReadingSentenceResponse)
 async def get_next_reading_sentence(
     request: ReadingSentenceRequest,
 ) -> ReadingSentenceResponse:
-    """Pick target words from the database and generate a sentence.
+    """Generate a sentence using the target words chosen by the user.
 
-    Ticks cooldowns before picking so words become available on schedule.
+    Ticks cooldowns so that cooling words advance toward availability
+    for the next generation cycle.
     """
     tick_cooldowns()
-    words = pick_target_words(limit=request.target_word_count)
-
-    composer_instructions = request.composer_instructions
-
     return await _generate_reading_response(
-        words, request.prompt_template, composer_instructions
+        request.target_words, request.prompt_template, request.composer_instructions
     )
 
 

@@ -257,7 +257,10 @@
     markedWords.value = next;
   }
 
-  async function loadSentence(composerInstructions?: string): Promise<void> {
+  async function loadSentence(
+    composerInstructions?: string,
+    targetWords?: string[],
+  ): Promise<void> {
     isLoading.value = true;
     errorMessage.value = "";
     try {
@@ -267,7 +270,7 @@
           "promptTemplate",
           DEFAULT_READING_PREFERENCES.promptTemplate,
         ),
-        targetWordCount: Number(get("generation", "targetWordCount", "1")),
+        targetWords: targetWords ?? [],
         ...(composerInstructions ? { composerInstructions } : {}),
       });
       sentence.value = response.sentence;
@@ -312,9 +315,10 @@
 
   async function onComposerGenerate(
     composerInstructions: string,
+    targetWords: string[],
   ): Promise<void> {
     showComposer.value = false;
-    await loadSentence(composerInstructions);
+    await loadSentence(composerInstructions, targetWords);
   }
 
   // --- Keyboard ---

@@ -56,9 +56,16 @@
             <tr
               class="border-b border-black/5 bg-surface text-xs uppercase tracking-widest text-inkLight"
             >
-              <th class="px-6 py-4 font-medium">Lemma</th>
+              <th class="px-6 py-4 font-medium">
+                {{ i18nMessages.statsLemma }}
+              </th>
               <th class="px-6 py-4 font-medium">{{ i18nMessages.pos }}</th>
-              <th class="px-6 py-4 font-medium">Status</th>
+              <th class="px-6 py-4 font-medium">
+                {{ i18nMessages.statsInterval }}
+              </th>
+              <th class="px-6 py-4 font-medium">
+                {{ i18nMessages.statsCooldown }}
+              </th>
             </tr>
           </thead>
           <tbody class="divide-y divide-black/3 text-sm">
@@ -85,16 +92,23 @@
                     class="h-2 w-2 rounded-full"
                     :class="intervalDotColor(word.interval)"
                   />
-                  <span class="text-xs font-medium text-inkLight">
+                  <span class="font-mono text-xs text-ink">{{
+                    word.interval
+                  }}</span>
+                  <span class="text-xs text-inkLight/60">
                     {{ intervalLabel(word.interval) }}
                   </span>
-                  <span
-                    v-if="word.cooldown > 0"
-                    class="ml-1 text-xs text-inkLight/60"
-                  >
-                    ({{ word.cooldown }})
-                  </span>
                 </div>
+              </td>
+              <td class="px-6 py-4">
+                <span
+                  class="font-mono text-xs"
+                  :class="
+                    word.cooldown > 0 ? 'text-inkLight' : 'text-green-500'
+                  "
+                >
+                  {{ word.cooldown }}
+                </span>
               </td>
             </tr>
           </tbody>

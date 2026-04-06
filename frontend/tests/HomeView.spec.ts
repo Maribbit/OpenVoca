@@ -38,6 +38,24 @@ describe("HomeView.vue", () => {
     vi.restoreAllMocks();
   });
 
+  const targetWordsResponse = { words: ["lantern", "meadow", "window"] };
+
+  /** Create a fetch mock that routes by URL. */
+  function mockFetch() {
+    return vi.fn((url: string) => {
+      if (typeof url === "string" && url.startsWith("/api/target-words")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => targetWordsResponse,
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => tokenizedSentence,
+      });
+    });
+  }
+
   function makeRouter() {
     return createRouter({
       history: createMemoryHistory(),
@@ -64,13 +82,7 @@ describe("HomeView.vue", () => {
   it("renders the generated reading sentence", async () => {
     window.localStorage.setItem("openvoca.ui.locale", "en");
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => tokenizedSentence,
-      }),
-    );
+    vi.stubGlobal("fetch", mockFetch());
 
     const wrapper = mount(HomeView, {
       global: { plugins: [makeRouter()] },
@@ -123,10 +135,7 @@ describe("HomeView.vue", () => {
     window.localStorage.setItem("openvoca.ui.locale", "en");
     vi.useFakeTimers();
 
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => tokenizedSentence,
-    });
+    const fetchMock = mockFetch();
     vi.stubGlobal("fetch", fetchMock);
 
     const wrapper = mount(HomeView, {
@@ -163,13 +172,7 @@ describe("HomeView.vue", () => {
   it("switches UI language to Chinese and persists locale", async () => {
     window.localStorage.setItem("openvoca.ui.locale", "en");
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => tokenizedSentence,
-      }),
-    );
+    vi.stubGlobal("fetch", mockFetch());
 
     const router = makeRouter();
     const wrapper = mount(
@@ -195,13 +198,7 @@ describe("HomeView.vue", () => {
   it("applies and persists dark reading theme from inline settings", async () => {
     window.localStorage.setItem("openvoca.ui.locale", "en");
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => tokenizedSentence,
-      }),
-    );
+    vi.stubGlobal("fetch", mockFetch());
 
     const wrapper = mount(HomeView, {
       global: { plugins: [makeRouter()] },
@@ -238,13 +235,7 @@ describe("HomeView.vue", () => {
   it("closes inline settings when clicking the blank overlay", async () => {
     window.localStorage.setItem("openvoca.ui.locale", "en");
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => tokenizedSentence,
-      }),
-    );
+    vi.stubGlobal("fetch", mockFetch());
 
     const wrapper = mount(HomeView, {
       global: { plugins: [makeRouter()] },

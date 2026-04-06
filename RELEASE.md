@@ -35,6 +35,36 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.6.2
+
+Date: 2026-04-06
+
+### Highlights
+- **Target Word Preview & Edit**: users can now see, remove, and add target words in the Composer before generating a sentence. Words are auto-selected from the vocabulary and injected into the prompt template.
+- **Cooldown tick fix**: `tick_cooldowns()` moved from the preview endpoint to `/api/reading-sentence/next`, preventing repeated page refreshes from draining cooldowns to zero.
+
+### Backend
+- New `GET /api/target-words?limit=K` endpoint — picks available words without ticking cooldowns.
+- `POST /api/reading-sentence/next` now requires `targetWords: string[]` in the request body (replacing the old `targetWordCount`). Backend uses the frontend-chosen word list directly.
+- `tick_cooldowns()` moved back to `/next` — called once per generation cycle, not on preview.
+- 2 new tests: `test_target_words_endpoint_does_not_tick`, `test_next_endpoint_ticks_cooldowns`. 79 total backend tests.
+
+### Frontend
+- New `fetchTargetWords(limit)` API function.
+- `ComposerCard.vue`: fetches target words on mount, displays word chips with `×` remove, `+` button reveals inline input for manual word entry. Target Words section placed at top of card.
+- Prompt preview now resolves `{{target_words}}` with the actual selected words.
+- `ComposerCard` emits both `composerInstructions` and `targetWords`.
+- `StatsView.vue`: words sorted by review priority (cooldown ASC, interval ASC). Table split into 4 columns: Lemma, POS, Interval, Cooldown — matching the database schema.
+- New i18n keys: `composerTargetWords`, `composerTargetWordsHint`, `composerAddWordPlaceholder`, `statsLemma`, `statsInterval`, `statsCooldown` (EN + ZH).
+
+### Design Documents
+- `ui_guide_composer_light.html` / `ui_guide_composer_dark.html`: fully rewritten with 5-card scenario grid, collapsible sections, Target Words module at top.
+
+### Breaking Changes
+- `POST /api/reading-sentence/next`: `targetWordCount` field replaced by `targetWords: string[]`. Clients must now supply an explicit word list.
+
+---
+
 ## v0.6.1
 
 Date: 2026-04-06

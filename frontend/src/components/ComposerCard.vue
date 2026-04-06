@@ -4,6 +4,61 @@
     <div
       class="w-full bg-surface/80 backdrop-blur-md rounded-2xl border border-ink/5 shadow-sm p-5 space-y-5"
     >
+      <!-- Target Words -->
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <span
+            class="text-xs font-semibold uppercase tracking-[0.15em] text-inkLight"
+            >{{ t.composerTargetWords }}</span
+          >
+          <span class="text-xs text-inkLight/50">{{
+            t.composerTargetWordsHint
+          }}</span>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <span
+            v-for="(word, idx) in targetWords"
+            :key="idx"
+            class="word-chip"
+            @click="removeWord(idx)"
+          >
+            {{ word }}<span class="remove-btn">×</span>
+          </span>
+          <button
+            v-if="!addingWord"
+            @click="startAddWord"
+            class="inline-flex items-center justify-center w-7 h-7 rounded-full border border-dashed border-ink/15 text-inkLight hover:border-ink/30 hover:text-ink transition-all cursor-pointer"
+          >
+            <svg
+              class="w-3 h-3"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+          </button>
+          <input
+            v-if="addingWord"
+            ref="addWordInputRef"
+            v-model="newWordText"
+            type="text"
+            :placeholder="t.composerAddWordPlaceholder"
+            class="w-24 px-3 py-1.5 rounded-full border border-dashed border-ink/20 text-xs text-ink placeholder:text-inkLight/40 focus:outline-none focus:border-ink/30 transition-colors bg-transparent"
+            @keydown.enter="confirmAddWord"
+            @keydown.escape="cancelAddWord"
+            @blur="cancelAddWord"
+          />
+        </div>
+      </div>
+
+      <div class="border-t border-ink/5"></div>
+
       <!-- Scenario -->
       <div>
         <span
@@ -179,18 +234,61 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, computed } from "vue";
+  import { nextTick, onMounted, ref, computed } from "vue";
 
+  import { fetchTargetWords } from "../api/reading";
   import { DEFAULT_READING_PREFERENCES } from "../composables/readingPreferences";
   import { useI18n } from "../composables/useI18n";
   import { useSettings } from "../composables/useSettings";
 
   const emit = defineEmits<{
-    generate: [composerInstructions: string];
+    generate: [composerInstructions: string, targetWords: string[]];
   }>();
 
   const { messages: t } = useI18n();
   const { get, set } = useSettings();
+
+  // --- Target Words ---
+  const targetWords = ref<string[]>([]);
+  const addingWord = ref(false);
+  const newWordText = ref("");
+  const addWordInputRef = ref<HTMLInputElement | null>(null);
+
+  async function loadTargetWords(): Promise<void> {
+    const limit = Number(get("generation", "targetWordCount", "1"));
+    try {
+      targetWords.value = await fetchTargetWords(limit);
+    } catch {
+      targetWords.value = [];
+    }
+  }
+
+  function removeWord(idx: number): void {
+    targetWords.value.splice(idx, 1);
+  }
+
+  function startAddWord(): void {
+    addingWord.value = true;
+    nextTick(() => addWordInputRef.value?.focus());
+  }
+
+  function confirmAddWord(): void {
+    const word = newWordText.value.trim().toLowerCase();
+    if (word && !targetWords.value.includes(word)) {
+      targetWords.value.push(word);
+    }
+    newWordText.value = "";
+    addingWord.value = false;
+  }
+
+  function cancelAddWord(): void {
+    newWordText.value = "";
+    addingWord.value = false;
+  }
+
+  onMounted(() => {
+    loadTargetWords();
+  });
 
   const SCENARIO_PROMPTS: Record<string, string> = {
     absurd_headlines:
@@ -399,11 +497,20 @@
 
   const fullPreviewText = computed(() => {
     const template = promptTemplate.value.trim() || DEFAULT_PROMPT_TEMPLATE;
+
+    // Replace {{target_words}} with actual words for preview
+    const wordsText = targetWords.value.length
+      ? targetWords.value.join(", ")
+      : "(no words selected)";
+    const resolved = template.includes("{{target_words}}")
+      ? template.replace("{{target_words}}", wordsText)
+      : template;
+
     const ci = composerInstructions.value;
     if (ci) {
-      return template + "\n" + ci;
+      return resolved + "\n" + ci;
     }
-    return template;
+    return resolved;
   });
 
   // --- Emit ---
@@ -417,11 +524,40 @@
       customLength: customLength.value,
     });
 
-    emit("generate", composerInstructions.value);
+    emit("generate", composerInstructions.value, targetWords.value);
   }
 </script>
 
 <style scoped>
+  .word-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px 5px 14px;
+    border-radius: 9999px;
+    font-size: 13px;
+    font-weight: 500;
+    background: var(--color-ink);
+    color: var(--color-paper);
+    transition: all 0.15s;
+    cursor: pointer;
+  }
+  .word-chip .remove-btn {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--color-paper) 15%, transparent);
+    font-size: 11px;
+    line-height: 1;
+    transition: background 0.15s;
+  }
+  .word-chip:hover .remove-btn {
+    background: color-mix(in srgb, var(--color-paper) 30%, transparent);
+  }
+
   .scenario-card {
     display: flex;
     flex-direction: column;
