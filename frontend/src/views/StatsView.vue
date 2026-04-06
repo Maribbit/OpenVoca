@@ -14,9 +14,22 @@
           <button
             type="button"
             class="flex items-center gap-2 rounded-full border border-black/8 bg-surface px-5 py-2.5 text-sm font-medium text-ink transition-all hover:border-black/15 hover:shadow-sm"
-            @click="handleClear"
+            @click="handleExport"
           >
-            {{ i18nMessages.clearVocabulary }}
+            <svg
+              class="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"
+              />
+            </svg>
+            {{ i18nMessages.exportVocabulary }}
           </button>
           <router-link
             to="/"
@@ -128,7 +141,7 @@
   import { onMounted, ref } from "vue";
 
   import {
-    clearVocabulary,
+    exportVocabulary,
     fetchVocabulary,
     type WordRecordOut,
   } from "../api/reading";
@@ -146,9 +159,8 @@
     }
   }
 
-  async function handleClear(): Promise<void> {
-    await clearVocabulary();
-    words.value = [];
+  async function handleExport(): Promise<void> {
+    await exportVocabulary();
   }
 
   function intervalDotColor(interval: number): string {

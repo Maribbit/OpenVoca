@@ -276,6 +276,55 @@
           </div>
         </section>
 
+        <!-- ===== Data ===== -->
+        <section
+          class="overflow-hidden rounded-2xl border border-black/5 bg-surface shadow-sm"
+        >
+          <div class="border-b border-black/5 px-6 py-4">
+            <h2
+              class="text-xs font-semibold uppercase tracking-[0.2em] text-inkLight"
+            >
+              {{ i18nMessages.dataSection }}
+            </h2>
+          </div>
+          <div class="flex items-center justify-between p-6">
+            <div>
+              <p class="text-sm font-medium text-ink">
+                {{ i18nMessages.exportVocabularySettings }}
+              </p>
+              <p class="mt-1 text-xs text-inkLight">
+                {{ i18nMessages.exportVocabularySettingsDescription }}
+              </p>
+            </div>
+            <button
+              type="button"
+              class="whitespace-nowrap rounded-xl border border-black/10 px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-black/4"
+              @click="handleExportVocabulary"
+            >
+              {{ i18nMessages.exportVocabularySettingsButton }}
+            </button>
+          </div>
+          <div
+            class="flex items-center justify-between border-t border-black/5 p-6"
+          >
+            <div>
+              <p class="text-sm font-medium text-ink">
+                {{ i18nMessages.exportSettings }}
+              </p>
+              <p class="mt-1 text-xs text-inkLight">
+                {{ i18nMessages.exportSettingsDescription }}
+              </p>
+            </div>
+            <button
+              type="button"
+              class="whitespace-nowrap rounded-xl border border-black/10 px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-black/4"
+              @click="handleExportSettings"
+            >
+              {{ i18nMessages.exportSettingsButton }}
+            </button>
+          </div>
+        </section>
+
         <!-- ===== Danger Zone ===== -->
         <section
           class="overflow-hidden rounded-2xl border border-red-200/60 bg-surface shadow-sm"
@@ -299,7 +348,7 @@
             <button
               type="button"
               class="whitespace-nowrap rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
-              @click="handleClearVocabulary"
+              @click="confirmClearVocabulary"
             >
               {{ i18nMessages.clearDatabase }}
             </button>
@@ -318,39 +367,9 @@
             <button
               type="button"
               class="whitespace-nowrap rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
-              @click="handleClearSettings"
+              @click="confirmClearSettings"
             >
               {{ i18nMessages.clearSettingsButton }}
-            </button>
-          </div>
-        </section>
-
-        <!-- ===== Export ===== -->
-        <section
-          class="overflow-hidden rounded-2xl border border-black/5 bg-surface shadow-sm"
-        >
-          <div class="border-b border-black/5 px-6 py-4">
-            <h2
-              class="text-xs font-semibold uppercase tracking-[0.2em] text-inkLight"
-            >
-              {{ i18nMessages.dataSection }}
-            </h2>
-          </div>
-          <div class="flex items-center justify-between p-6">
-            <div>
-              <p class="text-sm font-medium text-ink">
-                {{ i18nMessages.exportSettings }}
-              </p>
-              <p class="mt-1 text-xs text-inkLight">
-                {{ i18nMessages.exportSettingsDescription }}
-              </p>
-            </div>
-            <button
-              type="button"
-              class="whitespace-nowrap rounded-xl border border-black/10 px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-black/4"
-              @click="handleExportSettings"
-            >
-              {{ i18nMessages.exportSettingsButton }}
             </button>
           </div>
         </section>
@@ -365,7 +384,7 @@
 <script setup lang="ts">
   import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 
-  import { clearVocabulary } from "../api/reading";
+  import { clearVocabulary, exportVocabulary } from "../api/reading";
   import { fetchProvider, setProvider, testProvider } from "../api/settings";
   import { type Locale, useI18n } from "../composables/useI18n";
   import { useSettings } from "../composables/useSettings";
@@ -480,9 +499,25 @@
     await clearVocabulary();
   }
 
+  function confirmClearVocabulary(): void {
+    if (window.confirm(i18nMessages.value.confirmClearVocabulary)) {
+      void handleClearVocabulary();
+    }
+  }
+
   async function handleClearSettings(): Promise<void> {
     await clearAll();
     window.location.reload();
+  }
+
+  function confirmClearSettings(): void {
+    if (window.confirm(i18nMessages.value.confirmClearSettings)) {
+      void handleClearSettings();
+    }
+  }
+
+  function handleExportVocabulary(): void {
+    void exportVocabulary();
   }
 
   function handleExportSettings(): void {

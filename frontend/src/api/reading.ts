@@ -93,6 +93,18 @@ export async function clearVocabulary(): Promise<void> {
   await fetch("/api/vocabulary", { method: "DELETE" });
 }
 
+export async function exportVocabulary(): Promise<void> {
+  const response = await fetch("/api/vocabulary/export");
+  if (!response.ok) throw new Error("Unable to export vocabulary.");
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "openvoca-vocabulary.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export async function fetchTargetWords(limit: number): Promise<string[]> {
   const response = await fetch(`/api/target-words?limit=${limit}`, {
     headers: { Accept: "application/json" },

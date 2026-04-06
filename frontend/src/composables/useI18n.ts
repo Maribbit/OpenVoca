@@ -25,6 +25,7 @@ interface LocaleMessages {
   vocabulary: string;
   backToReading: string;
   clearVocabulary: string;
+  exportVocabulary: string;
   familiarityNeedsReview: string;
   familiarityLearning: string;
   familiarityFamiliar: string;
@@ -58,6 +59,11 @@ interface LocaleMessages {
   exportSettings: string;
   exportSettingsDescription: string;
   exportSettingsButton: string;
+  exportVocabularySettings: string;
+  exportVocabularySettingsDescription: string;
+  exportVocabularySettingsButton: string;
+  confirmClearVocabulary: string;
+  confirmClearSettings: string;
   composerScenario: string;
   composerScenario_absurd_headlines: string;
   composerScenario_poetry: string;
@@ -113,6 +119,7 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     vocabulary: "Your Vocabulary",
     backToReading: "Back to Reading",
     clearVocabulary: "Clear All",
+    exportVocabulary: "Export",
     familiarityNeedsReview: "Needs Review",
     familiarityLearning: "Learning",
     familiarityFamiliar: "Familiar",
@@ -152,6 +159,14 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     exportSettingsDescription:
       "Download all settings as a JSON file for backup or migration.",
     exportSettingsButton: "Export JSON",
+    exportVocabularySettings: "Export vocabulary",
+    exportVocabularySettingsDescription:
+      "Download all word records as a CSV file for backup or analysis.",
+    exportVocabularySettingsButton: "Export CSV",
+    confirmClearVocabulary:
+      "Are you sure you want to delete all vocabulary? This cannot be undone.",
+    confirmClearSettings:
+      "Are you sure you want to reset all settings to defaults? This cannot be undone.",
     composerScenario: "Scenario",
     composerScenario_absurd_headlines: "Fake News",
     composerScenario_poetry: "Poetry",
@@ -203,6 +218,7 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     vocabulary: "你的词库",
     backToReading: "返回阅读",
     clearVocabulary: "清空词库",
+    exportVocabulary: "导出词库",
     familiarityNeedsReview: "需复习",
     familiarityLearning: "学习中",
     familiarityFamiliar: "较熟悉",
@@ -239,6 +255,12 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     exportSettings: "导出设置",
     exportSettingsDescription: "将所有设置下载为 JSON 文件，用于备份或迁移。",
     exportSettingsButton: "导出 JSON",
+    exportVocabularySettings: "导出词库",
+    exportVocabularySettingsDescription:
+      "将所有单词记录下载为 CSV 文件，用于备份或分析。",
+    exportVocabularySettingsButton: "导出 CSV",
+    confirmClearVocabulary: "确定要删除所有词汇吗？此操作不可撤销。",
+    confirmClearSettings: "确定要恢复所有设置为默认值吗？此操作不可撤销。",
     composerScenario: "场景",
     composerScenario_absurd_headlines: "假新闻",
     composerScenario_poetry: "诗歌",

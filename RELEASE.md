@@ -35,6 +35,29 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.6.4
+
+Date: 2025-07-24
+
+### Highlights
+- **Vocabulary CSV export**: new "Export Vocabulary" button in both the Stats page and the Settings Data section. Downloads all word records as a CSV file (`lemma, pos, interval, cooldown`).
+- **Settings page restructured**: the "Data" section (export vocabulary + export settings) now sits above the "Danger Zone" for a more logical flow.
+- **Danger Zone confirmation**: "Clear Database" and "Clear Settings" now require explicit confirmation via a browser dialog before executing, preventing accidental data loss.
+- **Header UX polish**: removed hover backgrounds from Menu/Stats buttons; moved the settings gear icon next to the Menu link for consistency.
+- **Test suite reorganized**: `test_main.py` split into `test_main.py` (API endpoints), `test_word_store.py` (algorithm logic), and `test_openai_compat.py` (LLM client). Shared helper in `conftest.py`. 78 backend tests, 5 frontend tests.
+
+### Backend
+- New `GET /api/vocabulary/export` endpoint — returns a streaming CSV response with `Content-Disposition: attachment`.
+- 2 new tests: `test_export_vocabulary_csv`, `test_export_vocabulary_csv_empty`.
+
+### Frontend
+- `StatsView.vue`: replaced "Clear All" button with "Export" button (CSV download via blob).
+- `SettingsView.vue`: added "Export Vocabulary" row to Data section; Data section moved above Danger Zone; both Danger Zone actions now use `window.confirm()`.
+- `reading.ts`: new `exportVocabulary()` API function.
+- `useI18n.ts`: added 7 new i18n keys (`exportVocabulary`, `exportVocabularySettings`, `exportVocabularySettingsDescription`, `exportVocabularySettingsButton`, `confirmClearVocabulary`, `confirmClearSettings`).
+
+---
+
 ## v0.6.3
 
 Date: 2025-07-24

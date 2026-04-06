@@ -10,24 +10,17 @@
       class="group fixed inset-x-0 top-0 z-10 flex items-center justify-between px-6 py-6 uppercase tracking-[0.45em] text-inkLight/50 md:px-10"
       :class="uiHeaderSizeClass"
     >
-      <div class="flex flex-1 justify-start">
+      <div class="flex flex-1 items-center justify-start gap-1">
         <router-link
           to="/settings"
-          class="cursor-pointer rounded-full px-3 py-2 transition-colors hover:bg-black/4 hover:text-ink"
+          class="cursor-pointer rounded-full px-3 py-2 transition-colors hover:text-ink"
         >
           {{ i18nMessages.menu }}
         </router-link>
-      </div>
-
-      <div
-        class="pointer-events-none flex flex-1 items-center justify-center"
-      ></div>
-
-      <div class="flex flex-1 items-center justify-end gap-1 md:gap-3">
         <button
           type="button"
           data-testid="reading-settings-trigger"
-          class="cursor-pointer rounded-full p-2 transition-all hover:bg-black/4 hover:text-ink opacity-0 group-hover:opacity-100 focus:opacity-100"
+          class="cursor-pointer rounded-full p-2 transition-all hover:text-ink opacity-0 group-hover:opacity-100 focus:opacity-100"
           @click="toggleUiPanel"
           :title="i18nMessages.readingDisplaySettings"
         >
@@ -52,10 +45,16 @@
             />
           </svg>
         </button>
+      </div>
 
+      <div
+        class="pointer-events-none flex flex-1 items-center justify-center"
+      ></div>
+
+      <div class="flex flex-1 items-center justify-end">
         <router-link
           to="/stats"
-          class="cursor-pointer rounded-full px-3 py-2 transition-colors hover:bg-black/4 hover:text-ink"
+          class="cursor-pointer rounded-full px-3 py-2 transition-colors hover:text-ink"
         >
           {{ i18nMessages.stats }}
         </router-link>

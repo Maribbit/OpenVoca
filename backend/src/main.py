@@ -1,7 +1,11 @@
+import csv
+import io
+
 import httpx
 from contextlib import asynccontextmanager
 from pydantic import BaseModel, ConfigDict, Field
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 
 from src.integrations.openai_compat import OpenAICompatibleClient
 from src.integrations.provider import LLMProvider
@@ -261,6 +265,23 @@ def get_vocabulary() -> VocabularyResponse:
 def delete_vocabulary() -> dict[str, int]:
     count = clear_all_words()
     return {"deleted": count}
+
+
+@app.get("/api/vocabulary/export")
+def export_vocabulary() -> StreamingResponse:
+    """Export the vocabulary as a CSV file."""
+    records = list_all_words()
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["lemma", "pos", "interval", "cooldown"])
+    for r in records:
+        writer.writerow([r.lemma, r.pos, r.interval, r.cooldown])
+    buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=openvoca-vocabulary.csv"},
+    )
 
 
 # --- Settings ---
