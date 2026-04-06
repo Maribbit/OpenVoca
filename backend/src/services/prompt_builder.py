@@ -2,45 +2,27 @@ from collections.abc import Sequence
 
 
 def build_sentence_generation_prompt(
-    words: Sequence[str],
-    prompt_template: str,
-    composer_instructions: str = "",
+    prompt: str,
+    target_words: Sequence[str],
 ) -> str:
+    """Append the internal markdown-marking directive to the user-built prompt.
+
+    The frontend is responsible for assembling the visible prompt (template
+    interpolation, scenario/difficulty/length instructions). This function
+    only adds the backend-internal instruction that tells the LLM to wrap
+    target words in Markdown italics so the tokenizer can identify them.
     """
-    Construct the final prompt for the LLM.
-    Handles target word interpolation and fallback logic when no words are provided.
-    """
-    normalized_words = [word.strip() for word in words if word.strip()]
-    normalized_template = prompt_template.strip()
+    final = prompt.strip()
 
-    if not normalized_template:
-        raise ValueError("A prompt template is required to generate a sentence.")
+    if not final:
+        raise ValueError("A prompt is required to generate a sentence.")
 
-    # Business Logic: Handle empty target words
-    if not normalized_words:
-        # Inject protective fallback instruction for the LLM
-        words_text = (
-            "The user did not provide target words. "
-            "You may generate any natural English sentence."
-        )
-    else:
-        words_text = ", ".join(normalized_words)
+    normalized = [w.strip() for w in target_words if w.strip()]
 
-    # Business Logic: Interpolate or Append
-    if "{{target_words}}" in normalized_template:
-        prompt = normalized_template.replace("{{target_words}}", words_text)
-    else:
-        prompt = f"{normalized_template}\nTarget words: {words_text}."
-
-    # Composer instructions (scenario, difficulty, length, etc.)
-    if composer_instructions:
-        prompt += "\n" + composer_instructions
-
-    # Only enforce marking if there are actual target words to mark
-    if normalized_words:
-        prompt += (
+    if normalized:
+        final += (
             " IMPORTANT: You MUST mark the target words in the sentence using Markdown italics, "
             "like *word*. Do not use bold or quotes, only single asterisks."
         )
 
-    return prompt
+    return final

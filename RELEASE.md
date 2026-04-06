@@ -35,6 +35,31 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.6.3
+
+Date: 2025-07-24
+
+### Highlights
+- **Prompt assembly moved to frontend**: the frontend now builds the complete prompt (template interpolation + scenario/difficulty/length instructions + target words). The backend receives a single `prompt` string and only appends the internal markdown-marking directive. This eliminates duplication between preview and generation.
+- **Simplified API**: `POST /api/reading-sentence/next` now accepts `{ prompt, targetWords }` instead of `{ promptTemplate, targetWords, composerInstructions }` — 2 fields instead of 3.
+- **Backend sorting**: vocabulary list sorting moved from frontend to backend SQL (`ORDER BY cooldown ASC, interval ASC`), preparing for future pagination and filtering.
+
+### Backend
+- `prompt_builder.py`: simplified from 50 to 28 lines. No longer does template interpolation or composer instruction concatenation — only appends the IMPORTANT markdown-marking directive when target words are present.
+- `ReadingSentenceRequest`: replaced `promptTemplate` + `composerInstructions` with a single `prompt` field. `targetWords` retained for tokenizer marking.
+- `list_all_words()`: now sorts by `cooldown ASC, interval ASC` in SQL (was `interval ASC, last_seen ASC`).
+- 76 backend tests passing (prompt_builder tests simplified from 9 to 6).
+
+### Frontend
+- `ComposerCard.vue`: new `buildPrompt()` function assembles the complete prompt (resolves `{{target_words}}`, appends composer instructions). Emits `(prompt, targetWords)` instead of `(composerInstructions, targetWords)`.
+- `HomeView.vue`: removed `DEFAULT_READING_PREFERENCES` import (no longer needed). `loadSentence` sends `{ prompt, targetWords }`.
+- `StatsView.vue`: removed client-side sort (backend handles it).
+
+### Breaking Changes
+- `POST /api/reading-sentence/next`: request body changed from `{ promptTemplate, targetWords, composerInstructions? }` to `{ prompt, targetWords }`. The `prompt` field must contain the fully assembled prompt.
+
+---
+
 ## v0.6.2
 
 Date: 2026-04-06

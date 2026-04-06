@@ -242,7 +242,7 @@
   import { useSettings } from "../composables/useSettings";
 
   const emit = defineEmits<{
-    generate: [composerInstructions: string, targetWords: string[]];
+    generate: [prompt: string, targetWords: string[]];
   }>();
 
   const { messages: t } = useI18n();
@@ -495,22 +495,24 @@
     get("generation", "promptTemplate", DEFAULT_PROMPT_TEMPLATE),
   );
 
-  const fullPreviewText = computed(() => {
+  /** Build the full prompt from template + target words + composer instructions. */
+  function buildPrompt(words: string[]): string {
     const template = promptTemplate.value.trim() || DEFAULT_PROMPT_TEMPLATE;
 
-    // Replace {{target_words}} with actual words for preview
-    const wordsText = targetWords.value.length
-      ? targetWords.value.join(", ")
-      : "(no words selected)";
+    const wordsText = words.length ? words.join(", ") : "";
     const resolved = template.includes("{{target_words}}")
       ? template.replace("{{target_words}}", wordsText)
       : template;
 
     const ci = composerInstructions.value;
-    if (ci) {
-      return resolved + "\n" + ci;
-    }
-    return resolved;
+    return ci ? resolved + "\n" + ci : resolved;
+  }
+
+  const fullPreviewText = computed(() => {
+    const words = targetWords.value.length
+      ? targetWords.value
+      : ["(no words selected)"];
+    return buildPrompt(words);
   });
 
   // --- Emit ---
@@ -524,7 +526,7 @@
       customLength: customLength.value,
     });
 
-    emit("generate", composerInstructions.value, targetWords.value);
+    emit("generate", buildPrompt(targetWords.value), targetWords.value);
   }
 </script>
 

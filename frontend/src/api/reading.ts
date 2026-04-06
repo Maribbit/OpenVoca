@@ -14,9 +14,8 @@ export interface ReadingSentenceToken {
 }
 
 export interface GenerateReadingSentenceRequest {
-  promptTemplate: string;
+  prompt: string;
   targetWords: string[];
-  composerInstructions?: string;
 }
 
 export interface WordPosEntry {

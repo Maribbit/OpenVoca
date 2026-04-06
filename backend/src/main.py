@@ -57,11 +57,8 @@ llm: LLMProvider = _load_provider()
 class ReadingSentenceRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    prompt_template: str = Field(alias="promptTemplate", min_length=1)
+    prompt: str = Field(min_length=1, max_length=5000)
     target_words: list[str] = Field(alias="targetWords")
-    composer_instructions: str = Field(
-        default="", alias="composerInstructions", max_length=2000
-    )
 
 
 class ReadingSentenceResponse(BaseModel):
@@ -178,14 +175,12 @@ async def test_provider() -> dict[str, str | bool]:
 
 
 async def _generate_reading_response(
-    words: list[str], prompt_template: str, composer_instructions: str = ""
+    prompt: str, words: list[str]
 ) -> ReadingSentenceResponse:
-    """Shared logic: build prompt, call LLM, tokenize, return response."""
+    """Shared logic: finalize prompt, call LLM, tokenize, return response."""
     try:
-        prompt = build_sentence_generation_prompt(
-            words, prompt_template, composer_instructions
-        )
-        sentence = await llm.generate_completion(prompt)
+        final_prompt = build_sentence_generation_prompt(prompt, words)
+        sentence = await llm.generate_completion(final_prompt)
     except (httpx.HTTPError, ValueError) as exc:
         raise HTTPException(
             status_code=502,
@@ -231,9 +226,7 @@ async def get_next_reading_sentence(
     for the next generation cycle.
     """
     tick_cooldowns()
-    return await _generate_reading_response(
-        request.target_words, request.prompt_template, request.composer_instructions
-    )
+    return await _generate_reading_response(request.prompt, request.target_words)
 
 
 @app.post("/api/feedback")

@@ -118,7 +118,6 @@
     submitFeedback,
     type ReadingSentenceToken,
   } from "../api/reading";
-  import { DEFAULT_READING_PREFERENCES } from "../composables/readingPreferences";
   import { useI18n } from "../composables/useI18n";
   import { useSettings } from "../composables/useSettings";
   import ComposerCard from "../components/ComposerCard.vue";
@@ -258,20 +257,15 @@
   }
 
   async function loadSentence(
-    composerInstructions?: string,
-    targetWords?: string[],
+    prompt: string,
+    targetWords: string[],
   ): Promise<void> {
     isLoading.value = true;
     errorMessage.value = "";
     try {
       const response = await fetchNextReadingSentence({
-        promptTemplate: get(
-          "generation",
-          "promptTemplate",
-          DEFAULT_READING_PREFERENCES.promptTemplate,
-        ),
-        targetWords: targetWords ?? [],
-        ...(composerInstructions ? { composerInstructions } : {}),
+        prompt,
+        targetWords,
       });
       sentence.value = response.sentence;
       tokens.value = response.tokens;
@@ -314,11 +308,11 @@
   }
 
   async function onComposerGenerate(
-    composerInstructions: string,
+    prompt: string,
     targetWords: string[],
   ): Promise<void> {
     showComposer.value = false;
-    await loadSentence(composerInstructions, targetWords);
+    await loadSentence(prompt, targetWords);
   }
 
   // --- Keyboard ---

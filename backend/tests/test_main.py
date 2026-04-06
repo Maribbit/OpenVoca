@@ -227,7 +227,7 @@ def test_reading_sentence_endpoint_returns_pos_tags(
     response = client.post(
         "/api/reading-sentence/next",
         json={
-            "promptTemplate": "Write one sentence with {{target_words}}.",
+            "prompt": "Write one sentence with harbor, lantern.",
             "targetWords": ["harbor", "lantern"],
         },
     )
@@ -315,7 +315,7 @@ def test_reading_sentence_returns_502_on_ollama_failure(
     response = client.post(
         "/api/reading-sentence/next",
         json={
-            "promptTemplate": "Write a sentence with {{target_words}}.",
+            "prompt": "Write a sentence with test.",
             "targetWords": ["test"],
         },
     )
@@ -839,7 +839,7 @@ def test_next_endpoint_ticks_cooldowns(
     client.post(
         "/api/reading-sentence/next",
         json={
-            "promptTemplate": "Write one sentence with {{target_words}}.",
+            "prompt": "Write one sentence with harbor.",
             "targetWords": ["harbor"],
         },
     )
@@ -881,10 +881,10 @@ def test_target_words_endpoint_does_not_tick(
 # ---------------------------------------------------------------------------
 
 
-def test_next_endpoint_accepts_composer_instructions(
+def test_next_endpoint_accepts_full_prompt(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The /next endpoint should accept and forward composer instructions to the prompt."""
+    """The /next endpoint should accept a fully assembled prompt from the frontend."""
     engine = _in_memory_engine()
     monkeypatch.setattr("src.services.word_store._engine", engine)
 
@@ -903,9 +903,8 @@ def test_next_endpoint_accepts_composer_instructions(
     response = client.post(
         "/api/reading-sentence/next",
         json={
-            "promptTemplate": "Write a sentence: {{target_words}}",
+            "prompt": "Write a sentence: sunset.\n[Scenario] You are a deadpan news anchor.\n[Difficulty] Use simple vocabulary.\n[Length] The sentence MUST be approximately 40 words long.",
             "targetWords": ["sunset"],
-            "composerInstructions": "[Scenario] You are a deadpan news anchor.\n[Difficulty] Use simple vocabulary.\n[Length] The sentence MUST be approximately 40 words long.",
         },
     )
 
@@ -913,12 +912,13 @@ def test_next_endpoint_accepts_composer_instructions(
     prompt = captured_prompts[0]
     assert "news anchor" in prompt.lower()
     assert "40" in prompt
+    assert "sunset" in prompt
 
 
-def test_next_endpoint_works_without_composer(
+def test_next_endpoint_works_with_minimal_prompt(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The /next endpoint should still work when composer field is absent."""
+    """The /next endpoint should work with just a prompt and target words."""
     engine = _in_memory_engine()
     monkeypatch.setattr("src.services.word_store._engine", engine)
 
@@ -934,7 +934,7 @@ def test_next_endpoint_works_without_composer(
     response = client.post(
         "/api/reading-sentence/next",
         json={
-            "promptTemplate": "Write a sentence: {{target_words}}",
+            "prompt": "Write a sentence with hello.",
             "targetWords": ["hello"],
         },
     )
