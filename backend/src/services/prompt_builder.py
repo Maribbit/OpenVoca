@@ -1,7 +1,11 @@
 from collections.abc import Sequence
 
 
-def build_sentence_generation_prompt(words: Sequence[str], prompt_template: str) -> str:
+def build_sentence_generation_prompt(
+    words: Sequence[str],
+    prompt_template: str,
+    composer_instructions: str = "",
+) -> str:
     """
     Construct the final prompt for the LLM.
     Handles target word interpolation and fallback logic when no words are provided.
@@ -27,6 +31,10 @@ def build_sentence_generation_prompt(words: Sequence[str], prompt_template: str)
         prompt = normalized_template.replace("{{target_words}}", words_text)
     else:
         prompt = f"{normalized_template}\nTarget words: {words_text}."
+
+    # Composer instructions (scenario, difficulty, length, etc.)
+    if composer_instructions:
+        prompt += "\n" + composer_instructions
 
     # Only enforce marking if there are actual target words to mark
     if normalized_words:

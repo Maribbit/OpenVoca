@@ -2,9 +2,11 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field
 from fastapi import FastAPI, HTTPException
 
-from src.integrations.ollama import OllamaClient
+from src.integrations.openai_compat import OpenAICompatibleClient
 from src.integrations.provider import LLMProvider
-from src.services.prompt_builder import build_sentence_generation_prompt
+from src.services.prompt_builder import (
+    build_sentence_generation_prompt,
+)
 from src.services.tokenizer import tokenize_sentence
 from src.services.word_store import (
     apply_feedback,
@@ -14,6 +16,7 @@ from src.services.word_store import (
     tick_cooldowns,
 )
 from src.services.settings_store import (
+    clear_all_settings,
     get_all_settings,
     get_namespace,
     init_settings_table,
@@ -22,16 +25,33 @@ from src.services.settings_store import (
 )
 
 app = FastAPI(title="OpenVoca API")
-llm: LLMProvider = OllamaClient()
 init_settings_table()
+
+DEFAULT_ENDPOINT = "http://localhost:11434"
+DEFAULT_MODEL = ""
+
+
+def _load_provider() -> OpenAICompatibleClient:
+    """Build the LLM client from persisted settings (namespace 'provider')."""
+    cfg = get_namespace("provider")
+    return OpenAICompatibleClient(
+        base_url=cfg.get("endpoint", DEFAULT_ENDPOINT),
+        model=cfg.get("model", DEFAULT_MODEL),
+        api_key=cfg.get("apiKey", ""),
+    )
+
+
+llm: LLMProvider = _load_provider()
 
 
 class ReadingSentenceRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    target_words: list[str] = Field(default_factory=list, alias="targetWords")
     prompt_template: str = Field(alias="promptTemplate", min_length=1)
     target_word_count: int = Field(default=3, alias="targetWordCount", ge=1, le=5)
+    composer_instructions: str = Field(
+        default="", alias="composerInstructions", max_length=2000
+    )
 
 
 class ReadingSentenceResponse(BaseModel):
@@ -84,17 +104,80 @@ def read_root() -> dict[str, str]:
     return {"status": "ok", "message": "OpenVoca backend is running!"}
 
 
+def _mask_api_key(key: str) -> str:
+    """Return a masked version for safe display."""
+    if len(key) <= 8:
+        return "••••" if key else ""
+    return key[:3] + "••••" + key[-4:]
+
+
+class ProviderConfig(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    endpoint: str = Field(default=DEFAULT_ENDPOINT, max_length=500)
+    model: str = Field(default=DEFAULT_MODEL, max_length=200)
+    api_key: str = Field(default="", alias="apiKey", max_length=500)
+
+
+@app.get("/api/provider")
+def get_provider() -> dict[str, str]:
+    """Return the current LLM provider configuration (API key masked)."""
+    if isinstance(llm, OpenAICompatibleClient):
+        return {
+            "endpoint": llm.base_url,
+            "model": llm.model,
+            "apiKey": _mask_api_key(llm.api_key),
+        }
+    return {"endpoint": DEFAULT_ENDPOINT, "model": DEFAULT_MODEL, "apiKey": ""}
+
+
+@app.put("/api/provider")
+def set_provider(config: ProviderConfig) -> dict[str, str]:
+    """Switch the LLM provider at runtime and persist to settings."""
+    global llm
+    llm = OpenAICompatibleClient(
+        base_url=config.endpoint,
+        model=config.model,
+        api_key=config.api_key,
+    )
+    # Persist for next startup
+    settings: dict[str, str] = {
+        "endpoint": config.endpoint,
+        "model": config.model,
+    }
+    if config.api_key:
+        settings["apiKey"] = config.api_key
+    upsert_namespace("provider", settings)
+    return {
+        "endpoint": llm.base_url,
+        "model": llm.model,
+        "apiKey": _mask_api_key(llm.api_key),
+    }
+
+
+@app.post("/api/provider/test")
+async def test_provider() -> dict[str, str | bool]:
+    """Send a minimal request to verify the current LLM connection."""
+    try:
+        result = await llm.generate_completion("Say 'ok' and nothing else.")
+        return {"ok": True, "message": result[:200]}
+    except (httpx.HTTPError, ValueError) as exc:
+        return {"ok": False, "message": str(exc)[:300]}
+
+
 async def _generate_reading_response(
-    words: list[str], prompt_template: str
+    words: list[str], prompt_template: str, composer_instructions: str = ""
 ) -> ReadingSentenceResponse:
     """Shared logic: build prompt, call LLM, tokenize, return response."""
     try:
-        prompt = build_sentence_generation_prompt(words, prompt_template)
+        prompt = build_sentence_generation_prompt(
+            words, prompt_template, composer_instructions
+        )
         sentence = await llm.generate_completion(prompt)
     except (httpx.HTTPError, ValueError) as exc:
         raise HTTPException(
             status_code=502,
-            detail="Unable to generate a sentence from the local Ollama model.",
+            detail="Unable to generate a sentence. Check your model configuration.",
         ) from exc
 
     tokens = tokenize_sentence(sentence)
@@ -122,14 +205,15 @@ async def get_next_reading_sentence(
     """Pick target words from the database and generate a sentence.
 
     Ticks cooldowns before picking so words become available on schedule.
-    Falls back to frontend-provided words only for compatibility.
     """
     tick_cooldowns()
-    db_words = pick_target_words(limit=request.target_word_count)
-    words = (
-        db_words if db_words else [w.strip() for w in request.target_words if w.strip()]
+    words = pick_target_words(limit=request.target_word_count)
+
+    composer_instructions = request.composer_instructions
+
+    return await _generate_reading_response(
+        words, request.prompt_template, composer_instructions
     )
-    return await _generate_reading_response(words, request.prompt_template)
 
 
 @app.post("/api/feedback")
@@ -193,3 +277,9 @@ def put_setting(namespace: str, key: str, body: SettingValueBody) -> dict[str, s
 def put_settings_namespace(namespace: str, settings: dict[str, str]) -> dict[str, str]:
     upsert_namespace(namespace, settings)
     return {"status": "ok"}
+
+
+@app.delete("/api/settings")
+def delete_all_settings() -> dict[str, int]:
+    count = clear_all_settings()
+    return {"deleted": count}

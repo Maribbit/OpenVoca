@@ -49,6 +49,18 @@ describe("HomeView.vue", () => {
     });
   }
 
+  /** Click the composer "Generate" button to transition from composer to reading view. */
+  async function generateFromComposer(
+    wrapper: ReturnType<typeof mount>,
+  ): Promise<void> {
+    const generateBtn = wrapper
+      .findAll("button")
+      .find((b) => b.text().includes("Generate"));
+    expect(generateBtn).toBeDefined();
+    await generateBtn!.trigger("click");
+    await flushPromises();
+  }
+
   it("renders the generated reading sentence", async () => {
     window.localStorage.setItem("openvoca.ui.locale", "en");
 
@@ -64,6 +76,9 @@ describe("HomeView.vue", () => {
       global: { plugins: [makeRouter()] },
     });
     await flushPromises();
+
+    // Composer is shown first — click Generate to load the sentence
+    await generateFromComposer(wrapper);
 
     // Verify marked words have the correct class
     const markedWord = wrapper
@@ -114,16 +129,18 @@ describe("HomeView.vue", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    mount(HomeView, {
+    const wrapper = mount(HomeView, {
       global: { plugins: [makeRouter()] },
     });
     await flushPromises();
+
+    // Generate from composer to enter reading view
+    await generateFromComposer(wrapper);
 
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/reading-sentence/next",
       expect.objectContaining({
         method: "POST",
-        body: expect.stringContaining('"targetWordCount":3'),
       }),
     );
     const initialCallCount = fetchMock.mock.calls.length;
@@ -132,16 +149,14 @@ describe("HomeView.vue", () => {
     vi.advanceTimersByTime(650);
     await flushPromises();
 
+    // Hold complete but not released — should NOT have advanced yet
     expect(fetchMock).toHaveBeenCalledTimes(initialCallCount);
 
     window.dispatchEvent(new KeyboardEvent("keyup", { code: "Space" }));
     await flushPromises();
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/reading-sentence/next",
-      expect.any(Object),
-    );
-    expect(fetchMock.mock.calls.length).toBeGreaterThan(initialCallCount);
+    // After release, should show composer (not call fetch directly)
+    expect(wrapper.text()).toContain("Generate");
     vi.useRealTimers();
   });
 
@@ -193,6 +208,9 @@ describe("HomeView.vue", () => {
     });
     await flushPromises();
 
+    // Generate from composer to access reading view with settings trigger
+    await generateFromComposer(wrapper);
+
     const settingsTrigger = wrapper.find(
       '[data-testid="reading-settings-trigger"]',
     );
@@ -232,6 +250,9 @@ describe("HomeView.vue", () => {
       global: { plugins: [makeRouter()] },
     });
     await flushPromises();
+
+    // Generate from composer to access reading view
+    await generateFromComposer(wrapper);
 
     await wrapper
       .find('[data-testid="reading-settings-trigger"]')

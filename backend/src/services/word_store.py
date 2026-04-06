@@ -29,6 +29,27 @@ def init_db(engine=None) -> None:
     SQLModel.metadata.create_all(target)
 
 
+def _find_record(session: Session, lemma: str, pos: str) -> WordRecord | None:
+    """Find a WordRecord by (lemma, pos), falling back to lemma-only match.
+
+    The LLM may use a word with a different POS than stored in the DB
+    (e.g., "run" as NOUN when the DB has it as VERB). Without this fallback,
+    feedback would create a duplicate record and the original would never
+    have its interval updated — causing words to be stuck in "learning" state.
+    """
+    record = session.exec(
+        select(WordRecord).where(WordRecord.lemma == lemma, WordRecord.pos == pos)
+    ).first()
+    if record is not None:
+        return record
+    # Fallback: match by lemma alone, prefer lowest interval (most likely picked)
+    return session.exec(
+        select(WordRecord)
+        .where(WordRecord.lemma == lemma)
+        .order_by(WordRecord.interval)
+    ).first()
+
+
 def apply_feedback(
     target_words: list[tuple[str, str]],
     marked_words: list[tuple[str, str]],
@@ -51,11 +72,7 @@ def apply_feedback(
     with Session(target) as session:
         # Miss: halve interval for marked (unknown) words
         for lemma, pos in marked_set:
-            record = session.exec(
-                select(WordRecord).where(
-                    WordRecord.lemma == lemma, WordRecord.pos == pos
-                )
-            ).first()
+            record = _find_record(session, lemma, pos)
             if record is None:
                 record = WordRecord(
                     lemma=lemma,
@@ -74,11 +91,7 @@ def apply_feedback(
 
         # Hit: double interval for unmarked target words
         for lemma, pos in unmarked_targets:
-            record = session.exec(
-                select(WordRecord).where(
-                    WordRecord.lemma == lemma, WordRecord.pos == pos
-                )
-            ).first()
+            record = _find_record(session, lemma, pos)
             if record is None:
                 record = WordRecord(
                     lemma=lemma,

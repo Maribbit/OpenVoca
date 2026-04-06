@@ -6,6 +6,7 @@ from sqlmodel import SQLModel, create_engine
 
 from src.main import app
 from src.services.settings_store import (
+    clear_all_settings,
     delete_namespace,
     get_all_settings,
     get_namespace,
@@ -102,6 +103,20 @@ class TestSettingsStore:
         count = delete_namespace("nonexistent", engine=engine)
         assert count == 0
 
+    def test_clear_all_settings(self):
+        engine = _in_memory_engine()
+        upsert_setting("interface", "locale", "en", engine=engine)
+        upsert_setting("reading", "theme", "dark", engine=engine)
+        upsert_setting("composer", "topic", "science", engine=engine)
+        count = clear_all_settings(engine=engine)
+        assert count == 3
+        assert get_all_settings(engine=engine) == {}
+
+    def test_clear_all_settings_empty(self):
+        engine = _in_memory_engine()
+        count = clear_all_settings(engine=engine)
+        assert count == 0
+
 
 # --- API endpoint tests ---
 
@@ -164,3 +179,24 @@ def test_api_put_setting_rejects_empty_value(monkeypatch):
         json={"value": ""},
     )
     assert response.status_code == 422
+
+
+def test_api_delete_all_settings(monkeypatch):
+    _patch_engine(monkeypatch)
+    client.put("/api/settings/interface/locale", json={"value": "en"})
+    client.put("/api/settings/reading/theme", json={"value": "dark"})
+    client.put("/api/settings/composer/topic", json={"value": "science"})
+
+    response = client.delete("/api/settings")
+    assert response.status_code == 200
+    assert response.json()["deleted"] == 3
+
+    response = client.get("/api/settings")
+    assert response.json() == {}
+
+
+def test_api_delete_all_settings_empty(monkeypatch):
+    _patch_engine(monkeypatch)
+    response = client.delete("/api/settings")
+    assert response.status_code == 200
+    assert response.json()["deleted"] == 0

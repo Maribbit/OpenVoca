@@ -73,24 +73,30 @@
     <main
       class="flex min-h-screen flex-col items-center justify-center gap-14 px-8 py-24"
     >
-      <SentenceDisplay
-        :tokens="tokens"
-        :marked-words="markedWords"
-        :is-loading="isLoading"
-        :error-message="errorMessage"
-        :loading-text="i18nMessages.loadingSentence"
-        :typography-class="sentenceTypographyClass"
-        @toggle-mark="toggleWordMark"
-      />
+      <template v-if="showComposer">
+        <ComposerCard @generate="onComposerGenerate" />
+      </template>
 
-      <HoldButton
-        ref="holdButtonRef"
-        :disabled="isLoading || isUiPanelOpen"
-        :hold-text="i18nMessages.nextSentenceHint"
-        :release-text="i18nMessages.releaseHint"
-        :header-size-class="uiHeaderSizeClass"
-        @advance="goToNextSentence"
-      />
+      <template v-else>
+        <SentenceDisplay
+          :tokens="tokens"
+          :marked-words="markedWords"
+          :is-loading="isLoading"
+          :error-message="errorMessage"
+          :loading-text="i18nMessages.loadingSentence"
+          :typography-class="sentenceTypographyClass"
+          @toggle-mark="toggleWordMark"
+        />
+
+        <HoldButton
+          ref="holdButtonRef"
+          :disabled="isLoading || isUiPanelOpen"
+          :hold-text="i18nMessages.nextSentenceHint"
+          :release-text="i18nMessages.releaseHint"
+          :header-size-class="uiHeaderSizeClass"
+          @advance="goToNextSentence"
+        />
+      </template>
     </main>
 
     <Transition name="fade">
@@ -115,6 +121,7 @@
   import { DEFAULT_READING_PREFERENCES } from "../composables/readingPreferences";
   import { useI18n } from "../composables/useI18n";
   import { useSettings } from "../composables/useSettings";
+  import ComposerCard from "../components/ComposerCard.vue";
   import HoldButton from "../components/HoldButton.vue";
   import ReadingSettingsBar from "../components/ReadingSettingsBar.vue";
   import type {
@@ -143,9 +150,10 @@
   const tokens = ref<ReadingSentenceToken[]>([]);
   const errorMessage = ref("");
   const feedbackError = ref("");
-  const isLoading = ref(true);
+  const isLoading = ref(false);
   const isUiPanelOpen = ref(false);
   const markedWords = ref<Set<string>>(new Set());
+  const showComposer = ref(true);
 
   const holdButtonRef = ref<InstanceType<typeof HoldButton> | null>(null);
 
@@ -249,7 +257,7 @@
     markedWords.value = next;
   }
 
-  async function loadSentence(): Promise<void> {
+  async function loadSentence(composerInstructions?: string): Promise<void> {
     isLoading.value = true;
     errorMessage.value = "";
     try {
@@ -259,13 +267,14 @@
           "promptTemplate",
           DEFAULT_READING_PREFERENCES.promptTemplate,
         ),
-        targetWordCount: Number(get("generation", "targetWordCount", "3")),
+        targetWordCount: Number(get("generation", "targetWordCount", "1")),
+        ...(composerInstructions ? { composerInstructions } : {}),
       });
       sentence.value = response.sentence;
       tokens.value = response.tokens;
       markedWords.value = new Set();
     } catch {
-      errorMessage.value = i18nMessages.value.ollamaError;
+      errorMessage.value = i18nMessages.value.connectionError;
       tokens.value = [];
     } finally {
       isLoading.value = false;
@@ -298,13 +307,20 @@
       });
     }
 
-    await loadSentence();
+    showComposer.value = true;
+  }
+
+  async function onComposerGenerate(
+    composerInstructions: string,
+  ): Promise<void> {
+    showComposer.value = false;
+    await loadSentence(composerInstructions);
   }
 
   // --- Keyboard ---
 
   function handleKeydown(event: KeyboardEvent): void {
-    if (event.code === "Space" && !isUiPanelOpen.value) {
+    if (event.code === "Space" && !isUiPanelOpen.value && !showComposer.value) {
       const target = event.target as HTMLElement;
       if (target.tagName === "TEXTAREA" || target.tagName === "INPUT") return;
       event.preventDefault();
@@ -324,7 +340,6 @@
 
   onMounted(() => {
     applyTheme(readingUiSettings.value.theme);
-    void loadSentence();
     window.addEventListener("keydown", handleKeydown);
     window.addEventListener("keyup", handleKeyup);
   });

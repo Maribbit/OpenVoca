@@ -100,3 +100,15 @@ def delete_namespace(namespace: str, engine=None) -> int:
             session.delete(record)
         session.commit()
         return count
+
+
+def clear_all_settings(engine=None) -> int:
+    """Delete every setting across all namespaces. Returns count of deleted rows."""
+    target = _get_engine(engine)
+    with Session(target) as session:
+        records = session.exec(select(SettingRecord)).all()
+        count = len(records)
+        for record in records:
+            session.delete(record)
+        session.commit()
+        return count

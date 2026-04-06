@@ -35,6 +35,69 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.6.0
+
+Date: 2026-04-01
+
+### Highlights
+- **Scenario-driven Composer**: replaced the Topic + Tone + Length slider with a card-based scenario selector. 4 creative presets (Slice of Life, Fun Facts, Absurd Headlines, Poetry) + a No Preset option, each with a full "persona prompt" injected into the LLM request.
+- **Custom Difficulty & Length**: Difficulty and Length panels now collapse by default and each offer 3 presets + a "Custom" option with free-text input. Empty custom = no constraint.
+- **Unified model configuration**: replaced the Ollama-specific provider with a generic OpenAI-compatible API client (`/v1/chat/completions`), supporting Ollama, OpenAI, DeepSeek, Groq, OpenRouter, SiliconFlow, and any compatible endpoint.
+- **Prompt architecture overhaul**: prompt assembly (scenario + difficulty + length) moved entirely to the frontend (Single Source of Truth). Backend receives the assembled `composerInstructions` string. Prompt template generalized to remove restrictive constraints.
+- **Dead code housecleaning**: removed legacy `OllamaClient`, `GET /api/models` stub, unused `target_words` request field, and 12 dead i18n keys. Codebase is leaner and fully consistent.
+
+### Frontend — Composer
+- New `ComposerCard.vue` component with 5 scenario cards in a `grid-cols-5` layout.
+- `SCENARIO_PROMPTS`, `DIFFICULTY_INSTRUCTIONS`, `LENGTH_INSTRUCTIONS` dictionaries maintained in the frontend.
+- Supplementary input: when a preset is selected, user text is appended; when "No Preset" is active, user text is the full instruction.
+- Collapsible Difficulty and Length panels show current selection summary when collapsed (e.g., "Easy · A2–B1" or custom text, "不限" when empty).
+- Full prompt preview (template + composer instructions) in a collapsible panel.
+- All composer state (scenario, customScenario, difficulty, customDifficulty, length, customLength) persisted via `useSettings()`.
+
+### Frontend — Settings
+- **Model section**: renamed from "OpenAI API" to "Model" / "模型配置". Subtitle explains OpenAI API compatibility.
+- **Layout**: Endpoint and Model fields in 2-column grid. Endpoint first, with a `?` toggle button showing a hint about the base URL format.
+- **Test Connection**: moved inline with the API key input. Result (✓/✗) shown right-aligned below.
+- **Word Picking**: renamed from "Generation Defaults" to "Word Picking" / "取词策略". Default `targetWordCount` changed from 3 to 1.
+- Prompt template editing section removed (template is now generic and read-only in Composer preview).
+
+### Frontend — Defaults
+- Default scenario: `slice_of_life`. Default difficulty: `easy`. Default length: `brief`.
+- Default `targetWordCount`: 1.
+- Default model: empty string (user must configure).
+
+### Frontend — i18n
+- Removed 12 dead keys: `ollamaLocal`, `openaiCompatible`, `noModelsAvailable`, `composerLenFree`, `composerLenFreeDesc`, `composerPreviewEmpty`, `composerSurprise`, `provider`, `resetToDefault`, `targetWordsTokenHintPrefix`, `targetWordsTokenHintSuffix`, `promptTemplate`.
+- Renamed `ollamaError` → `connectionError`.
+- Added keys for new scenarios, custom options, endpoint hint, and UI labels.
+- Fixed Chinese comment in `main.css` (translated to English per coding guidelines).
+
+### Frontend — Cleanup
+- Removed dead `loadReadingPreferences()` / `saveReadingPreferences()` exports from `readingPreferences.ts`.
+- 5 tests passing; typecheck clean; build clean.
+
+### Backend
+- New `OpenAICompatibleClient` (`openai_compat.py`): calls `/v1/chat/completions` with configurable `base_url`, `model`, and `api_key`.
+- New API endpoints: `GET /api/provider`, `PUT /api/provider`, `POST /api/provider/test` for model configuration persistence and connectivity testing.
+- Removed `ollama.py` and 3 OllamaClient tests.
+- Removed `GET /api/models` deprecated stub endpoint.
+- Removed `target_words` field from `ReadingSentenceRequest` (frontend never used it).
+- Default model changed from `"gemma3:4b"` to `""` (empty).
+- `prompt_builder.py`: prompt template generalized; restrictive constraints removed.
+- 76 tests passing; ruff format/lint clean.
+
+### Design Documents
+- `Prompt_Design.md`: §2 scenarios updated (alien_notes → poetry, bad_review → fun_facts, added slice_of_life). §3 Composer spec rewritten to match implementation (5-card layout, custom difficulty/length, no Surprise Me). Code snippets updated.
+- `Roadmap.md`: Phase 3 scenario description updated. "多模型支持" marked completed.
+- `Algorithm.md`: §5.6 removed stale `targetWords` fallback reference.
+
+### Breaking Changes
+- `GET /api/models` endpoint removed (was already a deprecated stub returning `[]`).
+- `target_words` / `targetWords` field removed from `POST /api/reading-sentence/next` request body. The backend now exclusively uses `pick_target_words()` from the database.
+- `OllamaClient` removed. Use `OpenAICompatibleClient` (set endpoint to `http://localhost:11434` for Ollama).
+
+---
+
 ## v0.5.1
 
 Date: 2026-03-31

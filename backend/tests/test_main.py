@@ -6,7 +6,7 @@ from sqlmodel import SQLModel, create_engine
 
 import src.main as main_module
 from src.main import app
-from src.integrations.ollama import OllamaClient
+from src.integrations.openai_compat import OpenAICompatibleClient
 from src.integrations.provider import LLMProvider
 from src.services.tokenizer import tokenize_sentence
 from src.services.word_store import (
@@ -44,11 +44,6 @@ def test_read_root():
         "status": "ok",
         "message": "OpenVoca backend is running!",
     }
-
-
-def test_ollama_client_satisfies_llm_provider_protocol() -> None:
-    """OllamaClient must be a structural subtype of LLMProvider."""
-    assert isinstance(OllamaClient(), LLMProvider)
 
 
 def test_tokenize_sentence_splits_words_and_punctuation() -> None:
@@ -105,56 +100,62 @@ def test_tokenize_sentence_handles_contractions() -> None:
 
 
 @pytest.mark.anyio
-async def test_ollama_client_returns_sentence_from_response() -> None:
-    """The Ollama client should extract the generated sentence from the API payload."""
-
-    prompt = (
-        "Write exactly one natural English sentence. "
-        "Keep it calm and literary. Include these words: lantern, meadow, window."
-    )
+async def test_openai_compatible_client_returns_sentence() -> None:
+    """The OpenAI-compatible client should extract text from chat completions."""
 
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url == httpx.URL("http://localhost:11434/api/generate")
-        assert request.method == "POST"
-        payload = request.read().decode("utf-8")
-        assert '"model":"gemma3:4b"' in payload
-        assert '"stream":false' in payload
-        assert "Keep it calm and literary" in payload
-        assert "lantern" in payload
-        assert "meadow" in payload
-        assert "window" in payload
+        assert request.url.path == "/v1/chat/completions"
+        import json
+
+        payload = json.loads(request.read().decode("utf-8"))
+        assert payload["model"] == "deepseek-chat"
+        assert payload["messages"][0]["role"] == "user"
+        assert "lantern" in payload["messages"][0]["content"]
         return httpx.Response(
             status_code=200,
-            json={"response": "A lantern glowed by the window beside the meadow."},
+            json={"choices": [{"message": {"content": "A lantern flickered softly."}}]},
         )
 
     transport = httpx.MockTransport(handler)
-    ollama_client = OllamaClient(
-        base_url="http://localhost:11434",
-        model="gemma3:4b",
+    client_obj = OpenAICompatibleClient(
+        base_url="https://api.example.com",
+        model="deepseek-chat",
+        api_key="sk-test",
         transport=transport,
     )
 
-    sentence = await ollama_client.generate_completion(prompt)
-
-    assert sentence == "A lantern glowed by the window beside the meadow."
+    sentence = await client_obj.generate_completion("Use these words: lantern.")
+    assert sentence == "A lantern flickered softly."
 
 
 @pytest.mark.anyio
-async def test_ollama_client_rejects_missing_response_field() -> None:
-    """The client should fail fast when Ollama returns an invalid payload."""
+async def test_openai_compatible_client_rejects_empty_response() -> None:
+    """Should raise ValueError when the API returns no choices."""
 
     transport = httpx.MockTransport(
-        lambda request: httpx.Response(status_code=200, json={"done": True}),
+        lambda request: httpx.Response(status_code=200, json={"choices": []}),
     )
-    ollama_client = OllamaClient(
-        base_url="http://localhost:11434",
-        model="gemma3:4b",
+    client_obj = OpenAICompatibleClient(
+        base_url="https://api.example.com",
+        model="test",
+        api_key="sk-test",
         transport=transport,
     )
 
-    with pytest.raises(ValueError, match="response"):
-        await ollama_client.generate_completion("Use these words: lantern.")
+    with pytest.raises(ValueError, match="choices"):
+        await client_obj.generate_completion("test prompt")
+
+
+def test_openai_compatible_client_satisfies_provider_protocol() -> None:
+    """OpenAICompatibleClient must be a structural subtype of LLMProvider."""
+    assert isinstance(
+        OpenAICompatibleClient(
+            base_url="https://api.example.com",
+            model="test",
+            api_key="sk-test",
+        ),
+        LLMProvider,
+    )
 
 
 def test_reading_sentence_endpoint_returns_pos_tags(
@@ -189,7 +190,6 @@ def test_reading_sentence_endpoint_returns_pos_tags(
     response = client.post(
         "/api/reading-sentence/next",
         json={
-            "targetWords": [],
             "promptTemplate": "Write one sentence with {{target_words}}.",
         },
     )
@@ -245,7 +245,6 @@ def test_next_sentence_endpoint_picks_from_vocabulary(
     response = client.post(
         "/api/reading-sentence/next",
         json={
-            "targetWords": [],
             "promptTemplate": "Write one sentence with {{target_words}}.",
         },
     )
@@ -305,7 +304,6 @@ def test_reading_sentence_returns_502_on_ollama_failure(
     response = client.post(
         "/api/reading-sentence/next",
         json={
-            "targetWords": [],
             "promptTemplate": "Write a sentence with {{target_words}}.",
         },
     )
@@ -469,9 +467,80 @@ def test_same_word_different_pos_stored_separately() -> None:
     )
 
     records = {(r.lemma, r.pos): r.interval for r in list_all_words(engine)}
-    assert records[("leaves", "NOUN")] == INTERVAL_BASE  # marked (miss)
-    assert records[("leaves", "VERB")] == INTERVAL_BASE * 2  # unmarked (hit)
-    assert len(records) == 2
+    # Second feedback finds the existing NOUN record by lemma fallback
+    # and updates it as a hit (interval doubles: 2 → 4)
+    assert records[("leaves", "NOUN")] == INTERVAL_BASE * 2
+    assert len(records) == 1
+
+
+def test_feedback_pos_mismatch_updates_existing_record() -> None:
+    """When feedback POS differs from DB POS, the existing record should be updated.
+
+    This prevents the 'stuck in learning' bug where pick_target_words returns a
+    lemma, the LLM uses it with a different POS, and the original record is never
+    updated because apply_feedback creates a new record instead.
+    """
+    engine = _in_memory_engine()
+
+    # User marks "run" as unknown — enters DB as (run, VERB)
+    apply_feedback(
+        target_words=[("run", "VERB")],
+        marked_words=[("run", "VERB")],
+        sentence="I run every morning.",
+        engine=engine,
+    )
+    records = list_all_words(engine)
+    assert len(records) == 1
+    assert records[0].lemma == "run"
+    assert records[0].pos == "VERB"
+    assert records[0].interval == INTERVAL_BASE
+
+    # Tick to make it available
+    for _ in range(INTERVAL_BASE):
+        tick_cooldowns(engine)
+
+    # LLM uses "run" as NOUN, user doesn't mark it (hit)
+    # Feedback comes with pos=NOUN but DB has pos=VERB
+    apply_feedback(
+        target_words=[("run", "NOUN")],
+        marked_words=[],
+        sentence="She went for a run.",
+        engine=engine,
+    )
+
+    records = list_all_words(engine)
+    # Should update existing record, NOT create a second one
+    assert len(records) == 1
+    assert records[0].lemma == "run"
+    assert records[0].interval == INTERVAL_BASE * 2  # hit → doubled
+
+
+def test_feedback_pos_mismatch_miss_updates_existing_record() -> None:
+    """When user marks a word with a different POS than in DB, existing record updates."""
+    engine = _in_memory_engine()
+
+    # "light" enters as ADJ hit → interval=4
+    apply_feedback(
+        target_words=[("light", "ADJ")],
+        marked_words=[],
+        sentence="A light breeze.",
+        engine=engine,
+    )
+    for _ in range(INTERVAL_BASE * 2):
+        tick_cooldowns(engine)
+
+    # User marks "light" as NOUN (miss) — should update existing ADJ record
+    apply_feedback(
+        target_words=[("light", "NOUN")],
+        marked_words=[("light", "NOUN")],
+        sentence="Turn on the light.",
+        engine=engine,
+    )
+
+    records = list_all_words(engine)
+    assert len(records) == 1
+    assert records[0].lemma == "light"
+    assert records[0].interval == max(INTERVAL_BASE, (INTERVAL_BASE * 2) // 2)
 
 
 def test_feedback_with_pos_via_api(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -757,10 +826,73 @@ def test_next_endpoint_ticks_cooldowns(monkeypatch: pytest.MonkeyPatch) -> None:
     response = client.post(
         "/api/reading-sentence/next",
         json={
-            "targetWords": [],
             "promptTemplate": "Write one sentence with {{target_words}}.",
         },
     )
 
     assert response.status_code == 200
     assert "harbor" in response.json()["words"]
+
+
+# ---------------------------------------------------------------------------
+# Composer hints API tests
+# ---------------------------------------------------------------------------
+
+
+def test_next_endpoint_accepts_composer_instructions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The /next endpoint should accept and forward composer instructions to the prompt."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    captured_prompts: list[str] = []
+
+    async def fake_generate_completion(prompt: str) -> str:
+        captured_prompts.append(prompt)
+        return "The sunset was calm."
+
+    monkeypatch.setattr(
+        main_module.llm,
+        "generate_completion",
+        fake_generate_completion,
+    )
+
+    response = client.post(
+        "/api/reading-sentence/next",
+        json={
+            "promptTemplate": "Write a sentence: {{target_words}}",
+            "composerInstructions": "[Scenario] You are a deadpan news anchor.\n[Difficulty] Use simple vocabulary.\n[Length] The sentence MUST be approximately 40 words long.",
+        },
+    )
+
+    assert response.status_code == 200
+    prompt = captured_prompts[0]
+    assert "news anchor" in prompt.lower()
+    assert "40" in prompt
+
+
+def test_next_endpoint_works_without_composer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The /next endpoint should still work when composer field is absent."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    async def fake_generate_completion(prompt: str) -> str:
+        return "Hello world."
+
+    monkeypatch.setattr(
+        main_module.llm,
+        "generate_completion",
+        fake_generate_completion,
+    )
+
+    response = client.post(
+        "/api/reading-sentence/next",
+        json={
+            "promptTemplate": "Write a sentence: {{target_words}}",
+        },
+    )
+
+    assert response.status_code == 200

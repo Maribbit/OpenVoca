@@ -16,6 +16,7 @@ export interface ReadingSentenceToken {
 export interface GenerateReadingSentenceRequest {
   promptTemplate: string;
   targetWordCount: number;
+  composerInstructions?: string;
 }
 
 export interface WordPosEntry {

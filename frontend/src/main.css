@@ -23,7 +23,7 @@
   --color-surface: #2D2D36;
 }
 
-/* 根据 UI 设定，保证默认背景和字体生效 */
+/* Ensure default background and font take effect per UI spec */
 @layer base {
   html,
   body,

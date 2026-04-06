@@ -8,15 +8,11 @@ interface LocaleMessages {
   menu: string;
   readingDisplaySettings: string;
   loadingSentence: string;
-  ollamaError: string;
+  connectionError: string;
   feedbackError: string;
-  provider: string;
   model: string;
   targetWordCount: string;
   targetWordCountHint: string;
-  resetToDefault: string;
-  targetWordsTokenHintPrefix: string;
-  targetWordsTokenHintSuffix: string;
   language: string;
   fontSize: string;
   spacing: string;
@@ -41,18 +37,49 @@ interface LocaleMessages {
   settingsSubtitle: string;
   interfaceSection: string;
   llmProvider: string;
+  llmProviderHint: string;
+  testConnection: string;
+  testingConnection: string;
   generationDefaults: string;
-  generationDefaultsHint: string;
-  promptTemplate: string;
   dangerZone: string;
   endpoint: string;
+  endpointHint: string;
   apiKey: string;
   apiKeyPlaceholder: string;
   apiKeyHint: string;
-  ollamaLocal: string;
+  modelPlaceholder: string;
   clearAllVocabulary: string;
   clearAllVocabularyDescription: string;
   clearDatabase: string;
+  clearAllSettings: string;
+  clearAllSettingsDescription: string;
+  clearSettingsButton: string;
+  dataSection: string;
+  exportSettings: string;
+  exportSettingsDescription: string;
+  exportSettingsButton: string;
+  composerScenario: string;
+  composerScenario_absurd_headlines: string;
+  composerScenario_poetry: string;
+  composerScenario_fun_facts: string;
+  composerScenario_slice_of_life: string;
+  composerScenario_none: string;
+  composerCustomPlaceholder: string;
+  composerCustomPlaceholderSupplement: string;
+  composerCustom: string;
+  composerNoLimit: string;
+  composerCustomDifficultyPlaceholder: string;
+  composerCustomLengthPlaceholder: string;
+  composerDifficulty: string;
+  composerDiffEasy: string;
+  composerDiffNormal: string;
+  composerDiffChallenge: string;
+  composerLength: string;
+  composerLenBrief: string;
+  composerLenSentence: string;
+  composerLenNarrative: string;
+  composerGenerate: string;
+  composerPreview: string;
 }
 
 const STORAGE_KEY = "openvoca.ui.locale";
@@ -61,18 +88,13 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
   en: {
     menu: "MENU",
     readingDisplaySettings: "Reading display settings",
-    loadingSentence: "Asking gemma3:4b for one sentence...",
-    ollamaError: "Unable to reach the local Ollama model.",
+    loadingSentence: "Generating a sentence…",
+    connectionError: "Unable to reach the model. Check your settings.",
     feedbackError: "Failed to save your word feedback.",
-    provider: "Provider",
     model: "Model",
     targetWordCount: "Words Per Sentence",
     targetWordCountHint:
-      "Choose how many review words the model should try to weave into each sentence.",
-    resetToDefault: "Reset to default",
-    targetWordsTokenHintPrefix: "Use",
-    targetWordsTokenHintSuffix:
-      "where the menu should inject the selected words.",
+      "How many review words the model weaves into each sentence. Fewer words = more natural output.",
     language: "Language",
     fontSize: "Size",
     spacing: "Spacing",
@@ -96,36 +118,67 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     settings: "Settings",
     settingsSubtitle: "Application configuration and preferences.",
     interfaceSection: "Interface",
-    llmProvider: "LLM Provider",
-    generationDefaults: "Generation Defaults",
-    generationDefaultsHint:
-      "These can be overridden per-sentence in the reading view.",
-    promptTemplate: "Prompt Template",
+    llmProvider: "Model",
+    llmProviderHint:
+      "Uses the OpenAI API format (/v1/chat/completions). Compatible with Ollama, OpenRouter, Groq, SiliconFlow, and more.",
+    testConnection: "Test Connection",
+    testingConnection: "Testing\u2026",
+    generationDefaults: "Word Picking",
     dangerZone: "Danger Zone",
     endpoint: "Endpoint",
+    endpointHint:
+      "Enter the base URL only (e.g. http://localhost:11434). The /v1/chat/completions path is added automatically.",
     apiKey: "API Key",
     apiKeyPlaceholder: "Not required for local models",
     apiKeyHint:
       "Stored locally on your machine. Never transmitted to third parties.",
-    ollamaLocal: "Ollama (Local)",
+    modelPlaceholder: "e.g. deepseek-chat, gpt-4o-mini",
     clearAllVocabulary: "Clear all vocabulary",
     clearAllVocabularyDescription:
       "Permanently delete all word records and learning progress.",
     clearDatabase: "Clear Database",
+    clearAllSettings: "Clear all settings",
+    clearAllSettingsDescription:
+      "Reset all preferences (interface, reading, generation, composer) to defaults.",
+    clearSettingsButton: "Clear Settings",
+    dataSection: "Data",
+    exportSettings: "Export settings",
+    exportSettingsDescription:
+      "Download all settings as a JSON file for backup or migration.",
+    exportSettingsButton: "Export JSON",
+    composerScenario: "Scenario",
+    composerScenario_absurd_headlines: "Fake News",
+    composerScenario_poetry: "Poetry",
+    composerScenario_fun_facts: "Fun Facts",
+    composerScenario_slice_of_life: "Slice of Life",
+    composerScenario_none: "No Preset",
+    composerCustomPlaceholder: "Describe what you want…",
+    composerCustomPlaceholderSupplement: "Add details or context…",
+    composerCustom: "Custom",
+    composerNoLimit: "No limit",
+    composerCustomDifficultyPlaceholder: "Describe the difficulty level…",
+    composerCustomLengthPlaceholder:
+      "Describe the desired length, or leave empty for any…",
+    composerDifficulty: "Difficulty",
+    composerDiffEasy: "Easy",
+    composerDiffNormal: "Normal",
+    composerDiffChallenge: "Challenge",
+    composerLength: "Length",
+    composerLenBrief: "Brief",
+    composerLenSentence: "Sentence",
+    composerLenNarrative: "Narrative",
+    composerGenerate: "Generate next sentence",
+    composerPreview: "Preview prompt",
   },
   zh: {
     menu: "菜单",
     readingDisplaySettings: "阅读显示设置",
-    loadingSentence: "正在向 gemma3:4b 请求一句例句...",
-    ollamaError: "无法连接本地 Ollama 模型。",
+    loadingSentence: "正在生成例句…",
+    connectionError: "无法连接模型。请检查设置。",
     feedbackError: "保存词汇反馈失败。",
-    provider: "提供商",
     model: "模型",
     targetWordCount: "单轮取词量",
-    targetWordCountHint: "决定每一句里尝试塞入多少个复习词，范围 1 到 5。",
-    resetToDefault: "恢复默认",
-    targetWordsTokenHintPrefix: "在提示词中使用",
-    targetWordsTokenHintSuffix: "来注入目标词。",
+    targetWordCountHint: "每一句里塞入的复习词数量。越少生成质量越高。",
     language: "语言",
     fontSize: "字号",
     spacing: "间距",
@@ -149,19 +202,53 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     settings: "设置",
     settingsSubtitle: "应用配置与偏好。",
     interfaceSection: "界面",
-    llmProvider: "模型提供商",
-    generationDefaults: "生成默认值",
-    generationDefaultsHint: "可在阅读界面中逐句覆盖。",
-    promptTemplate: "提示词模板",
+    llmProvider: "模型配置",
+    llmProviderHint:
+      "通过 OpenAI API 格式（/v1/chat/completions）调用。兼容 Ollama、OpenRouter、Groq、硅基流动等服务。",
+    testConnection: "测试连接",
+    testingConnection: "测试中\u2026",
+    generationDefaults: "取词策略",
     dangerZone: "危险操作",
     endpoint: "端点",
+    endpointHint:
+      "只填基础地址（如 http://localhost:11434），/v1/chat/completions 路径会自动拼接。",
     apiKey: "API 密钥",
     apiKeyPlaceholder: "本地模型无需填写",
     apiKeyHint: "仅存储在本地，不会传输给第三方。",
-    ollamaLocal: "Ollama（本地）",
+    modelPlaceholder: "如 deepseek-chat、gpt-4o-mini",
     clearAllVocabulary: "清空所有词汇",
     clearAllVocabularyDescription: "永久删除所有单词记录和学习进度。",
     clearDatabase: "清空数据库",
+    clearAllSettings: "清空所有设置",
+    clearAllSettingsDescription:
+      "将所有偏好设置（界面、阅读、生成、编排器）恢复为默认值。",
+    clearSettingsButton: "清空设置",
+    dataSection: "数据",
+    exportSettings: "导出设置",
+    exportSettingsDescription: "将所有设置下载为 JSON 文件，用于备份或迁移。",
+    exportSettingsButton: "导出 JSON",
+    composerScenario: "场景",
+    composerScenario_absurd_headlines: "假新闻",
+    composerScenario_poetry: "诗歌",
+    composerScenario_fun_facts: "冷知识",
+    composerScenario_slice_of_life: "日常",
+    composerScenario_none: "无预设",
+    composerCustomPlaceholder: "描述你想要的内容…",
+    composerCustomPlaceholderSupplement: "添加细节或上下文…",
+    composerCustom: "自定义",
+    composerNoLimit: "不限",
+    composerCustomDifficultyPlaceholder: "描述难度要求…",
+    composerCustomLengthPlaceholder: "描述长度要求，留空则不限…",
+    composerDifficulty: "难度",
+    composerDiffEasy: "简单",
+    composerDiffNormal: "普通",
+    composerDiffChallenge: "挑战",
+    composerLength: "长度",
+    composerLenBrief: "短句",
+    composerLenSentence: "标准句",
+    composerLenNarrative: "长句",
+    composerGenerate: "生成下一句",
+    composerPreview: "预览提示词",
   },
 };
 

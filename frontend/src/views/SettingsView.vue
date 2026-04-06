@@ -134,66 +134,96 @@
             >
               {{ i18nMessages.llmProvider }}
             </h2>
+            <p class="mt-1 text-xs text-inkLight/70">
+              {{ i18nMessages.llmProviderHint }}
+            </p>
           </div>
           <div class="space-y-5 p-6">
-            <!-- Provider selector -->
-            <div class="flex flex-col gap-2">
-              <label class="text-sm font-medium text-ink">
-                {{ i18nMessages.provider }}
-              </label>
-              <div
-                class="inline-flex self-start rounded-xl border border-black/8 bg-paper p-1"
-              >
-                <button
-                  type="button"
-                  class="rounded-lg px-4 py-2 text-sm transition-all"
-                  :class="toggleClass(true)"
-                >
-                  {{ i18nMessages.ollamaLocal }}
-                </button>
-              </div>
-            </div>
-
-            <!-- Model & Endpoint -->
+            <!-- Endpoint & Model -->
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div class="flex flex-col gap-2">
+                <label
+                  class="flex items-center gap-1.5 text-sm font-medium text-ink"
+                >
+                  {{ i18nMessages.endpoint }}
+                  <button
+                    type="button"
+                    class="flex h-4 w-4 items-center justify-center rounded-full border border-black/10 text-[10px] text-inkLight transition-colors hover:bg-black/4 hover:text-ink cursor-pointer"
+                    @click="showEndpointHint = !showEndpointHint"
+                    :title="i18nMessages.endpointHint"
+                  >
+                    ?
+                  </button>
+                </label>
+                <input
+                  v-model="providerEndpoint"
+                  type="text"
+                  placeholder="http://localhost:11434"
+                  class="rounded-xl border border-black/8 bg-paper px-4 py-2.5 font-mono text-sm text-ink transition-shadow focus:outline-none focus:ring-2 focus:ring-highlight"
+                  @change="saveProvider"
+                />
+                <p v-if="showEndpointHint" class="text-xs text-inkLight">
+                  {{ i18nMessages.endpointHint }}
+                </p>
+              </div>
               <div class="flex flex-col gap-2">
                 <label class="text-sm font-medium text-ink">
                   {{ i18nMessages.model }}
                 </label>
                 <input
+                  v-model="selectedModel"
                   type="text"
-                  value="gemma3:4b"
-                  disabled
+                  :placeholder="i18nMessages.modelPlaceholder"
                   class="rounded-xl border border-black/8 bg-paper px-4 py-2.5 text-sm text-ink transition-shadow focus:outline-none focus:ring-2 focus:ring-highlight"
-                />
-              </div>
-              <div class="flex flex-col gap-2">
-                <label class="text-sm font-medium text-ink">
-                  {{ i18nMessages.endpoint }}
-                </label>
-                <input
-                  type="text"
-                  value="http://localhost:11434"
-                  disabled
-                  class="rounded-xl border border-black/8 bg-paper px-4 py-2.5 font-mono text-sm text-ink transition-shadow focus:outline-none focus:ring-2 focus:ring-highlight"
+                  @change="saveProvider"
                 />
               </div>
             </div>
 
-            <!-- API Key (disabled for Ollama) -->
-            <div class="flex flex-col gap-2 opacity-40">
+            <!-- API Key -->
+            <div class="flex flex-col gap-2">
               <label class="text-sm font-medium text-ink">
                 {{ i18nMessages.apiKey }}
               </label>
-              <input
-                type="password"
-                :placeholder="i18nMessages.apiKeyPlaceholder"
-                disabled
-                class="rounded-xl border border-black/8 bg-paper px-4 py-2.5 text-sm transition-shadow focus:outline-none"
-              />
-              <p class="text-xs text-inkLight">
-                {{ i18nMessages.apiKeyHint }}
-              </p>
+              <div class="flex gap-2">
+                <input
+                  v-model="providerApiKey"
+                  type="password"
+                  :placeholder="i18nMessages.apiKeyPlaceholder"
+                  class="flex-1 rounded-xl border border-black/8 bg-paper px-4 py-2.5 text-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-highlight"
+                  @change="saveProvider"
+                />
+                <button
+                  type="button"
+                  class="whitespace-nowrap rounded-xl border border-black/10 px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-black/4"
+                  :disabled="connectionStatus === 'testing'"
+                  @click="handleTestConnection"
+                >
+                  {{
+                    connectionStatus === "testing"
+                      ? i18nMessages.testingConnection
+                      : i18nMessages.testConnection
+                  }}
+                </button>
+              </div>
+              <div class="flex items-center justify-between">
+                <p class="text-xs text-inkLight">
+                  {{ i18nMessages.apiKeyHint }}
+                </p>
+                <span
+                  v-if="connectionStatus === 'ok'"
+                  class="text-xs text-green-600"
+                >
+                  ✓ {{ connectionMessage }}
+                </span>
+                <span
+                  v-else-if="connectionStatus === 'error'"
+                  class="max-w-xs truncate text-xs text-red-500"
+                  :title="connectionMessage"
+                >
+                  ✗ {{ connectionMessage }}
+                </span>
+              </div>
             </div>
           </div>
         </section>
@@ -208,9 +238,6 @@
             >
               {{ i18nMessages.generationDefaults }}
             </h2>
-            <p class="mt-1 text-xs text-inkLight/70">
-              {{ i18nMessages.generationDefaultsHint }}
-            </p>
           </div>
           <div class="space-y-6 p-6">
             <!-- Target word count -->
@@ -249,45 +276,6 @@
           </div>
         </section>
 
-        <!-- ===== Prompt Template ===== -->
-        <section
-          class="overflow-hidden rounded-2xl border border-black/5 bg-surface shadow-sm"
-        >
-          <div
-            class="flex items-center justify-between border-b border-black/5 px-6 py-4"
-          >
-            <h2
-              class="text-xs font-semibold uppercase tracking-[0.2em] text-inkLight"
-            >
-              {{ i18nMessages.promptTemplate }}
-            </h2>
-            <button
-              type="button"
-              class="text-xs text-inkLight transition-colors hover:text-ink"
-              @click="
-                draftPromptTemplate = DEFAULT_READING_PREFERENCES.promptTemplate
-              "
-            >
-              {{ i18nMessages.resetToDefault }}
-            </button>
-          </div>
-          <div class="space-y-3 p-6">
-            <textarea
-              v-model="draftPromptTemplate"
-              rows="6"
-              class="w-full resize-none rounded-xl border border-black/8 bg-paper px-4 py-3 font-mono text-sm leading-relaxed text-ink outline-none transition-shadow focus:ring-2 focus:ring-highlight"
-            />
-            <p class="text-xs text-inkLight">
-              {{ i18nMessages.targetWordsTokenHintPrefix }}
-              <span
-                class="rounded border border-black/8 bg-paper px-1.5 py-0.5 font-mono"
-                >{{ targetWordsToken }}</span
-              >
-              {{ i18nMessages.targetWordsTokenHintSuffix }}
-            </p>
-          </div>
-        </section>
-
         <!-- ===== Danger Zone ===== -->
         <section
           class="overflow-hidden rounded-2xl border border-red-200/60 bg-surface shadow-sm"
@@ -316,6 +304,55 @@
               {{ i18nMessages.clearDatabase }}
             </button>
           </div>
+          <div
+            class="flex items-center justify-between border-t border-red-100 p-6"
+          >
+            <div>
+              <p class="text-sm font-medium text-ink">
+                {{ i18nMessages.clearAllSettings }}
+              </p>
+              <p class="mt-1 text-xs text-inkLight">
+                {{ i18nMessages.clearAllSettingsDescription }}
+              </p>
+            </div>
+            <button
+              type="button"
+              class="whitespace-nowrap rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+              @click="handleClearSettings"
+            >
+              {{ i18nMessages.clearSettingsButton }}
+            </button>
+          </div>
+        </section>
+
+        <!-- ===== Export ===== -->
+        <section
+          class="overflow-hidden rounded-2xl border border-black/5 bg-surface shadow-sm"
+        >
+          <div class="border-b border-black/5 px-6 py-4">
+            <h2
+              class="text-xs font-semibold uppercase tracking-[0.2em] text-inkLight"
+            >
+              {{ i18nMessages.dataSection }}
+            </h2>
+          </div>
+          <div class="flex items-center justify-between p-6">
+            <div>
+              <p class="text-sm font-medium text-ink">
+                {{ i18nMessages.exportSettings }}
+              </p>
+              <p class="mt-1 text-xs text-inkLight">
+                {{ i18nMessages.exportSettingsDescription }}
+              </p>
+            </div>
+            <button
+              type="button"
+              class="whitespace-nowrap rounded-xl border border-black/10 px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-black/4"
+              @click="handleExportSettings"
+            >
+              {{ i18nMessages.exportSettingsButton }}
+            </button>
+          </div>
         </section>
       </div>
 
@@ -329,32 +366,33 @@
   import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 
   import { clearVocabulary } from "../api/reading";
-  import { DEFAULT_READING_PREFERENCES } from "../composables/readingPreferences";
+  import { fetchProvider, setProvider, testProvider } from "../api/settings";
   import { type Locale, useI18n } from "../composables/useI18n";
   import { useSettings } from "../composables/useSettings";
 
   type ThemeOption = "light" | "dark";
   type UiFontSizeOption = "sm" | "md" | "lg";
 
+  const DEFAULT_MODEL = "";
+
   const THEME_OPTIONS: ThemeOption[] = ["light", "dark"];
 
-  const { get, set } = useSettings();
+  const { get, set, clearAll, exportAll } = useSettings();
   const { locale, messages: i18nMessages, setLocale } = useI18n();
 
   const draftTargetWordCount = ref(
-    Number(get("generation", "targetWordCount", "3")),
+    Number(get("generation", "targetWordCount", "1")),
   );
-  const draftPromptTemplate = ref(
-    get(
-      "generation",
-      "promptTemplate",
-      DEFAULT_READING_PREFERENCES.promptTemplate,
-    ),
-  );
-  const targetWordsToken = "{{target_words}}";
 
   const currentTheme = ref<ThemeOption>(loadTheme());
   const uiFontSize = ref<UiFontSizeOption>(loadUiFontSize());
+
+  const selectedModel = ref("");
+  const providerEndpoint = ref("http://localhost:11434");
+  const providerApiKey = ref("");
+  const connectionStatus = ref<"idle" | "testing" | "ok" | "error">("idle");
+  const connectionMessage = ref("");
+  const showEndpointHint = ref(false);
 
   const uiFontSizeOptions = [
     { value: "sm" as const, label: "A-", labelClass: "text-xs font-medium" },
@@ -416,16 +454,52 @@
       : "text-inkLight hover:text-ink";
   }
 
+  async function saveProvider(): Promise<void> {
+    await setProvider({
+      endpoint: providerEndpoint.value,
+      model: selectedModel.value,
+      apiKey: providerApiKey.value,
+    });
+  }
+
+  async function handleTestConnection(): Promise<void> {
+    connectionStatus.value = "testing";
+    connectionMessage.value = "";
+    await saveProvider();
+    try {
+      const result = await testProvider();
+      connectionStatus.value = result.ok ? "ok" : "error";
+      connectionMessage.value = result.message;
+    } catch {
+      connectionStatus.value = "error";
+      connectionMessage.value = "Network error";
+    }
+  }
+
   async function handleClearVocabulary(): Promise<void> {
     await clearVocabulary();
   }
 
+  async function handleClearSettings(): Promise<void> {
+    await clearAll();
+    window.location.reload();
+  }
+
+  function handleExportSettings(): void {
+    const data = exportAll();
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "openvoca-settings.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   // Auto-save generation preferences when drafts change
-  watch([draftTargetWordCount, draftPromptTemplate], () => {
-    const trimmed = draftPromptTemplate.value.trim();
-    if (!trimmed) return;
+  watch(draftTargetWordCount, () => {
     set("generation", {
-      promptTemplate: trimmed,
       targetWordCount: String(draftTargetWordCount.value),
     });
   });
@@ -433,14 +507,20 @@
   // Apply current theme on mount
   onMounted(() => {
     applyTheme(currentTheme.value);
+
+    Promise.all([fetchProvider()])
+      .then(([provider]) => {
+        providerEndpoint.value = provider?.endpoint ?? "http://localhost:11434";
+        selectedModel.value = provider?.model ?? DEFAULT_MODEL;
+      })
+      .catch(() => {
+        // keep defaults
+      });
   });
 
   // Save on leave as a safety net
   onBeforeUnmount(() => {
-    const trimmed = draftPromptTemplate.value.trim();
-    if (!trimmed) return;
     set("generation", {
-      promptTemplate: trimmed,
       targetWordCount: String(draftTargetWordCount.value),
     });
   });

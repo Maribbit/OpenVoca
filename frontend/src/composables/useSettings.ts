@@ -1,6 +1,7 @@
 import { reactive } from "vue";
 
 import {
+  deleteAllSettings,
   fetchAllSettings,
   putNamespace,
   type SettingsMap,
@@ -91,7 +92,40 @@ async function hydrate(): Promise<void> {
 }
 
 export function useSettings() {
-  return { store, get, getNamespace, set, hydrate, _reset };
+  return {
+    store,
+    get,
+    getNamespace,
+    set,
+    hydrate,
+    clearAll,
+    exportAll,
+    _reset,
+  };
+}
+
+/**
+ * Clear all settings: wipe reactive store, localStorage cache, and backend.
+ */
+async function clearAll(): Promise<void> {
+  for (const key of Object.keys(store)) {
+    delete store[key];
+  }
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(CACHE_KEY);
+  }
+  await deleteAllSettings().catch(() => {});
+}
+
+/**
+ * Export all settings as a JSON-serializable map.
+ */
+function exportAll(): SettingsMap {
+  const snapshot: SettingsMap = {};
+  for (const [ns, entries] of Object.entries(store)) {
+    snapshot[ns] = { ...entries };
+  }
+  return snapshot;
 }
 
 /** Reset the store for test isolation. */
