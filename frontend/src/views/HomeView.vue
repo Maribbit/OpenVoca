@@ -87,6 +87,80 @@
           @word-click="onWordClick"
         />
 
+        <div v-if="tokens.length > 0" class="flex items-center gap-1">
+          <button
+            type="button"
+            class="cursor-pointer rounded-full p-2 transition-colors hover:bg-black/4"
+            :class="
+              copyConfirmed
+                ? 'text-emerald-500'
+                : 'text-inkLight/40 hover:text-inkLight'
+            "
+            :title="i18nMessages.copySentence"
+            @click="copySentence"
+          >
+            <svg
+              v-if="!copyConfirmed"
+              class="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9.75a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184"
+              />
+            </svg>
+            <svg
+              v-else
+              class="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M4.5 12.75l6 6 9-13.5"
+              />
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="cursor-pointer rounded-full p-2 transition-colors hover:bg-black/4"
+            :class="
+              isSpeaking ? 'text-ink' : 'text-inkLight/40 hover:text-inkLight'
+            "
+            :title="i18nMessages.readAloud"
+            @click="readAloud"
+          >
+            <svg
+              v-if="!isSpeaking"
+              class="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"
+              />
+            </svg>
+            <svg v-else class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+              <path
+                fill-rule="evenodd"
+                d="M4.5 7.5a3 3 0 0 1 3-3h9a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-9a3 3 0 0 1-3-3v-9Z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </button>
+        </div>
+
         <HoldButton
           ref="holdButtonRef"
           :disabled="isLoading || isUiPanelOpen"
@@ -127,6 +201,7 @@
     fetchNextReadingSentence,
     fetchDefinition,
     submitFeedback,
+    tokensToPlainText,
     type DictionaryEntry,
     type ReadingSentenceToken,
   } from "../api/reading";
@@ -167,6 +242,8 @@
   const isUiPanelOpen = ref(false);
   const markedWords = ref<Set<string>>(new Set());
   const showComposer = ref(true);
+  const copyConfirmed = ref(false);
+  const isSpeaking = ref(false);
 
   const holdButtonRef = ref<InstanceType<typeof HoldButton> | null>(null);
 
@@ -265,6 +342,32 @@
     isUiPanelOpen.value = false;
   }
 
+  function copySentence(): void {
+    navigator.clipboard.writeText(tokensToPlainText(tokens.value));
+    copyConfirmed.value = true;
+    setTimeout(() => {
+      copyConfirmed.value = false;
+    }, 1500);
+  }
+
+  function readAloud(): void {
+    if (isSpeaking.value) {
+      window.speechSynthesis.cancel();
+      isSpeaking.value = false;
+      return;
+    }
+    const text = tokensToPlainText(tokens.value);
+    if (!text) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "en-US";
+    utterance.onend = () => {
+      isSpeaking.value = false;
+    };
+    isSpeaking.value = true;
+    window.speechSynthesis.speak(utterance);
+  }
+
   function onReadingSettingsChange(next: ReadingUiSettings): void {
     readingUiSettings.value = next;
     applyTheme(next.theme);
@@ -286,6 +389,15 @@
   async function onWordClick(token: ReadingSentenceToken): Promise<void> {
     wordClickedThisFrame = true;
     const word = (token.lemma ?? token.text).toLowerCase();
+
+    // If the same word is already showing, toggle know/don't-know
+    if (
+      definitionToken.value &&
+      tokenKey(definitionToken.value) === tokenKey(token)
+    ) {
+      onDefinitionMark(!isCurrentWordMarked.value);
+      return;
+    }
 
     // Show definition for clicked word
     definitionWord.value = word;
@@ -380,6 +492,10 @@
 
     showComposer.value = true;
     dismissDefinition();
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      isSpeaking.value = false;
+    }
   }
 
   async function onComposerGenerate(

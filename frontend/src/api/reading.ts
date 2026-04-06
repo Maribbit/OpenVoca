@@ -138,3 +138,40 @@ export async function fetchDefinition(
   if (!response.ok) throw new Error("Dictionary lookup failed.");
   return (await response.json()) as DictionaryEntry;
 }
+
+export async function updateWordRecord(
+  lemma: string,
+  pos: string,
+  update: { interval?: number; cooldown?: number },
+): Promise<WordRecordOut> {
+  const response = await fetch(
+    `/api/vocabulary/${encodeURIComponent(lemma)}/${encodeURIComponent(pos)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(update),
+    },
+  );
+  if (!response.ok) throw new Error("Failed to update word record.");
+  return (await response.json()) as WordRecordOut;
+}
+
+export async function deleteWordRecord(
+  lemma: string,
+  pos: string,
+): Promise<void> {
+  const response = await fetch(
+    `/api/vocabulary/${encodeURIComponent(lemma)}/${encodeURIComponent(pos)}`,
+    { method: "DELETE" },
+  );
+  if (!response.ok) throw new Error("Failed to delete word record.");
+}
+
+export function tokensToPlainText(tokens: ReadingSentenceToken[]): string {
+  return tokens
+    .map((t, i) => {
+      const space = i > 0 && tokens[i - 1].trailingSpace !== false ? " " : "";
+      return space + t.text;
+    })
+    .join("");
+}

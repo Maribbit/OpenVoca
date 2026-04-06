@@ -95,11 +95,16 @@ interface LocaleMessages {
   definitionKnow: string;
   definitionDontKnow: string;
   definitionNotFound: string;
+  copySentence: string;
+  readAloud: string;
   dictionarySection: string;
   dictionaryDisplay: string;
   dictionaryDisplayZh: string;
   dictionaryDisplayEn: string;
   dictionaryDisplayBoth: string;
+  intervalHalve: string;
+  intervalDouble: string;
+  deleteWord: string;
 }
 
 const STORAGE_KEY = "openvoca.ui.locale";
@@ -207,11 +212,16 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     definitionKnow: "Know",
     definitionDontKnow: "Don't know",
     definitionNotFound: "No definition found",
+    copySentence: "Copy sentence",
+    readAloud: "Read aloud",
     dictionarySection: "Dictionary",
     dictionaryDisplay: "Definition Language",
     dictionaryDisplayZh: "中文",
     dictionaryDisplayEn: "EN",
     dictionaryDisplayBoth: "Both",
+    intervalHalve: "Halve interval",
+    intervalDouble: "Double interval",
+    deleteWord: "Delete word",
   },
   zh: {
     menu: "菜单",
@@ -308,11 +318,16 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     definitionKnow: "认识",
     definitionDontKnow: "不认识",
     definitionNotFound: "未找到释义",
+    copySentence: "复制句子",
+    readAloud: "朗读",
     dictionarySection: "词典",
     dictionaryDisplay: "释义语言",
     dictionaryDisplayZh: "中文",
     dictionaryDisplayEn: "EN",
     dictionaryDisplayBoth: "双语",
+    intervalHalve: "减半复习间隔",
+    intervalDouble: "加倍复习间隔",
+    deleteWord: "删除词条",
   },
 };
 

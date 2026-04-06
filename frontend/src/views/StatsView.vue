@@ -79,6 +79,7 @@
               <th class="px-6 py-4 font-medium">
                 {{ i18nMessages.statsCooldown }}
               </th>
+              <th class="w-10 px-2 py-4"></th>
             </tr>
           </thead>
           <tbody class="divide-y divide-black/3 text-sm">
@@ -101,27 +102,95 @@
               </td>
               <td class="px-6 py-4">
                 <div class="flex items-center gap-2">
+                  <button
+                    type="button"
+                    class="cursor-pointer rounded p-0.5 text-inkLight/40 transition-colors hover:bg-black/5 hover:text-inkLight disabled:cursor-not-allowed disabled:opacity-30"
+                    :disabled="word.interval <= 2"
+                    :title="i18nMessages.intervalHalve"
+                    @click="changeInterval(word, word.interval / 2)"
+                  >
+                    <svg
+                      class="h-3 w-3"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M5 12h14"
+                      />
+                    </svg>
+                  </button>
+                  <span
+                    class="min-w-[1.5rem] text-center font-mono text-xs text-ink"
+                    >{{ word.interval }}</span
+                  >
+                  <button
+                    type="button"
+                    class="cursor-pointer rounded p-0.5 text-inkLight/40 transition-colors hover:bg-black/5 hover:text-inkLight disabled:cursor-not-allowed disabled:opacity-30"
+                    :disabled="word.interval >= 64"
+                    :title="i18nMessages.intervalDouble"
+                    @click="changeInterval(word, word.interval * 2)"
+                  >
+                    <svg
+                      class="h-3 w-3"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M12 5v14m-7-7h14"
+                      />
+                    </svg>
+                  </button>
+                  <span class="text-xs text-inkLight/60">
+                    {{ intervalLabel(word.interval) }}
+                  </span>
                   <div
                     class="h-2 w-2 rounded-full"
                     :class="intervalDotColor(word.interval)"
                   />
-                  <span class="font-mono text-xs text-ink">{{
-                    word.interval
-                  }}</span>
-                  <span class="text-xs text-inkLight/60">
-                    {{ intervalLabel(word.interval) }}
-                  </span>
                 </div>
               </td>
               <td class="px-6 py-4">
-                <span
-                  class="font-mono text-xs"
+                <input
+                  type="number"
+                  :value="word.cooldown"
+                  :min="0"
+                  :max="word.interval"
+                  class="w-14 rounded border border-transparent bg-transparent px-1 py-0.5 text-center font-mono text-xs outline-none transition-colors focus:border-black/15 focus:bg-surface"
                   :class="
                     word.cooldown > 0 ? 'text-inkLight' : 'text-green-500'
                   "
+                  @change="onCooldownInput(word, $event)"
+                />
+              </td>
+              <td class="px-2 py-4">
+                <button
+                  type="button"
+                  class="cursor-pointer rounded p-1 text-inkLight/30 transition-colors hover:bg-red-50 hover:text-red-400"
+                  :title="i18nMessages.deleteWord"
+                  @click="handleDeleteWord(word)"
                 >
-                  {{ word.cooldown }}
-                </span>
+                  <svg
+                    class="h-3.5 w-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M6 18 18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
               </td>
             </tr>
           </tbody>
@@ -141,8 +210,10 @@
   import { onMounted, ref } from "vue";
 
   import {
+    deleteWordRecord,
     exportVocabulary,
     fetchVocabulary,
+    updateWordRecord,
     type WordRecordOut,
   } from "../api/reading";
   import { useI18n } from "../composables/useI18n";
@@ -161,6 +232,56 @@
 
   async function handleExport(): Promise<void> {
     await exportVocabulary();
+  }
+
+  async function changeInterval(
+    word: WordRecordOut,
+    newInterval: number,
+  ): Promise<void> {
+    try {
+      const updated = await updateWordRecord(word.lemma, word.pos, {
+        interval: Math.round(newInterval),
+      });
+      word.interval = updated.interval;
+      word.cooldown = updated.cooldown;
+    } catch {
+      /* silently ignore */
+    }
+  }
+
+  async function changeCooldown(
+    word: WordRecordOut,
+    newCooldown: number,
+  ): Promise<void> {
+    try {
+      const updated = await updateWordRecord(word.lemma, word.pos, {
+        cooldown: newCooldown,
+      });
+      word.cooldown = updated.cooldown;
+    } catch {
+      /* silently ignore */
+    }
+  }
+
+  function onCooldownInput(word: WordRecordOut, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const value = parseInt(input.value, 10);
+    if (Number.isNaN(value)) {
+      input.value = String(word.cooldown);
+      return;
+    }
+    void changeCooldown(word, value);
+  }
+
+  async function handleDeleteWord(word: WordRecordOut): Promise<void> {
+    try {
+      await deleteWordRecord(word.lemma, word.pos);
+      words.value = words.value.filter(
+        (w) => !(w.lemma === word.lemma && w.pos === word.pos),
+      );
+    } catch {
+      /* silently ignore — record may already be deleted */
+    }
   }
 
   function intervalDotColor(interval: number): string {

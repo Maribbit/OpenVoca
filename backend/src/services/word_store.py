@@ -169,3 +169,49 @@ def clear_all_words(engine=None) -> int:
         result = session.exec(text("DELETE FROM wordrecord"))
         session.commit()
         return result.rowcount  # type: ignore[return-value]
+
+
+def update_word_record(
+    lemma: str,
+    pos: str,
+    *,
+    interval: int | None = None,
+    cooldown: int | None = None,
+    engine=None,
+) -> WordRecord | None:
+    """Update interval and/or cooldown for a specific word record.
+
+    Interval is clamped to [INTERVAL_BASE, INTERVAL_MAX].
+    Cooldown is clamped to [0, record.interval].
+    Returns the updated record, or None if not found.
+    """
+    target = engine or _engine
+    with Session(target) as session:
+        record = session.exec(
+            select(WordRecord).where(WordRecord.lemma == lemma, WordRecord.pos == pos)
+        ).first()
+        if record is None:
+            return None
+
+        if interval is not None:
+            record.interval = max(INTERVAL_BASE, min(interval, INTERVAL_MAX))
+        if cooldown is not None:
+            record.cooldown = max(0, min(cooldown, record.interval))
+
+        session.commit()
+        session.refresh(record)
+        return record
+
+
+def delete_word_record(lemma: str, pos: str, engine=None) -> bool:
+    """Delete a specific word record. Returns True if deleted, False if not found."""
+    target = engine or _engine
+    with Session(target) as session:
+        record = session.exec(
+            select(WordRecord).where(WordRecord.lemma == lemma, WordRecord.pos == pos)
+        ).first()
+        if record is None:
+            return False
+        session.delete(record)
+        session.commit()
+        return True

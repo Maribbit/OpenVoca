@@ -35,6 +35,33 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.6.7
+
+Date: 2025-07-25
+
+### Highlights
+- **Copy & read aloud**: two new action buttons below the sentence — copy to clipboard (with checkmark feedback) and browser TTS read-aloud (with stop toggle).
+- **Editable vocabulary records**: interval can be halved (÷2) or doubled (×2) via buttons in the Stats table. Cooldown is now an inline editable number input. Both are clamped to valid ranges.
+- **Delete individual words**: each row in the Stats table has a delete button (×) to remove a single word record.
+- **Click-to-toggle mark**: clicking the same word again while its definition toast is showing toggles between "Know" and "Don't know" without needing to reach the toast buttons.
+- **Stale record safety**: PATCH and DELETE endpoints return 404 when the target record has already been deleted (multi-tab scenario), with dedicated test coverage.
+
+### Backend
+- New `PATCH /api/vocabulary/{lemma}/{pos}` endpoint — update interval (clamped to [2, 64]) and/or cooldown (clamped to [0, interval]).
+- New `DELETE /api/vocabulary/{lemma}/{pos}` endpoint — remove a single word record; returns 404 if already deleted.
+- New `update_word_record()` and `delete_word_record()` functions in `word_store.py`.
+- 14 new tests (5 update, 4 delete, 2 API PATCH, 3 API DELETE including stale-tab scenarios). Total: 101 backend tests.
+
+### Frontend
+- New `tokensToPlainText()` utility in `reading.ts` — pure function to reconstruct plain text from tokens (6 tests in `reading.spec.ts`).
+- New `updateWordRecord()` and `deleteWordRecord()` API functions in `reading.ts`.
+- `HomeView.vue`: copy button (clipboard → checkmark for 1.5s) and read-aloud button (speaker → stop square while playing). TTS auto-cancels on sentence advance. Clicking the same word again toggles know/don't-know.
+- `StatsView.vue`: interval gets −/+ buttons (exponential ÷2/×2), cooldown is an inline editable `<input type="number">`, each row gets a delete (×) button. Color dot moved after the familiarity label.
+- `useI18n.ts`: added 5 new i18n keys (`copySentence`, `readAloud`, `intervalHalve`, `intervalDouble`, `deleteWord`).
+- Total: 11 frontend tests (6 reading + 5 HomeView).
+
+---
+
 ## v0.6.6
 
 Date: 2025-07-25

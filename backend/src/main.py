@@ -16,9 +16,11 @@ from src.services.tokenizer import tokenize_sentence
 from src.services.word_store import (
     apply_feedback,
     clear_all_words,
+    delete_word_record,
     list_all_words,
     pick_target_words,
     tick_cooldowns,
+    update_word_record,
 )
 from src.services.settings_store import (
     clear_all_settings,
@@ -266,6 +268,39 @@ def get_vocabulary() -> VocabularyResponse:
 def delete_vocabulary() -> dict[str, int]:
     count = clear_all_words()
     return {"deleted": count}
+
+
+class WordRecordUpdate(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    interval: int | None = None
+    cooldown: int | None = None
+
+
+@app.patch("/api/vocabulary/{lemma}/{pos}", response_model=WordRecordOut)
+def patch_vocabulary_word(
+    lemma: str, pos: str, body: WordRecordUpdate
+) -> WordRecordOut:
+    record = update_word_record(
+        lemma, pos, interval=body.interval, cooldown=body.cooldown
+    )
+    if record is None:
+        raise HTTPException(status_code=404, detail="Word not found")
+    return WordRecordOut(
+        lemma=record.lemma,
+        pos=record.pos,
+        interval=record.interval,
+        cooldown=record.cooldown,
+        lastContext=record.last_context,
+    )
+
+
+@app.delete("/api/vocabulary/{lemma}/{pos}")
+def delete_vocabulary_word(lemma: str, pos: str) -> dict[str, bool]:
+    deleted = delete_word_record(lemma, pos)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Word not found")
+    return {"deleted": True}
 
 
 @app.get("/api/vocabulary/export")

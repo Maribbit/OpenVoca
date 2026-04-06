@@ -421,3 +421,89 @@ def test_export_vocabulary_csv_empty(monkeypatch: pytest.MonkeyPatch) -> None:
     assert response.status_code == 200
     lines = response.text.strip().splitlines()
     assert lines == ["lemma,pos,interval,cooldown"]
+
+
+def test_patch_vocabulary_word(monkeypatch: pytest.MonkeyPatch) -> None:
+    """PATCH /api/vocabulary/{lemma}/{pos} should update interval and cooldown."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    apply_feedback(
+        target_words=[("alpha", "NOUN")],
+        marked_words=[("alpha", "NOUN")],
+        sentence="test",
+        engine=engine,
+    )
+
+    response = client.patch(
+        "/api/vocabulary/alpha/NOUN",
+        json={"interval": 8, "cooldown": 0},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["interval"] == 8
+    assert data["cooldown"] == 0
+
+
+def test_patch_vocabulary_word_not_found(monkeypatch: pytest.MonkeyPatch) -> None:
+    """PATCH should return 404 for unknown words."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    response = client.patch(
+        "/api/vocabulary/missing/NOUN",
+        json={"interval": 4},
+    )
+    assert response.status_code == 404
+
+
+def test_delete_vocabulary_word(monkeypatch: pytest.MonkeyPatch) -> None:
+    """DELETE /api/vocabulary/{lemma}/{pos} should delete a single word."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    apply_feedback(
+        target_words=[("alpha", "NOUN"), ("beta", "NOUN")],
+        marked_words=[("alpha", "NOUN")],
+        sentence="test",
+        engine=engine,
+    )
+    assert len(list_all_words(engine)) == 2
+
+    response = client.delete("/api/vocabulary/alpha/NOUN")
+    assert response.status_code == 200
+    assert response.json() == {"deleted": True}
+    assert len(list_all_words(engine)) == 1
+
+
+def test_delete_vocabulary_word_not_found(monkeypatch: pytest.MonkeyPatch) -> None:
+    """DELETE should return 404 for unknown words."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    response = client.delete("/api/vocabulary/missing/NOUN")
+    assert response.status_code == 404
+
+
+def test_delete_then_patch_stale(monkeypatch: pytest.MonkeyPatch) -> None:
+    """PATCH after DELETE on same word (stale tab) should return 404."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    apply_feedback(
+        target_words=[("alpha", "NOUN")],
+        marked_words=[("alpha", "NOUN")],
+        sentence="test",
+        engine=engine,
+    )
+
+    # Tab A deletes
+    response = client.delete("/api/vocabulary/alpha/NOUN")
+    assert response.status_code == 200
+
+    # Tab B tries to patch (stale)
+    response = client.patch(
+        "/api/vocabulary/alpha/NOUN",
+        json={"interval": 8},
+    )
+    assert response.status_code == 404

@@ -3,9 +3,11 @@ from src.services.word_store import (
     INTERVAL_MAX,
     apply_feedback,
     clear_all_words,
+    delete_word_record,
     list_all_words,
     pick_target_words,
     tick_cooldowns,
+    update_word_record,
 )
 
 from conftest import _in_memory_engine
@@ -445,3 +447,167 @@ def test_full_round_simulation() -> None:
     assert "apple" in picked
     assert "harbor" not in picked  # cooldown still > 0
     assert "lantern" not in picked
+
+
+# ---------------------------------------------------------------------------
+# Manual word record update (v0.6.7)
+# ---------------------------------------------------------------------------
+
+
+def test_update_word_record_interval() -> None:
+    """update_word_record should update interval within bounds."""
+    engine = _in_memory_engine()
+
+    apply_feedback(
+        target_words=[("apple", "NOUN")],
+        marked_words=[("apple", "NOUN")],
+        sentence="An apple.",
+        engine=engine,
+    )
+
+    record = update_word_record(
+        "apple", "NOUN", interval=INTERVAL_BASE * 2, engine=engine
+    )
+    assert record is not None
+    assert record.interval == INTERVAL_BASE * 2
+
+    record = update_word_record("apple", "NOUN", interval=INTERVAL_BASE, engine=engine)
+    assert record is not None
+    assert record.interval == INTERVAL_BASE
+
+
+def test_update_word_record_interval_clamped() -> None:
+    """Interval should be clamped to [INTERVAL_BASE, INTERVAL_MAX]."""
+    engine = _in_memory_engine()
+
+    apply_feedback(
+        target_words=[("apple", "NOUN")],
+        marked_words=[("apple", "NOUN")],
+        sentence="An apple.",
+        engine=engine,
+    )
+
+    record = update_word_record("apple", "NOUN", interval=0, engine=engine)
+    assert record is not None
+    assert record.interval == INTERVAL_BASE
+
+    record = update_word_record("apple", "NOUN", interval=999, engine=engine)
+    assert record is not None
+    assert record.interval == INTERVAL_MAX
+
+
+def test_update_word_record_cooldown() -> None:
+    """update_word_record should update cooldown within [0, interval]."""
+    engine = _in_memory_engine()
+
+    apply_feedback(
+        target_words=[("apple", "NOUN")],
+        marked_words=[],
+        sentence="An apple.",
+        engine=engine,
+    )
+
+    record = update_word_record("apple", "NOUN", cooldown=0, engine=engine)
+    assert record is not None
+    assert record.cooldown == 0
+
+    record = update_word_record(
+        "apple", "NOUN", cooldown=INTERVAL_BASE * 2, engine=engine
+    )
+    assert record is not None
+    assert record.cooldown == INTERVAL_BASE * 2
+
+
+def test_update_word_record_cooldown_clamped() -> None:
+    """Cooldown should be clamped to [0, interval]."""
+    engine = _in_memory_engine()
+
+    apply_feedback(
+        target_words=[("apple", "NOUN")],
+        marked_words=[("apple", "NOUN")],
+        sentence="An apple.",
+        engine=engine,
+    )
+
+    record = update_word_record("apple", "NOUN", cooldown=-5, engine=engine)
+    assert record is not None
+    assert record.cooldown == 0
+
+    record = update_word_record("apple", "NOUN", cooldown=999, engine=engine)
+    assert record is not None
+    assert record.cooldown == INTERVAL_BASE
+
+
+def test_update_word_record_not_found() -> None:
+    """update_word_record should return None for missing records."""
+    engine = _in_memory_engine()
+
+    result = update_word_record("nonexistent", "NOUN", interval=4, engine=engine)
+    assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Delete single word record
+# ---------------------------------------------------------------------------
+
+
+def test_delete_word_record() -> None:
+    """delete_word_record should remove a specific word."""
+    engine = _in_memory_engine()
+
+    apply_feedback(
+        target_words=[("apple", "NOUN"), ("banana", "NOUN")],
+        marked_words=[("apple", "NOUN")],
+        sentence="An apple and a banana.",
+        engine=engine,
+    )
+    assert len(list_all_words(engine)) == 2
+
+    deleted = delete_word_record("apple", "NOUN", engine=engine)
+    assert deleted is True
+    remaining = list_all_words(engine)
+    assert len(remaining) == 1
+    assert remaining[0].lemma == "banana"
+
+
+def test_delete_word_record_not_found() -> None:
+    """delete_word_record should return False for missing records."""
+    engine = _in_memory_engine()
+
+    deleted = delete_word_record("nonexistent", "NOUN", engine=engine)
+    assert deleted is False
+
+
+def test_delete_stale_record() -> None:
+    """Deleting an already-deleted record (stale tab) should return False."""
+    engine = _in_memory_engine()
+
+    apply_feedback(
+        target_words=[("apple", "NOUN")],
+        marked_words=[("apple", "NOUN")],
+        sentence="An apple.",
+        engine=engine,
+    )
+
+    # Tab A deletes the record
+    assert delete_word_record("apple", "NOUN", engine=engine) is True
+    # Tab B tries to delete the same record — stale
+    assert delete_word_record("apple", "NOUN", engine=engine) is False
+
+
+def test_update_stale_record() -> None:
+    """Updating a record that was deleted in another tab should return None."""
+    engine = _in_memory_engine()
+
+    apply_feedback(
+        target_words=[("apple", "NOUN")],
+        marked_words=[("apple", "NOUN")],
+        sentence="An apple.",
+        engine=engine,
+    )
+
+    # Tab A deletes the record
+    delete_word_record("apple", "NOUN", engine=engine)
+    # Tab B tries to update — stale
+    result = update_word_record("apple", "NOUN", interval=8, engine=engine)
+    assert result is None
