@@ -7,10 +7,12 @@
 
   import { useSettings } from "./composables/useSettings";
 
-  const ROOT_FONT_SIZE_MAP: Record<string, string> = {
-    sm: "14px",
-    md: "16px",
-    lg: "18px",
+  const UI_ZOOM_MAP: Record<string, string> = {
+    xs: "0.9",
+    sm: "1",
+    md: "1.25",
+    lg: "1.4",
+    xl: "1.5",
   };
 
   const { hydrate, get } = useSettings();
@@ -18,7 +20,11 @@
   onMounted(async () => {
     await hydrate();
     const size = get("interface", "uiFontSize", "md");
-    document.documentElement.style.fontSize =
-      ROOT_FONT_SIZE_MAP[size] ?? "16px";
+    const appEl = document.getElementById("app");
+    if (appEl) {
+      const zoomVal = UI_ZOOM_MAP[size] ?? "1.25";
+      appEl.style.zoom = zoomVal;
+      appEl.style.setProperty("--app-zoom", zoomVal);
+    }
   });
 </script>

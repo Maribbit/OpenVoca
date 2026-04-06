@@ -45,6 +45,10 @@
 }
 
 @layer utilities {
+  .min-h-zoom-screen {
+    min-height: calc(100vh / var(--app-zoom, 1));
+  }
+
   .sentence-fade {
     animation: sentence-fade 480ms ease-out;
   }

@@ -20,6 +20,7 @@ interface LocaleMessages {
   themeLight: string;
   themeDark: string;
   uiSize: string;
+  uiSizeHint: string;
   nextSentenceHint: string;
   releaseHint: string;
   vocabulary: string;
@@ -130,7 +131,9 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     theme: "Theme",
     themeLight: "Light",
     themeDark: "Dark",
-    uiSize: "Interface Size",
+    uiSize: "Zoom",
+    uiSizeHint:
+      "Uses CSS zoom. Requires a modern browser (Chrome 1+, Firefox 126+, Safari 3.1+).",
     nextSentenceHint: "Hold to continue",
     releaseHint: "Release!",
     vocabulary: "Your Vocabulary",
@@ -246,7 +249,9 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     theme: "主题",
     themeLight: "明亮",
     themeDark: "暗色",
-    uiSize: "界面字号",
+    uiSize: "缩放",
+    uiSizeHint:
+      "使用 CSS 缩放。需要现代浏览器（Chrome 1+、Firefox 126+、Safari 3.1+）。",
     nextSentenceHint: "长按进入下一句",
     releaseHint: "松手！",
     vocabulary: "你的词库",

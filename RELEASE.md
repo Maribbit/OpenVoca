@@ -35,6 +35,20 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.6.9
+
+Date: 2026-04-06
+
+### Highlights
+- **Zoom viewport fix** — views at zoom levels above 100% no longer produce a scrollbar or break vertical centering. A new `--app-zoom` CSS custom property drives a `min-h-zoom-screen` utility that compensates `100vh` for the active zoom factor.
+- **Dark mode button contrast** — "Test Connection", "Export CSV", and "Export JSON" buttons in Settings now have visible borders and hover states in dark mode (`dark:border-white/15`, `dark:hover:bg-white/8`).
+
+### Frontend
+- `App.vue` / `SettingsView.vue`: `applyZoom()` now sets `--app-zoom` CSS variable alongside `zoom` on `#app`.
+- `main.css`: added `.min-h-zoom-screen { min-height: calc(100vh / var(--app-zoom, 1)); }` utility.
+- `HomeView.vue`, `StatsView.vue`, `SettingsView.vue`: replaced `min-h-screen` with `min-h-zoom-screen`.
+- `SettingsView.vue`: added `dark:border-white/15 dark:hover:bg-white/8` to three action buttons.
+
 ## v0.6.8
 
 Date: 2026-04-06

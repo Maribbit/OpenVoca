@@ -1,6 +1,6 @@
 <template>
   <div
-    class="relative min-h-screen overflow-hidden bg-paper font-sans text-ink transition-colors duration-300"
+    class="relative min-h-zoom-screen overflow-hidden bg-paper font-sans text-ink transition-colors duration-300"
   >
     <header
       class="group fixed inset-x-0 top-0 z-10 flex items-center justify-between px-6 py-6 uppercase tracking-[0.45em] text-inkLight/50 md:px-10"
@@ -66,7 +66,7 @@
     />
 
     <main
-      class="flex min-h-screen flex-col items-center justify-center gap-14 px-8 py-24"
+      class="flex min-h-zoom-screen flex-col items-center justify-center gap-14 px-8 py-24"
     >
       <template v-if="showComposer">
         <ComposerCard @generate="onComposerGenerate" />
@@ -216,7 +216,7 @@
 
   type FontSizeOption = "sm" | "md" | "lg";
   type SpacingOption = "tight" | "normal" | "loose";
-  type UiFontSizeOption = "sm" | "md" | "lg";
+  type UiFontSizeOption = "xs" | "sm" | "md" | "lg" | "xl";
 
   const FONT_SIZE_OPTIONS: FontSizeOption[] = ["sm", "md", "lg"];
   const SPACING_OPTIONS: SpacingOption[] = ["tight", "normal", "loose"];
@@ -282,9 +282,11 @@
 
   const uiHeaderSizeClass = computed(() => {
     const map: Record<UiFontSizeOption, string> = {
-      sm: "text-[11px]",
+      xs: "text-[11px]",
+      sm: "text-[12px]",
       md: "text-[13px]",
-      lg: "text-[15px]",
+      lg: "text-[14px]",
+      xl: "text-[15px]",
     };
     return map[uiFontSize.value];
   });
@@ -319,7 +321,9 @@
 
   function loadUiFontSize(): UiFontSizeOption {
     const saved = get("interface", "uiFontSize", "md");
-    if (saved === "sm" || saved === "md" || saved === "lg") return saved;
+    const valid: UiFontSizeOption[] = ["xs", "sm", "md", "lg", "xl"];
+    if (valid.includes(saved as UiFontSizeOption))
+      return saved as UiFontSizeOption;
     return "md";
   }
 

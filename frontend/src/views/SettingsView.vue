@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-paper p-8 text-ink antialiased">
+  <div class="min-h-zoom-screen bg-paper p-8 text-ink antialiased">
     <div class="mx-auto max-w-3xl">
       <!-- Header -->
       <header class="mb-12 flex items-center justify-between">
@@ -45,7 +45,7 @@
             </h2>
           </div>
           <div class="p-6">
-            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3">
+            <div class="flex flex-wrap gap-6">
               <!-- Language -->
               <div>
                 <span class="mb-3 block text-sm font-medium text-ink">
@@ -102,9 +102,19 @@
 
               <!-- UI Size -->
               <div>
-                <span class="mb-3 block text-sm font-medium text-ink">
+                <label
+                  class="mb-3 flex items-center gap-1.5 text-sm font-medium text-ink"
+                >
                   {{ i18nMessages.uiSize }}
-                </span>
+                  <button
+                    type="button"
+                    class="flex h-4 w-4 cursor-pointer items-center justify-center rounded-full border border-black/10 text-[10px] text-inkLight transition-colors hover:bg-black/4 hover:text-ink"
+                    @click="showZoomHint = !showZoomHint"
+                    :title="i18nMessages.uiSizeHint"
+                  >
+                    ?
+                  </button>
+                </label>
                 <div
                   class="inline-flex rounded-xl border border-black/8 bg-paper p-1"
                 >
@@ -112,13 +122,16 @@
                     v-for="opt in uiFontSizeOptions"
                     :key="opt.value"
                     type="button"
-                    class="flex h-8 w-8 items-center justify-center rounded-lg transition-all"
+                    class="flex h-8 items-center justify-center rounded-lg px-2.5 transition-all"
                     :class="toggleClass(uiFontSize === opt.value)"
                     @click="setUiFontSize(opt.value)"
                   >
-                    <span :class="opt.labelClass">{{ opt.label }}</span>
+                    <span class="text-xs font-medium">{{ opt.label }}</span>
                   </button>
                 </div>
+                <p v-if="showZoomHint" class="mt-2 text-xs text-inkLight">
+                  {{ i18nMessages.uiSizeHint }}
+                </p>
               </div>
             </div>
           </div>
@@ -195,7 +208,7 @@
                 />
                 <button
                   type="button"
-                  class="whitespace-nowrap rounded-xl border border-black/10 px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-black/4"
+                  class="whitespace-nowrap rounded-xl border border-black/10 px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-black/4 dark:border-white/15 dark:hover:bg-white/8"
                   :disabled="connectionStatus === 'testing'"
                   @click="handleTestConnection"
                 >
@@ -346,7 +359,7 @@
             </div>
             <button
               type="button"
-              class="whitespace-nowrap rounded-xl border border-black/10 px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-black/4"
+              class="whitespace-nowrap rounded-xl border border-black/10 px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-black/4 dark:border-white/15 dark:hover:bg-white/8"
               @click="handleExportVocabulary"
             >
               {{ i18nMessages.exportVocabularySettingsButton }}
@@ -365,7 +378,7 @@
             </div>
             <button
               type="button"
-              class="whitespace-nowrap rounded-xl border border-black/10 px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-black/4"
+              class="whitespace-nowrap rounded-xl border border-black/10 px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-black/4 dark:border-white/15 dark:hover:bg-white/8"
               @click="handleExportSettings"
             >
               {{ i18nMessages.exportSettingsButton }}
@@ -438,7 +451,7 @@
   import { useSettings } from "../composables/useSettings";
 
   type ThemeOption = "light" | "dark";
-  type UiFontSizeOption = "sm" | "md" | "lg";
+  type UiFontSizeOption = "xs" | "sm" | "md" | "lg" | "xl";
 
   const DEFAULT_MODEL = "";
 
@@ -460,15 +473,18 @@
   const connectionStatus = ref<"idle" | "testing" | "ok" | "error">("idle");
   const connectionMessage = ref("");
   const showEndpointHint = ref(false);
+  const showZoomHint = ref(false);
 
   type DictionaryDisplayOption = "zh" | "en" | "both";
   const DICT_DISPLAY_OPTIONS: DictionaryDisplayOption[] = ["zh", "en", "both"];
   const dictionaryDisplay = ref<DictionaryDisplayOption>(loadDictDisplay());
 
   const uiFontSizeOptions = [
-    { value: "sm" as const, label: "A-", labelClass: "text-xs font-medium" },
-    { value: "md" as const, label: "A", labelClass: "text-sm font-medium" },
-    { value: "lg" as const, label: "A+", labelClass: "text-base font-medium" },
+    { value: "xs" as const, label: "90%" },
+    { value: "sm" as const, label: "100%" },
+    { value: "md" as const, label: "125%" },
+    { value: "lg" as const, label: "140%" },
+    { value: "xl" as const, label: "150%" },
   ];
 
   // --- Persistence helpers ---
@@ -491,26 +507,35 @@
     set("reading", { theme });
   }
 
-  const ROOT_FONT_SIZE_MAP: Record<UiFontSizeOption, string> = {
-    sm: "14px",
-    md: "16px",
-    lg: "18px",
+  const UI_ZOOM_MAP: Record<UiFontSizeOption, string> = {
+    xs: "0.9",
+    sm: "1",
+    md: "1.25",
+    lg: "1.4",
+    xl: "1.5",
   };
 
   function loadUiFontSize(): UiFontSizeOption {
     const saved = get("interface", "uiFontSize", "md");
-    if (saved === "sm" || saved === "md" || saved === "lg") return saved;
+    const valid: UiFontSizeOption[] = ["xs", "sm", "md", "lg", "xl"];
+    if (valid.includes(saved as UiFontSizeOption))
+      return saved as UiFontSizeOption;
     return "md";
   }
 
-  function applyRootFontSize(size: UiFontSizeOption): void {
+  function applyZoom(size: UiFontSizeOption): void {
     if (typeof document === "undefined") return;
-    document.documentElement.style.fontSize = ROOT_FONT_SIZE_MAP[size];
+    const appEl = document.getElementById("app");
+    if (appEl) {
+      const zoomVal = UI_ZOOM_MAP[size];
+      appEl.style.zoom = zoomVal;
+      appEl.style.setProperty("--app-zoom", zoomVal);
+    }
   }
 
   function setUiFontSize(size: UiFontSizeOption): void {
     uiFontSize.value = size;
-    applyRootFontSize(size);
+    applyZoom(size);
     set("interface", { uiFontSize: size });
   }
 

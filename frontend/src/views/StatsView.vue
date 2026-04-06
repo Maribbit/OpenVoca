@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-paper p-8 text-ink antialiased">
+  <div class="min-h-zoom-screen bg-paper p-8 text-ink antialiased">
     <div class="mx-auto max-w-5xl">
       <header class="mb-12 flex items-center justify-between">
         <div>
