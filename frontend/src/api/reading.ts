@@ -117,3 +117,24 @@ export async function fetchTargetWords(limit: number): Promise<string[]> {
   const data = (await response.json()) as { words: string[] };
   return data.words;
 }
+
+export interface DictionaryEntry {
+  word: string;
+  phonetic: string;
+  definition: string;
+  translation: string;
+  pos: string;
+  tag: string;
+  exchange: string;
+}
+
+export async function fetchDefinition(
+  word: string,
+): Promise<DictionaryEntry | null> {
+  const response = await fetch(`/api/dictionary/${encodeURIComponent(word)}`, {
+    headers: { Accept: "application/json" },
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error("Dictionary lookup failed.");
+  return (await response.json()) as DictionaryEntry;
+}

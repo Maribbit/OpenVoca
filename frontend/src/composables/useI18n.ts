@@ -92,6 +92,14 @@ interface LocaleMessages {
   statsLemma: string;
   statsInterval: string;
   statsCooldown: string;
+  definitionKnow: string;
+  definitionDontKnow: string;
+  definitionNotFound: string;
+  dictionarySection: string;
+  dictionaryDisplay: string;
+  dictionaryDisplayZh: string;
+  dictionaryDisplayEn: string;
+  dictionaryDisplayBoth: string;
 }
 
 const STORAGE_KEY = "openvoca.ui.locale";
@@ -196,6 +204,14 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     statsLemma: "Lemma",
     statsInterval: "Interval",
     statsCooldown: "Cooldown",
+    definitionKnow: "Know",
+    definitionDontKnow: "Don't know",
+    definitionNotFound: "No definition found",
+    dictionarySection: "Dictionary",
+    dictionaryDisplay: "Definition Language",
+    dictionaryDisplayZh: "中文",
+    dictionaryDisplayEn: "EN",
+    dictionaryDisplayBoth: "Both",
   },
   zh: {
     menu: "菜单",
@@ -289,6 +305,14 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     statsLemma: "词元",
     statsInterval: "复习间隔",
     statsCooldown: "冷却剩余",
+    definitionKnow: "认识",
+    definitionDontKnow: "不认识",
+    definitionNotFound: "未找到释义",
+    dictionarySection: "词典",
+    dictionaryDisplay: "释义语言",
+    dictionaryDisplayZh: "中文",
+    dictionaryDisplayEn: "EN",
+    dictionaryDisplayBoth: "双语",
   },
 };
 

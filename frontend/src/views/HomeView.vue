@@ -84,7 +84,7 @@
           :error-message="errorMessage"
           :loading-text="i18nMessages.loadingSentence"
           :typography-class="sentenceTypographyClass"
-          @toggle-mark="toggleWordMark"
+          @word-click="onWordClick"
         />
 
         <HoldButton
@@ -97,6 +97,17 @@
         />
       </template>
     </main>
+
+    <DefinitionToast
+      :entry="definitionEntry"
+      :not-found-word="definitionNotFound"
+      :not-found-text="i18nMessages.definitionNotFound"
+      :know-text="i18nMessages.definitionKnow"
+      :dont-know-text="i18nMessages.definitionDontKnow"
+      :is-marked="isCurrentWordMarked"
+      :display-mode="dictionaryDisplayMode"
+      @mark="onDefinitionMark"
+    />
 
     <Transition name="fade">
       <p
@@ -114,12 +125,16 @@
 
   import {
     fetchNextReadingSentence,
+    fetchDefinition,
     submitFeedback,
+    type DictionaryEntry,
     type ReadingSentenceToken,
   } from "../api/reading";
   import { useI18n } from "../composables/useI18n";
   import { useSettings } from "../composables/useSettings";
   import ComposerCard from "../components/ComposerCard.vue";
+  import DefinitionToast from "../components/DefinitionToast.vue";
+  import type { DictionaryDisplayMode } from "../components/DefinitionToast.vue";
   import HoldButton from "../components/HoldButton.vue";
   import ReadingSettingsBar from "../components/ReadingSettingsBar.vue";
   import type {
@@ -155,9 +170,26 @@
 
   const holdButtonRef = ref<InstanceType<typeof HoldButton> | null>(null);
 
+  const definitionEntry = ref<DictionaryEntry | null>(null);
+  const definitionWord = ref<string | null>(null);
+  const definitionNotFound = ref<string | null>(null);
+  const definitionToken = ref<ReadingSentenceToken | null>(null);
+  let wordClickedThisFrame = false;
+
+  const isCurrentWordMarked = computed(() => {
+    if (!definitionToken.value) return false;
+    return markedWords.value.has(tokenKey(definitionToken.value));
+  });
+
   const readingUiSettings = ref<ReadingUiSettings>(loadReadingUiSettings());
   const uiFontSize = ref<UiFontSizeOption>(loadUiFontSize());
   const { messages: i18nMessages } = useI18n();
+
+  const dictionaryDisplayMode = computed<DictionaryDisplayMode>(() => {
+    const v = get("dictionary", "display", "zh");
+    if (v === "en" || v === "both") return v;
+    return "zh";
+  });
 
   const sentenceTypographyClass = computed(() => {
     const fontSizeMap: Record<FontSizeOption, string> = {
@@ -244,15 +276,55 @@
     return `${token.text.toLowerCase()}/${token.pos ?? ""}`;
   }
 
-  function toggleWordMark(token: ReadingSentenceToken): void {
-    const key = tokenKey(token);
+  function dismissDefinition(): void {
+    definitionEntry.value = null;
+    definitionWord.value = null;
+    definitionNotFound.value = null;
+    definitionToken.value = null;
+  }
+
+  async function onWordClick(token: ReadingSentenceToken): Promise<void> {
+    wordClickedThisFrame = true;
+    const word = (token.lemma ?? token.text).toLowerCase();
+
+    // Show definition for clicked word
+    definitionWord.value = word;
+    definitionToken.value = token;
+    definitionNotFound.value = null;
+    try {
+      const entry = await fetchDefinition(word);
+      if (definitionWord.value === word) {
+        definitionEntry.value = entry;
+        definitionNotFound.value = entry ? null : word;
+      }
+    } catch {
+      if (definitionWord.value === word) {
+        definitionEntry.value = null;
+        definitionNotFound.value = word;
+      }
+    }
+  }
+
+  function onDefinitionMark(marked: boolean): void {
+    if (!definitionToken.value) return;
+    const key = tokenKey(definitionToken.value);
     const next = new Set(markedWords.value);
-    if (next.has(key)) {
-      next.delete(key);
-    } else {
+    if (marked) {
       next.add(key);
+    } else {
+      next.delete(key);
     }
     markedWords.value = next;
+  }
+
+  function onDocumentClick(): void {
+    if (wordClickedThisFrame) {
+      wordClickedThisFrame = false;
+      return;
+    }
+    if (definitionEntry.value || definitionNotFound.value) {
+      dismissDefinition();
+    }
   }
 
   async function loadSentence(
@@ -269,6 +341,7 @@
       sentence.value = response.sentence;
       tokens.value = response.tokens;
       markedWords.value = new Set();
+      dismissDefinition();
     } catch {
       errorMessage.value = i18nMessages.value.connectionError;
       tokens.value = [];
@@ -304,6 +377,7 @@
     }
 
     showComposer.value = true;
+    dismissDefinition();
   }
 
   async function onComposerGenerate(
@@ -339,12 +413,14 @@
     applyTheme(readingUiSettings.value.theme);
     window.addEventListener("keydown", handleKeydown);
     window.addEventListener("keyup", handleKeyup);
+    document.addEventListener("click", onDocumentClick);
   });
 
   onUnmounted(() => {
     holdButtonRef.value?.abortHold();
     window.removeEventListener("keydown", handleKeydown);
     window.removeEventListener("keyup", handleKeyup);
+    document.removeEventListener("click", onDocumentClick);
   });
 
   watch(

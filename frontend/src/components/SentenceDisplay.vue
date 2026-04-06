@@ -35,7 +35,7 @@
               ? 'bg-highlight'
               : 'hover:bg-highlight/70',
           ]"
-          @click="$emit('toggle-mark', token)"
+          @click="$emit('word-click', token)"
         >
           <span
             :class="
@@ -66,7 +66,7 @@
   }>();
 
   defineEmits<{
-    "toggle-mark": [token: ReadingSentenceToken];
+    "word-click": [token: ReadingSentenceToken];
   }>();
 
   function tokenKey(token: ReadingSentenceToken): string {

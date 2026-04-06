@@ -12,7 +12,7 @@ frontend/dist/
 # Backend
 backend/.venv/
 backend/openvoca.db
-openvoca.db
+stardict.db
 .ruff_cache/
 __pycache__/
 *.py[cod]

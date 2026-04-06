@@ -28,6 +28,7 @@ from src.services.settings_store import (
     upsert_namespace,
     upsert_setting,
 )
+from src.services.dictionary import lookup as dict_lookup
 
 
 @asynccontextmanager
@@ -282,6 +283,26 @@ def export_vocabulary() -> StreamingResponse:
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=openvoca-vocabulary.csv"},
     )
+
+
+# --- Dictionary ---
+
+
+@app.get("/api/dictionary/{word}")
+def get_definition(word: str) -> dict:
+    """Look up a word in the built-in dictionary."""
+    entry = dict_lookup(word)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="Word not found")
+    return {
+        "word": entry.word,
+        "phonetic": entry.phonetic,
+        "definition": entry.definition,
+        "translation": entry.translation,
+        "pos": entry.pos,
+        "tag": entry.tag,
+        "exchange": entry.exchange,
+    }
 
 
 # --- Settings ---

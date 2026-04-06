@@ -276,6 +276,54 @@
           </div>
         </section>
 
+        <!-- ===== Dictionary ===== -->
+        <section
+          class="overflow-hidden rounded-2xl border border-black/5 bg-surface shadow-sm"
+        >
+          <div class="border-b border-black/5 px-6 py-4">
+            <h2
+              class="text-xs font-semibold uppercase tracking-[0.2em] text-inkLight"
+            >
+              {{ i18nMessages.dictionarySection }}
+            </h2>
+          </div>
+          <div class="p-6">
+            <div>
+              <span class="mb-3 block text-sm font-medium text-ink">
+                {{ i18nMessages.dictionaryDisplay }}
+              </span>
+              <div
+                class="inline-flex rounded-xl border border-black/8 bg-paper p-1"
+              >
+                <button
+                  type="button"
+                  class="rounded-lg px-3 py-1.5 text-sm transition-all"
+                  :class="toggleClass(dictionaryDisplay === 'zh')"
+                  @click="setDictionaryDisplay('zh')"
+                >
+                  {{ i18nMessages.dictionaryDisplayZh }}
+                </button>
+                <button
+                  type="button"
+                  class="rounded-lg px-3 py-1.5 text-sm transition-all"
+                  :class="toggleClass(dictionaryDisplay === 'en')"
+                  @click="setDictionaryDisplay('en')"
+                >
+                  {{ i18nMessages.dictionaryDisplayEn }}
+                </button>
+                <button
+                  type="button"
+                  class="rounded-lg px-3 py-1.5 text-sm transition-all"
+                  :class="toggleClass(dictionaryDisplay === 'both')"
+                  @click="setDictionaryDisplay('both')"
+                >
+                  {{ i18nMessages.dictionaryDisplayBoth }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <!-- ===== Data ===== -->
         <section
           class="overflow-hidden rounded-2xl border border-black/5 bg-surface shadow-sm"
@@ -413,6 +461,10 @@
   const connectionMessage = ref("");
   const showEndpointHint = ref(false);
 
+  type DictionaryDisplayOption = "zh" | "en" | "both";
+  const DICT_DISPLAY_OPTIONS: DictionaryDisplayOption[] = ["zh", "en", "both"];
+  const dictionaryDisplay = ref<DictionaryDisplayOption>(loadDictDisplay());
+
   const uiFontSizeOptions = [
     { value: "sm" as const, label: "A-", labelClass: "text-xs font-medium" },
     { value: "md" as const, label: "A", labelClass: "text-sm font-medium" },
@@ -471,6 +523,18 @@
     return isActive
       ? "bg-ink text-paper shadow-sm font-medium"
       : "text-inkLight hover:text-ink";
+  }
+
+  function loadDictDisplay(): DictionaryDisplayOption {
+    const saved = get("dictionary", "display", "zh");
+    return DICT_DISPLAY_OPTIONS.includes(saved as DictionaryDisplayOption)
+      ? (saved as DictionaryDisplayOption)
+      : "zh";
+  }
+
+  function setDictionaryDisplay(mode: DictionaryDisplayOption): void {
+    dictionaryDisplay.value = mode;
+    set("dictionary", { display: mode });
   }
 
   async function saveProvider(): Promise<void> {

@@ -35,6 +35,37 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.6.5
+
+Date: 2025-07-24
+
+### Highlights
+- **Built-in dictionary**: click any word in the reading view to see its definition in a top-center toast. Powered by a compact 7.7 MB dictionary extract (ECDICT, 36,896 words).
+- **Know / Don't know toggle**: the definition toast includes a toggle — tap "Don't know" to highlight the word, or "Know" (default) to leave it unmarked.
+- **Definition language setting**: new "Dictionary" section in Settings lets you choose Chinese only, English only, or both definitions.
+- **Multi-line definitions**: long definitions are split by line breaks and capped at 4 lines per language for readability.
+- **Word-not-found handling**: words not in the dictionary still show a toast with the word and a "No definition found" message.
+
+### Backend
+- New `GET /api/dictionary/{word}` endpoint — case-insensitive lookup returning word, phonetic, definition, translation, pos, tag, exchange. Returns 404 for unknown words.
+- New `src/services/dictionary.py` with `lookup()` and `lookup_custom()` functions backed by SQLite.
+- New `backend/data/dictionary.db` — compact dictionary extracted from ECDICT (BNC/COCA top 30k + exam-tagged words with Chinese translations).
+- New `scripts/extract_dictionary.py` for regenerating the dictionary from `stardict.db`.
+- 7 new tests in `test_dictionary.py`. Total: 85 backend tests.
+
+### Frontend
+- New `DefinitionToast.vue` component — fixed top-center toast with slide-down animation, definition display, and know/don't-know toggle.
+- `SentenceDisplay.vue`: click events now emit `word-click` (replaced `toggle-mark`). Word marking is handled by the toast toggle instead of direct clicks.
+- `HomeView.vue`: wired dictionary lookup on word click, document click to dismiss, definition state management. Dismisses toast on sentence advance and composer return.
+- `SettingsView.vue`: new "Dictionary" section with definition language toggle (中文 / EN / Both), stored in `dictionary.display` setting.
+- `reading.ts`: new `fetchDefinition(word)` API function and `DictionaryEntry` interface.
+- `useI18n.ts`: added 8 new i18n keys (`definitionKnow`, `definitionDontKnow`, `definitionNotFound`, `dictionarySection`, `dictionaryDisplay`, `dictionaryDisplayZh`, `dictionaryDisplayEn`, `dictionaryDisplayBoth`).
+
+### Design
+- Updated `ui_guide_reading_light.html` and `ui_guide_reading_dark.html` with top-center definition toast mockup.
+
+---
+
 ## v0.6.4
 
 Date: 2025-07-24
