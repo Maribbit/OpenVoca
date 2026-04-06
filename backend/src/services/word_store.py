@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 
+from sqlalchemy import text
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 INTERVAL_BASE = 2
@@ -115,9 +116,9 @@ def tick_cooldowns(engine=None) -> None:
     """Decrement cooldown by 1 for all words with cooldown > 0."""
     target = engine or _engine
     with Session(target) as session:
-        records = session.exec(select(WordRecord).where(WordRecord.cooldown > 0)).all()
-        for record in records:
-            record.cooldown -= 1
+        session.exec(
+            text("UPDATE wordrecord SET cooldown = cooldown - 1 WHERE cooldown > 0")
+        )
         session.commit()
 
 
@@ -161,9 +162,6 @@ def clear_all_words(engine=None) -> int:
     """Delete all word records. Returns count of deleted rows."""
     target = engine or _engine
     with Session(target) as session:
-        records = session.exec(select(WordRecord)).all()
-        count = len(records)
-        for record in records:
-            session.delete(record)
+        result = session.exec(text("DELETE FROM wordrecord"))
         session.commit()
-        return count
+        return result.rowcount  # type: ignore[return-value]

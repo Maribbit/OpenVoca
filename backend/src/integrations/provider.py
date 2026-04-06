@@ -1,8 +1,7 @@
 """Abstract LLM provider interface.
 
-All LLM integrations (Ollama, OpenAI, Anthropic, etc.) implement the
-``LLMProvider`` protocol so the rest of the application can depend on
-a single, stable API surface.
+All LLM integrations implement the ``LLMProvider`` protocol so the rest
+of the application can depend on a single, stable API surface.
 """
 
 from typing import Protocol, runtime_checkable

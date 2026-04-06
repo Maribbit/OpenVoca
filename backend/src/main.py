@@ -1,4 +1,5 @@
 import httpx
+from contextlib import asynccontextmanager
 from pydantic import BaseModel, ConfigDict, Field
 from fastapi import FastAPI, HTTPException
 
@@ -24,7 +25,16 @@ from src.services.settings_store import (
     upsert_setting,
 )
 
-app = FastAPI(title="OpenVoca API")
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):  # noqa: ARG001
+    """Close the persistent LLM HTTP client on shutdown."""
+    yield
+    if isinstance(llm, OpenAICompatibleClient):
+        await llm.aclose()
+
+
+app = FastAPI(title="OpenVoca API", lifespan=lifespan)
 init_settings_table()
 
 DEFAULT_ENDPOINT = "http://localhost:11434"
@@ -132,9 +142,11 @@ def get_provider() -> dict[str, str]:
 
 
 @app.put("/api/provider")
-def set_provider(config: ProviderConfig) -> dict[str, str]:
+async def set_provider(config: ProviderConfig) -> dict[str, str]:
     """Switch the LLM provider at runtime and persist to settings."""
     global llm
+    if isinstance(llm, OpenAICompatibleClient):
+        await llm.aclose()
     llm = OpenAICompatibleClient(
         base_url=config.endpoint,
         model=config.model,

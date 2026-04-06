@@ -35,6 +35,25 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.6.1
+
+Date: 2026-04-06
+
+### Highlights
+- **Persistent HTTP connections**: the LLM client now creates a single `httpx.AsyncClient` at init and reuses it across all requests, eliminating per-call connection overhead. Graceful shutdown via FastAPI `lifespan`.
+- **SQL-optimized bulk operations**: `tick_cooldowns()` and `clear_all_words()` replaced ORM loops with single raw SQL statements for O(1) database round-trips.
+- **Composer UI guide refresh**: both light and dark HTML mockups fully rewritten to match the current implementation — 5-card scenario grid, collapsible difficulty/length with custom, prompt preview, and new Target Words preview module.
+
+### Backend
+- `OpenAICompatibleClient`: refactored from per-call `async with httpx.AsyncClient(...)` to persistent client created in `__init__`. Added `aclose()` method.
+- FastAPI app: added `lifespan` async context manager that calls `llm.aclose()` on shutdown.
+- `set_provider()` is now `async` — closes the old client before creating a new one to prevent connection leaks.
+- `word_store.py`: `tick_cooldowns()` now uses `UPDATE wordrecord SET cooldown = cooldown - 1 WHERE cooldown > 0` (single SQL). `clear_all_words()` uses `DELETE FROM wordrecord` with `result.rowcount`.
+- Added `from sqlalchemy import text` import for raw SQL execution.
+- 2 new tests: persistent connection reuse, graceful client shutdown. 78 total backend tests passing.
+
+---
+
 ## v0.6.0
 
 Date: 2026-04-01

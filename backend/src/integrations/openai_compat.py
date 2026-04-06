@@ -6,6 +6,10 @@ class OpenAICompatibleClient:
 
     Works with OpenRouter, Groq, Together.ai, SiliconFlow, DeepSeek,
     and any service that implements POST /v1/chat/completions.
+
+    Uses a persistent ``httpx.AsyncClient`` to reuse TCP connections
+    across requests, avoiding repeated DNS lookups and TLS handshakes.
+    Call ``aclose()`` when the client is no longer needed.
     """
 
     def __init__(
@@ -20,7 +24,15 @@ class OpenAICompatibleClient:
         self.model = model
         self.api_key = api_key
         self.timeout = timeout
-        self.transport = transport
+        self._client = httpx.AsyncClient(
+            base_url=self.base_url,
+            timeout=self.timeout,
+            transport=transport,
+        )
+
+    async def aclose(self) -> None:
+        """Close the underlying HTTP connection pool."""
+        await self._client.aclose()
 
     async def generate_completion(self, prompt: str) -> str:
         headers: dict[str, str] = {"Content-Type": "application/json"}
@@ -33,17 +45,12 @@ class OpenAICompatibleClient:
             "stream": False,
         }
 
-        async with httpx.AsyncClient(
-            base_url=self.base_url,
-            timeout=self.timeout,
-            transport=self.transport,
-        ) as client:
-            response = await client.post(
-                "/v1/chat/completions",
-                json=payload,
-                headers=headers,
-            )
-            response.raise_for_status()
+        response = await self._client.post(
+            "/v1/chat/completions",
+            json=payload,
+            headers=headers,
+        )
+        response.raise_for_status()
 
         data = response.json()
         choices = data.get("choices", [])

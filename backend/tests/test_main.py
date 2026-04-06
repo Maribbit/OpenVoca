@@ -158,6 +158,53 @@ def test_openai_compatible_client_satisfies_provider_protocol() -> None:
     )
 
 
+@pytest.mark.anyio
+async def test_openai_compatible_client_reuses_connection() -> None:
+    """The persistent client should handle multiple calls without recreating."""
+    call_count = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal call_count
+        call_count += 1
+        return httpx.Response(
+            status_code=200,
+            json={"choices": [{"message": {"content": f"Response {call_count}."}}]},
+        )
+
+    transport = httpx.MockTransport(handler)
+    client_obj = OpenAICompatibleClient(
+        base_url="https://api.example.com",
+        model="test",
+        api_key="sk-test",
+        transport=transport,
+    )
+
+    result1 = await client_obj.generate_completion("First call")
+    result2 = await client_obj.generate_completion("Second call")
+
+    assert result1 == "Response 1."
+    assert result2 == "Response 2."
+    assert call_count == 2
+    await client_obj.aclose()
+
+
+@pytest.mark.anyio
+async def test_openai_compatible_client_aclose() -> None:
+    """aclose() should cleanly shut down the HTTP client."""
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(
+            status_code=200,
+            json={"choices": [{"message": {"content": "ok"}}]},
+        ),
+    )
+    client_obj = OpenAICompatibleClient(
+        base_url="https://api.example.com",
+        model="test",
+        transport=transport,
+    )
+    await client_obj.aclose()
+
+
 def test_reading_sentence_endpoint_returns_pos_tags(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
