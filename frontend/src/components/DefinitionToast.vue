@@ -59,7 +59,7 @@
                 class="rounded-full px-3.5 py-1 text-xs font-medium transition-all"
                 :class="
                   !isMarked
-                    ? 'bg-ink text-paper shadow-sm dark:bg-white dark:text-ink'
+                    ? 'bg-ink text-paper shadow-sm dark:bg-white dark:text-black'
                     : 'text-inkLight hover:text-ink'
                 "
                 @click="$emit('mark', false)"

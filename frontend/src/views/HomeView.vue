@@ -2,10 +2,6 @@
   <div
     class="relative min-h-screen overflow-hidden bg-paper font-sans text-ink transition-colors duration-300"
   >
-    <div class="fixed inset-x-0 top-0 z-10 h-px bg-black/6">
-      <div class="h-full w-1/3 bg-inkLight/55"></div>
-    </div>
-
     <header
       class="group fixed inset-x-0 top-0 z-10 flex items-center justify-between px-6 py-6 uppercase tracking-[0.45em] text-inkLight/50 md:px-10"
       :class="uiHeaderSizeClass"

@@ -34,6 +34,7 @@ export interface WordRecordOut {
   pos: string;
   interval: number;
   cooldown: number;
+  lastSeen?: string | null;
   lastContext?: string | null;
 }
 
@@ -77,8 +78,10 @@ export async function submitFeedback(request: FeedbackRequest): Promise<void> {
   }
 }
 
-export async function fetchVocabulary(): Promise<VocabularyResponse> {
-  const response = await fetch("/api/vocabulary", {
+export async function fetchVocabulary(
+  sort: "familiarity" | "recent" = "familiarity",
+): Promise<VocabularyResponse> {
+  const response = await fetch(`/api/vocabulary?sort=${sort}`, {
     headers: { Accept: "application/json" },
   });
 

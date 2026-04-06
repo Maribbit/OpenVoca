@@ -147,17 +147,23 @@ def pick_target_words(limit: int = 3, engine=None) -> list[str]:
         return words
 
 
-def list_all_words(engine=None) -> list[WordRecord]:
-    """Return all word records sorted by review priority.
+def list_all_words(engine=None, *, sort: str = "familiarity") -> list[WordRecord]:
+    """Return all word records sorted by the given mode.
 
-    Order: cooldown ASC (ready-to-review first), then interval ASC
-    (least familiar first).
+    Modes:
+        - "familiarity": cooldown ASC, interval ASC (ready-to-review first)
+        - "recent": last_seen DESC (most recently reviewed first)
     """
     target = engine or _engine
     with Session(target) as session:
-        statement = select(WordRecord).order_by(
-            WordRecord.cooldown, WordRecord.interval
-        )
+        if sort == "recent":
+            statement = select(WordRecord).order_by(
+                WordRecord.last_seen.desc()  # type: ignore[union-attr]
+            )
+        else:
+            statement = select(WordRecord).order_by(
+                WordRecord.cooldown, WordRecord.interval
+            )
         results = session.exec(statement).all()
         return list(results)
 

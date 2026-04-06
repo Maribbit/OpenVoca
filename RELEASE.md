@@ -35,9 +35,38 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.6.8
+
+Date: 2026-04-06
+
+### Highlights
+- **Stats page: sortable vocabulary** — two sort modes via pill toggle: "By Familiarity" (cooldown ASC, interval ASC) and "By Recent" (last reviewed first). Sorting is performed server-side for future pagination readiness.
+- **Stats page: expandable word details** — click any row to reveal the last review timestamp (relative, e.g. "3h ago") and the previous sentence context in which the word appeared.
+- **Dark mode fix** — the "Know" button in the definition toast is now readable in dark mode (was white-on-white).
+- **Timezone fix** — `lastSeen` timestamps are now always serialized with a UTC offset (`+00:00`), preventing local-time misinterpretation on the frontend.
+- **Progress bar removed** — the non-functional decorative progress bar at the top of the reading view has been removed from both the Vue code and design mockups.
+
+### Backend
+- `WordRecordOut` response model now includes `lastSeen` (ISO 8601 with UTC offset).
+- `GET /api/vocabulary` accepts `?sort=familiarity|recent` query parameter (validated, 422 on invalid values).
+- `list_all_words()` in `word_store.py` accepts `sort` keyword argument for server-side ordering.
+- New `_utc_iso()` helper in `main.py` to re-attach UTC timezone to naive datetimes from SQLite.
+- 4 new tests: sort familiarity, sort recent, sort invalid, lastSeen presence. Total: 105 backend tests.
+
+### Frontend
+- `fetchVocabulary(sort)` in `reading.ts` passes sort mode to backend API.
+- `StatsView.vue`: sort toggle pills re-fetch from backend; click any row to expand inline detail showing relative last-seen time and italic previous context. Interactive controls use `.stop` to avoid accidental row toggle.
+- `DefinitionToast.vue`: "Know" active button uses `dark:text-black` instead of `dark:text-ink` for readability.
+- `HomeView.vue`: removed decorative progress bar div.
+- `useI18n.ts`: 4 new i18n keys (`sortByFamiliarity`, `sortByRecent`, `lastSeenLabel`, `lastContextLabel`).
+- `WordRecordOut` interface updated with `lastSeen` field.
+- Total: 11 frontend tests.
+
+---
+
 ## v0.6.7
 
-Date: 2025-07-25
+Date: 2026-04-06
 
 ### Highlights
 - **Copy & read aloud**: two new action buttons below the sentence — copy to clipboard (with checkmark feedback) and browser TTS read-aloud (with stop toggle).
@@ -64,7 +93,7 @@ Date: 2025-07-25
 
 ## v0.6.6
 
-Date: 2025-07-25
+Date: 2026-04-06
 
 ### Highlights
 - **Hyphenated word merging**: compound words like "lo-fi", "well-known", and "state-of-the-art" are now treated as single clickable tokens instead of being split into separate parts by spaCy.
@@ -82,7 +111,7 @@ Date: 2025-07-25
 
 ## v0.6.5
 
-Date: 2025-07-24
+Date: 2026-04-06
 
 ### Highlights
 - **Built-in dictionary**: click any word in the reading view to see its definition in a top-center toast. Powered by a compact 7.7 MB dictionary extract (ECDICT, 36,896 words).
@@ -113,7 +142,7 @@ Date: 2025-07-24
 
 ## v0.6.4
 
-Date: 2025-07-24
+Date: 2026-04-06
 
 ### Highlights
 - **Vocabulary CSV export**: new "Export Vocabulary" button in both the Stats page and the Settings Data section. Downloads all word records as a CSV file (`lemma, pos, interval, cooldown`).
@@ -136,7 +165,7 @@ Date: 2025-07-24
 
 ## v0.6.3
 
-Date: 2025-07-24
+Date: 2026-04-06
 
 ### Highlights
 - **Prompt assembly moved to frontend**: the frontend now builds the complete prompt (template interpolation + scenario/difficulty/length instructions + target words). The backend receives a single `prompt` string and only appends the internal markdown-marking directive. This eliminates duplication between preview and generation.

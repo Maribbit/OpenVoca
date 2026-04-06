@@ -64,6 +64,34 @@
         v-else
         class="overflow-hidden rounded-2xl border border-black/5 bg-surface shadow-sm"
       >
+        <!-- Sort toggle -->
+        <div class="flex gap-1 border-b border-black/5 px-6 py-3">
+          <button
+            type="button"
+            class="rounded-full px-3 py-1 text-xs font-medium transition-colors"
+            :class="
+              sortMode === 'familiarity'
+                ? 'bg-black/8 text-ink'
+                : 'text-inkLight hover:bg-black/4'
+            "
+            @click="sortMode = 'familiarity'"
+          >
+            {{ i18nMessages.sortByFamiliarity }}
+          </button>
+          <button
+            type="button"
+            class="rounded-full px-3 py-1 text-xs font-medium transition-colors"
+            :class="
+              sortMode === 'recent'
+                ? 'bg-black/8 text-ink'
+                : 'text-inkLight hover:bg-black/4'
+            "
+            @click="sortMode = 'recent'"
+          >
+            {{ i18nMessages.sortByRecent }}
+          </button>
+        </div>
+
         <table class="w-full border-collapse text-left">
           <thead>
             <tr
@@ -83,116 +111,139 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-black/3 text-sm">
-            <tr
-              v-for="word in words"
-              :key="`${word.lemma}-${word.pos}`"
-              class="transition-colors hover:bg-black/2"
-            >
-              <td class="px-6 py-4">
-                <span class="font-serif text-lg text-ink">{{
-                  word.lemma
-                }}</span>
-              </td>
-              <td class="px-6 py-4">
-                <span
-                  class="inline-block rounded-full bg-black/5 px-2.5 py-0.5 font-mono text-xs text-inkLight"
-                >
-                  {{ word.pos }}
-                </span>
-              </td>
-              <td class="px-6 py-4">
-                <div class="flex items-center gap-2">
-                  <button
-                    type="button"
-                    class="cursor-pointer rounded p-0.5 text-inkLight/40 transition-colors hover:bg-black/5 hover:text-inkLight disabled:cursor-not-allowed disabled:opacity-30"
-                    :disabled="word.interval <= 2"
-                    :title="i18nMessages.intervalHalve"
-                    @click="changeInterval(word, word.interval / 2)"
-                  >
-                    <svg
-                      class="h-3 w-3"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        d="M5 12h14"
-                      />
-                    </svg>
-                  </button>
+            <template v-for="word in words" :key="`${word.lemma}-${word.pos}`">
+              <tr
+                class="cursor-pointer transition-colors hover:bg-black/2"
+                @click="toggleExpand(word)"
+              >
+                <td class="px-6 py-4">
+                  <span class="font-serif text-lg text-ink">{{
+                    word.lemma
+                  }}</span>
+                </td>
+                <td class="px-6 py-4">
                   <span
-                    class="min-w-[1.5rem] text-center font-mono text-xs text-ink"
-                    >{{ word.interval }}</span
+                    class="inline-block rounded-full bg-black/5 px-2.5 py-0.5 font-mono text-xs text-inkLight"
                   >
+                    {{ word.pos }}
+                  </span>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="flex items-center gap-2">
+                    <button
+                      type="button"
+                      class="cursor-pointer rounded p-0.5 text-inkLight/40 transition-colors hover:bg-black/5 hover:text-inkLight disabled:cursor-not-allowed disabled:opacity-30"
+                      :disabled="word.interval <= 2"
+                      :title="i18nMessages.intervalHalve"
+                      @click.stop="changeInterval(word, word.interval / 2)"
+                    >
+                      <svg
+                        class="h-3 w-3"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M5 12h14"
+                        />
+                      </svg>
+                    </button>
+                    <span
+                      class="min-w-[1.5rem] text-center font-mono text-xs text-ink"
+                      >{{ word.interval }}</span
+                    >
+                    <button
+                      type="button"
+                      class="cursor-pointer rounded p-0.5 text-inkLight/40 transition-colors hover:bg-black/5 hover:text-inkLight disabled:cursor-not-allowed disabled:opacity-30"
+                      :disabled="word.interval >= 64"
+                      :title="i18nMessages.intervalDouble"
+                      @click.stop="changeInterval(word, word.interval * 2)"
+                    >
+                      <svg
+                        class="h-3 w-3"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M12 5v14m-7-7h14"
+                        />
+                      </svg>
+                    </button>
+                    <span class="text-xs text-inkLight/60">
+                      {{ intervalLabel(word.interval) }}
+                    </span>
+                    <div
+                      class="h-2 w-2 rounded-full"
+                      :class="intervalDotColor(word.interval)"
+                    />
+                  </div>
+                </td>
+                <td class="px-6 py-4">
+                  <input
+                    type="number"
+                    :value="word.cooldown"
+                    :min="0"
+                    :max="word.interval"
+                    class="w-14 rounded border border-transparent bg-transparent px-1 py-0.5 text-center font-mono text-xs outline-none transition-colors focus:border-black/15 focus:bg-surface"
+                    :class="
+                      word.cooldown > 0 ? 'text-inkLight' : 'text-green-500'
+                    "
+                    @change="onCooldownInput(word, $event)"
+                    @click.stop
+                  />
+                </td>
+                <td class="px-2 py-4">
                   <button
                     type="button"
-                    class="cursor-pointer rounded p-0.5 text-inkLight/40 transition-colors hover:bg-black/5 hover:text-inkLight disabled:cursor-not-allowed disabled:opacity-30"
-                    :disabled="word.interval >= 64"
-                    :title="i18nMessages.intervalDouble"
-                    @click="changeInterval(word, word.interval * 2)"
+                    class="cursor-pointer rounded p-1 text-inkLight/30 transition-colors hover:bg-red-50 hover:text-red-400"
+                    :title="i18nMessages.deleteWord"
+                    @click.stop="handleDeleteWord(word)"
                   >
                     <svg
-                      class="h-3 w-3"
+                      class="h-3.5 w-3.5"
                       fill="none"
                       stroke="currentColor"
-                      stroke-width="2"
+                      stroke-width="1.5"
                       viewBox="0 0 24 24"
                     >
                       <path
                         stroke-linecap="round"
                         stroke-linejoin="round"
-                        d="M12 5v14m-7-7h14"
+                        d="M6 18 18 6M6 6l12 12"
                       />
                     </svg>
                   </button>
-                  <span class="text-xs text-inkLight/60">
-                    {{ intervalLabel(word.interval) }}
-                  </span>
-                  <div
-                    class="h-2 w-2 rounded-full"
-                    :class="intervalDotColor(word.interval)"
-                  />
-                </div>
-              </td>
-              <td class="px-6 py-4">
-                <input
-                  type="number"
-                  :value="word.cooldown"
-                  :min="0"
-                  :max="word.interval"
-                  class="w-14 rounded border border-transparent bg-transparent px-1 py-0.5 text-center font-mono text-xs outline-none transition-colors focus:border-black/15 focus:bg-surface"
-                  :class="
-                    word.cooldown > 0 ? 'text-inkLight' : 'text-green-500'
-                  "
-                  @change="onCooldownInput(word, $event)"
-                />
-              </td>
-              <td class="px-2 py-4">
-                <button
-                  type="button"
-                  class="cursor-pointer rounded p-1 text-inkLight/30 transition-colors hover:bg-red-50 hover:text-red-400"
-                  :title="i18nMessages.deleteWord"
-                  @click="handleDeleteWord(word)"
-                >
-                  <svg
-                    class="h-3.5 w-3.5"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      d="M6 18 18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </td>
-            </tr>
+                </td>
+              </tr>
+              <!-- Expanded detail row -->
+              <tr v-if="expandedKey === wordKey(word)">
+                <td colspan="5" class="bg-black/2 px-6 py-3">
+                  <div class="flex flex-col gap-1 text-xs text-inkLight">
+                    <div>
+                      <span class="font-medium"
+                        >{{ i18nMessages.lastSeenLabel }}:</span
+                      >
+                      {{ formatLastSeen(word.lastSeen) }}
+                    </div>
+                    <div v-if="word.lastContext">
+                      <span class="font-medium"
+                        >{{ i18nMessages.lastContextLabel }}:</span
+                      >
+                      <span class="ml-1 font-serif italic">{{
+                        word.lastContext
+                      }}</span>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
 
@@ -207,7 +258,7 @@
 </template>
 
 <script setup lang="ts">
-  import { onMounted, ref } from "vue";
+  import { onMounted, ref, watch } from "vue";
 
   import {
     deleteWordRecord,
@@ -218,12 +269,39 @@
   } from "../api/reading";
   import { useI18n } from "../composables/useI18n";
 
+  type SortMode = "familiarity" | "recent";
+
   const { messages: i18nMessages } = useI18n();
   const words = ref<WordRecordOut[]>([]);
+  const sortMode = ref<SortMode>("familiarity");
+  const expandedKey = ref<string | null>(null);
+
+  function wordKey(word: WordRecordOut): string {
+    return `${word.lemma}-${word.pos}`;
+  }
+
+  function toggleExpand(word: WordRecordOut): void {
+    const key = wordKey(word);
+    expandedKey.value = expandedKey.value === key ? null : key;
+  }
+
+  function formatLastSeen(iso: string | null | undefined): string {
+    if (!iso) return "—";
+    const date = new Date(iso);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return "just now";
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffH = Math.floor(diffMin / 60);
+    if (diffH < 24) return `${diffH}h ago`;
+    const diffD = Math.floor(diffH / 24);
+    return `${diffD}d ago`;
+  }
 
   async function loadWords(): Promise<void> {
     try {
-      const response = await fetchVocabulary();
+      const response = await fetchVocabulary(sortMode.value);
       words.value = response.words;
     } catch {
       words.value = [];
@@ -297,6 +375,11 @@
     if (interval <= 32) return i18nMessages.value.familiarityFamiliar;
     return i18nMessages.value.familiarityMastered;
   }
+
+  watch(sortMode, () => {
+    expandedKey.value = null;
+    void loadWords();
+  });
 
   onMounted(() => {
     void loadWords();

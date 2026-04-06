@@ -1,10 +1,11 @@
 import csv
 import io
+from datetime import datetime, timezone
 
 import httpx
 from contextlib import asynccontextmanager
 from pydantic import BaseModel, ConfigDict, Field
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
 from src.integrations.openai_compat import OpenAICompatibleClient
@@ -105,12 +106,20 @@ class WordRecordOut(BaseModel):
     pos: str
     interval: int
     cooldown: int
+    last_seen: str = Field(alias="lastSeen")
     last_context: str | None = Field(default=None, alias="lastContext")
 
 
 class VocabularyResponse(BaseModel):
     words: list[WordRecordOut]
     total: int
+
+
+def _utc_iso(dt: datetime) -> str:
+    """Ensure a datetime is serialized with UTC offset."""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.isoformat()
 
 
 @app.get("/")
@@ -247,8 +256,10 @@ def submit_feedback(request: FeedbackRequest) -> dict[str, str]:
 
 
 @app.get("/api/vocabulary", response_model=VocabularyResponse)
-def get_vocabulary() -> VocabularyResponse:
-    records = list_all_words()
+def get_vocabulary(
+    sort: str = Query(default="familiarity", pattern="^(familiarity|recent)$"),
+) -> VocabularyResponse:
+    records = list_all_words(sort=sort)
     return VocabularyResponse(
         words=[
             WordRecordOut(
@@ -256,6 +267,7 @@ def get_vocabulary() -> VocabularyResponse:
                 pos=r.pos,
                 interval=r.interval,
                 cooldown=r.cooldown,
+                last_seen=_utc_iso(r.last_seen),
                 last_context=r.last_context,
             )
             for r in records
@@ -291,6 +303,7 @@ def patch_vocabulary_word(
         pos=record.pos,
         interval=record.interval,
         cooldown=record.cooldown,
+        lastSeen=_utc_iso(record.last_seen),
         lastContext=record.last_context,
     )
 

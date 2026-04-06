@@ -105,6 +105,10 @@ interface LocaleMessages {
   intervalHalve: string;
   intervalDouble: string;
   deleteWord: string;
+  sortByFamiliarity: string;
+  sortByRecent: string;
+  lastSeenLabel: string;
+  lastContextLabel: string;
 }
 
 const STORAGE_KEY = "openvoca.ui.locale";
@@ -222,6 +226,10 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     intervalHalve: "Halve interval",
     intervalDouble: "Double interval",
     deleteWord: "Delete word",
+    sortByFamiliarity: "By Familiarity",
+    sortByRecent: "By Recent",
+    lastSeenLabel: "Last seen",
+    lastContextLabel: "Last context",
   },
   zh: {
     menu: "菜单",
@@ -328,6 +336,10 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     intervalHalve: "减半复习间隔",
     intervalDouble: "加倍复习间隔",
     deleteWord: "删除词条",
+    sortByFamiliarity: "按熟悉度",
+    sortByRecent: "按最近复习",
+    lastSeenLabel: "上次复习",
+    lastContextLabel: "上次例句",
   },
 };
 

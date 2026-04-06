@@ -507,3 +507,79 @@ def test_delete_then_patch_stale(monkeypatch: pytest.MonkeyPatch) -> None:
         json={"interval": 8},
     )
     assert response.status_code == 404
+
+
+def test_vocabulary_sort_familiarity(monkeypatch: pytest.MonkeyPatch) -> None:
+    """GET /api/vocabulary?sort=familiarity returns words by cooldown ASC, interval ASC."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    apply_feedback(
+        target_words=[("alpha", "NOUN"), ("beta", "NOUN")],
+        marked_words=[("alpha", "NOUN")],
+        sentence="Alpha and beta.",
+        engine=engine,
+    )
+    # alpha: marked (miss) → interval=2, cooldown=2
+    # beta: unmarked target (hit) → interval=4, cooldown=4
+
+    response = client.get("/api/vocabulary?sort=familiarity")
+    assert response.status_code == 200
+    lemmas = [w["lemma"] for w in response.json()["words"]]
+    # alpha (cooldown=2) comes before beta (cooldown=4)
+    assert lemmas == ["alpha", "beta"]
+
+
+def test_vocabulary_sort_recent(monkeypatch: pytest.MonkeyPatch) -> None:
+    """GET /api/vocabulary?sort=recent returns words by last_seen DESC."""
+    import time
+
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    apply_feedback(
+        target_words=[("first", "NOUN")],
+        marked_words=[],
+        sentence="First sentence.",
+        engine=engine,
+    )
+    time.sleep(0.05)
+    apply_feedback(
+        target_words=[("second", "NOUN")],
+        marked_words=[],
+        sentence="Second sentence.",
+        engine=engine,
+    )
+
+    response = client.get("/api/vocabulary?sort=recent")
+    assert response.status_code == 200
+    lemmas = [w["lemma"] for w in response.json()["words"]]
+    assert lemmas == ["second", "first"]
+
+
+def test_vocabulary_sort_invalid(monkeypatch: pytest.MonkeyPatch) -> None:
+    """GET /api/vocabulary?sort=invalid returns 422."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    response = client.get("/api/vocabulary?sort=invalid")
+    assert response.status_code == 422
+
+
+def test_vocabulary_includes_last_seen(monkeypatch: pytest.MonkeyPatch) -> None:
+    """GET /api/vocabulary response includes lastSeen field."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    apply_feedback(
+        target_words=[("lantern", "NOUN")],
+        marked_words=[],
+        sentence="The lantern glowed.",
+        engine=engine,
+    )
+
+    response = client.get("/api/vocabulary")
+    assert response.status_code == 200
+    word_data = response.json()["words"][0]
+    assert "lastSeen" in word_data
+    assert word_data["lastSeen"] is not None
