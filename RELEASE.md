@@ -35,6 +35,34 @@ uv run ruff format --check .; uv run ruff check .; uv run pytest
 - MINOR: backward-compatible features.
 - MAJOR: breaking changes.
 
+## v0.6.10
+
+Date: 2026-04-09
+
+### Highlights
+- **Default zoom reset** — default UI zoom changed from 125% back to 100% for a more natural initial experience.
+- **Dark mode button fix** — Tailwind `dark:` variant now scoped to `data-reading-theme="dark"` instead of OS `prefers-color-scheme`, fixing invisible button borders when the OS is in dark mode but the app is in light mode.
+- **Three-way vocabulary sort** — Stats page now offers three sort modes: "Due for Review" (cooldown ASC), "By Familiarity" (interval ASC — least familiar first), and "By Recent" (last seen DESC). Previously "By Familiarity" was actually sorting by cooldown.
+- **Familiarity progress bar** — replaced the color dot in the interval column with a horizontal progress bar using a logarithmic scale (2→64), making learning progress more intuitive at a glance.
+- **Terminology cleanup** — column header and button titles renamed from "Interval"/"复习间隔" to "Familiarity"/"熟悉度" for consistency.
+
+### Backend
+- `list_all_words()` in `word_store.py`: default sort renamed from `"familiarity"` to `"due"` (cooldown ASC, interval ASC). New `"familiarity"` mode sorts by interval ASC, cooldown ASC.
+- `GET /api/vocabulary`: query parameter `sort` now accepts `due|familiarity|recent` (was `familiarity|recent`), default changed to `due`.
+- 1 new test (`test_vocabulary_sort_familiarity`), 1 renamed test (`test_vocabulary_sort_due`). Total: 106 backend tests.
+
+### Frontend
+- `main.css`: added `@variant dark` override to scope `dark:` utilities to `[data-reading-theme="dark"]`.
+- `App.vue` / `SettingsView.vue`: default zoom changed from `"md"` (125%) to `"sm"` (100%).
+- `SettingsView.vue`: button border opacity increased from `border-black/10` to `border-black/15`.
+- `StatsView.vue`: three sort pills (Due for Review / By Familiarity / By Recent), default `"due"`. Interval column shows progress bar instead of number + label + dot. Removed `intervalLabel()` function.
+- `reading.ts`: `fetchVocabulary()` accepts `"due" | "familiarity" | "recent"`, default `"due"`.
+- `useI18n.ts`: added `sortByDue` key (EN: "Due for Review", ZH: "即将复习"). Renamed `statsInterval` to "Familiarity"/"熟悉度". Updated `intervalHalve`/`intervalDouble` titles. Removed 4 dead keys (`familiarityNeedsReview`, `familiarityLearning`, `familiarityFamiliar`, `familiarityMastered`).
+- 11 frontend tests passing.
+
+### Breaking Changes
+- `GET /api/vocabulary` default sort changed from `familiarity` to `due`. The old `?sort=familiarity` still works but now sorts by interval ASC instead of cooldown ASC.
+
 ## v0.6.9
 
 Date: 2026-04-06

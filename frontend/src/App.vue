@@ -19,10 +19,10 @@
 
   onMounted(async () => {
     await hydrate();
-    const size = get("interface", "uiFontSize", "md");
+    const size = get("interface", "uiFontSize", "sm");
     const appEl = document.getElementById("app");
     if (appEl) {
-      const zoomVal = UI_ZOOM_MAP[size] ?? "1.25";
+      const zoomVal = UI_ZOOM_MAP[size] ?? "1";
       appEl.style.zoom = zoomVal;
       appEl.style.setProperty("--app-zoom", zoomVal);
     }

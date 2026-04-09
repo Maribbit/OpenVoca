@@ -70,6 +70,18 @@
             type="button"
             class="rounded-full px-3 py-1 text-xs font-medium transition-colors"
             :class="
+              sortMode === 'due'
+                ? 'bg-black/8 text-ink'
+                : 'text-inkLight hover:bg-black/4'
+            "
+            @click="sortMode = 'due'"
+          >
+            {{ i18nMessages.sortByDue }}
+          </button>
+          <button
+            type="button"
+            class="rounded-full px-3 py-1 text-xs font-medium transition-colors"
+            :class="
               sortMode === 'familiarity'
                 ? 'bg-black/8 text-ink'
                 : 'text-inkLight hover:bg-black/4'
@@ -151,10 +163,15 @@
                         />
                       </svg>
                     </button>
-                    <span
-                      class="min-w-[1.5rem] text-center font-mono text-xs text-ink"
-                      >{{ word.interval }}</span
+                    <div
+                      class="h-1.5 w-16 overflow-hidden rounded-full bg-black/5"
                     >
+                      <div
+                        class="h-full rounded-full transition-all"
+                        :class="intervalBarColor(word.interval)"
+                        :style="{ width: intervalPercent(word.interval) + '%' }"
+                      />
+                    </div>
                     <button
                       type="button"
                       class="cursor-pointer rounded p-0.5 text-inkLight/40 transition-colors hover:bg-black/5 hover:text-inkLight disabled:cursor-not-allowed disabled:opacity-30"
@@ -176,13 +193,6 @@
                         />
                       </svg>
                     </button>
-                    <span class="text-xs text-inkLight/60">
-                      {{ intervalLabel(word.interval) }}
-                    </span>
-                    <div
-                      class="h-2 w-2 rounded-full"
-                      :class="intervalDotColor(word.interval)"
-                    />
                   </div>
                 </td>
                 <td class="px-6 py-4">
@@ -269,11 +279,11 @@
   } from "../api/reading";
   import { useI18n } from "../composables/useI18n";
 
-  type SortMode = "familiarity" | "recent";
+  type SortMode = "due" | "familiarity" | "recent";
 
   const { messages: i18nMessages } = useI18n();
   const words = ref<WordRecordOut[]>([]);
-  const sortMode = ref<SortMode>("familiarity");
+  const sortMode = ref<SortMode>("due");
   const expandedKey = ref<string | null>(null);
 
   function wordKey(word: WordRecordOut): string {
@@ -362,18 +372,19 @@
     }
   }
 
-  function intervalDotColor(interval: number): string {
+  function intervalBarColor(interval: number): string {
     if (interval <= 2) return "bg-orange-400";
     if (interval <= 8) return "bg-yellow-400";
     if (interval <= 32) return "bg-green-400";
-    return "bg-green-500";
+    return "bg-emerald-500";
   }
 
-  function intervalLabel(interval: number): string {
-    if (interval <= 2) return i18nMessages.value.familiarityNeedsReview;
-    if (interval <= 8) return i18nMessages.value.familiarityLearning;
-    if (interval <= 32) return i18nMessages.value.familiarityFamiliar;
-    return i18nMessages.value.familiarityMastered;
+  function intervalPercent(interval: number): number {
+    // Map interval 2→64 to percentage 0→100 using log scale
+    const min = Math.log2(2); // 1
+    const max = Math.log2(64); // 6
+    const current = Math.log2(Math.min(Math.max(interval, 2), 64));
+    return Math.round(((current - min) / (max - min)) * 100);
   }
 
   watch(sortMode, () => {

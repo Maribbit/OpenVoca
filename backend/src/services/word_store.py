@@ -147,11 +147,12 @@ def pick_target_words(limit: int = 3, engine=None) -> list[str]:
         return words
 
 
-def list_all_words(engine=None, *, sort: str = "familiarity") -> list[WordRecord]:
+def list_all_words(engine=None, *, sort: str = "due") -> list[WordRecord]:
     """Return all word records sorted by the given mode.
 
     Modes:
-        - "familiarity": cooldown ASC, interval ASC (ready-to-review first)
+        - "due": cooldown ASC, interval ASC (due for review first)
+        - "familiarity": interval ASC, cooldown ASC (least familiar first)
         - "recent": last_seen DESC (most recently reviewed first)
     """
     target = engine or _engine
@@ -159,6 +160,10 @@ def list_all_words(engine=None, *, sort: str = "familiarity") -> list[WordRecord
         if sort == "recent":
             statement = select(WordRecord).order_by(
                 WordRecord.last_seen.desc()  # type: ignore[union-attr]
+            )
+        elif sort == "familiarity":
+            statement = select(WordRecord).order_by(
+                WordRecord.interval, WordRecord.cooldown
             )
         else:
             statement = select(WordRecord).order_by(

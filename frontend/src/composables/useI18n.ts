@@ -27,10 +27,6 @@ interface LocaleMessages {
   backToReading: string;
   clearVocabulary: string;
   exportVocabulary: string;
-  familiarityNeedsReview: string;
-  familiarityLearning: string;
-  familiarityFamiliar: string;
-  familiarityMastered: string;
   showingWords: string;
   emptyVocabulary: string;
   stats: string;
@@ -106,6 +102,7 @@ interface LocaleMessages {
   intervalHalve: string;
   intervalDouble: string;
   deleteWord: string;
+  sortByDue: string;
   sortByFamiliarity: string;
   sortByRecent: string;
   lastSeenLabel: string;
@@ -140,10 +137,6 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     backToReading: "Back to Reading",
     clearVocabulary: "Clear All",
     exportVocabulary: "Export",
-    familiarityNeedsReview: "Needs Review",
-    familiarityLearning: "Learning",
-    familiarityFamiliar: "Familiar",
-    familiarityMastered: "Mastered",
     showingWords: "words total",
     emptyVocabulary: "No words yet. Start reading to build your vocabulary.",
     stats: "Stats",
@@ -214,7 +207,7 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     composerTargetWordsHint: "auto-selected from vocabulary",
     composerAddWordPlaceholder: "type & enter",
     statsLemma: "Lemma",
-    statsInterval: "Interval",
+    statsInterval: "Familiarity",
     statsCooldown: "Cooldown",
     definitionKnow: "Know",
     definitionDontKnow: "Don't know",
@@ -226,9 +219,10 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     dictionaryDisplayZh: "中文",
     dictionaryDisplayEn: "EN",
     dictionaryDisplayBoth: "Both",
-    intervalHalve: "Halve interval",
-    intervalDouble: "Double interval",
+    intervalHalve: "Decrease familiarity",
+    intervalDouble: "Increase familiarity",
     deleteWord: "Delete word",
+    sortByDue: "Due for Review",
     sortByFamiliarity: "By Familiarity",
     sortByRecent: "By Recent",
     lastSeenLabel: "Last seen",
@@ -258,10 +252,6 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     backToReading: "返回阅读",
     clearVocabulary: "清空词库",
     exportVocabulary: "导出词库",
-    familiarityNeedsReview: "需复习",
-    familiarityLearning: "学习中",
-    familiarityFamiliar: "较熟悉",
-    familiarityMastered: "已掌握",
     showingWords: "个单词",
     emptyVocabulary: "暂无单词，开始阅读以积累你的词库。",
     stats: "统计",
@@ -326,7 +316,7 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     composerTargetWordsHint: "从词库自动选取",
     composerAddWordPlaceholder: "输入并回车",
     statsLemma: "词元",
-    statsInterval: "复习间隔",
+    statsInterval: "熟悉度",
     statsCooldown: "冷却剩余",
     definitionKnow: "认识",
     definitionDontKnow: "不认识",
@@ -338,9 +328,10 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     dictionaryDisplayZh: "中文",
     dictionaryDisplayEn: "EN",
     dictionaryDisplayBoth: "双语",
-    intervalHalve: "减半复习间隔",
-    intervalDouble: "加倍复习间隔",
+    intervalHalve: "降低熟悉度",
+    intervalDouble: "提高熟悉度",
     deleteWord: "删除词条",
+    sortByDue: "即将复习",
     sortByFamiliarity: "按熟悉度",
     sortByRecent: "按最近复习",
     lastSeenLabel: "上次复习",

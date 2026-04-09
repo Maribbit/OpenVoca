@@ -257,7 +257,7 @@ def submit_feedback(request: FeedbackRequest) -> dict[str, str]:
 
 @app.get("/api/vocabulary", response_model=VocabularyResponse)
 def get_vocabulary(
-    sort: str = Query(default="familiarity", pattern="^(familiarity|recent)$"),
+    sort: str = Query(default="due", pattern="^(due|familiarity|recent)$"),
 ) -> VocabularyResponse:
     records = list_all_words(sort=sort)
     return VocabularyResponse(

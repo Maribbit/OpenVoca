@@ -208,7 +208,7 @@
                 />
                 <button
                   type="button"
-                  class="whitespace-nowrap rounded-xl border border-black/10 px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-black/4 dark:border-white/15 dark:hover:bg-white/8"
+                  class="whitespace-nowrap rounded-xl border border-black/15 px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-black/4 dark:border-white/15 dark:hover:bg-white/8"
                   :disabled="connectionStatus === 'testing'"
                   @click="handleTestConnection"
                 >
@@ -359,7 +359,7 @@
             </div>
             <button
               type="button"
-              class="whitespace-nowrap rounded-xl border border-black/10 px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-black/4 dark:border-white/15 dark:hover:bg-white/8"
+              class="whitespace-nowrap rounded-xl border border-black/15 px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-black/4 dark:border-white/15 dark:hover:bg-white/8"
               @click="handleExportVocabulary"
             >
               {{ i18nMessages.exportVocabularySettingsButton }}
@@ -378,7 +378,7 @@
             </div>
             <button
               type="button"
-              class="whitespace-nowrap rounded-xl border border-black/10 px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-black/4 dark:border-white/15 dark:hover:bg-white/8"
+              class="whitespace-nowrap rounded-xl border border-black/15 px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-black/4 dark:border-white/15 dark:hover:bg-white/8"
               @click="handleExportSettings"
             >
               {{ i18nMessages.exportSettingsButton }}
@@ -516,11 +516,11 @@
   };
 
   function loadUiFontSize(): UiFontSizeOption {
-    const saved = get("interface", "uiFontSize", "md");
+    const saved = get("interface", "uiFontSize", "sm");
     const valid: UiFontSizeOption[] = ["xs", "sm", "md", "lg", "xl"];
     if (valid.includes(saved as UiFontSizeOption))
       return saved as UiFontSizeOption;
-    return "md";
+    return "sm";
   }
 
   function applyZoom(size: UiFontSizeOption): void {

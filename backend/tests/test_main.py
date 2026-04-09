@@ -509,8 +509,8 @@ def test_delete_then_patch_stale(monkeypatch: pytest.MonkeyPatch) -> None:
     assert response.status_code == 404
 
 
-def test_vocabulary_sort_familiarity(monkeypatch: pytest.MonkeyPatch) -> None:
-    """GET /api/vocabulary?sort=familiarity returns words by cooldown ASC, interval ASC."""
+def test_vocabulary_sort_due(monkeypatch: pytest.MonkeyPatch) -> None:
+    """GET /api/vocabulary?sort=due returns words by cooldown ASC, interval ASC."""
     engine = _in_memory_engine()
     monkeypatch.setattr("src.services.word_store._engine", engine)
 
@@ -523,11 +523,32 @@ def test_vocabulary_sort_familiarity(monkeypatch: pytest.MonkeyPatch) -> None:
     # alpha: marked (miss) → interval=2, cooldown=2
     # beta: unmarked target (hit) → interval=4, cooldown=4
 
-    response = client.get("/api/vocabulary?sort=familiarity")
+    response = client.get("/api/vocabulary?sort=due")
     assert response.status_code == 200
     lemmas = [w["lemma"] for w in response.json()["words"]]
     # alpha (cooldown=2) comes before beta (cooldown=4)
     assert lemmas == ["alpha", "beta"]
+
+
+def test_vocabulary_sort_familiarity(monkeypatch: pytest.MonkeyPatch) -> None:
+    """GET /api/vocabulary?sort=familiarity returns words by interval ASC, cooldown ASC."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    apply_feedback(
+        target_words=[("easy", "ADJ"), ("hard", "ADJ")],
+        marked_words=[("hard", "ADJ")],
+        sentence="Easy and hard.",
+        engine=engine,
+    )
+    # hard: marked (miss) → interval=2, cooldown=2
+    # easy: unmarked target (hit) → interval=4, cooldown=4
+
+    response = client.get("/api/vocabulary?sort=familiarity")
+    assert response.status_code == 200
+    lemmas = [w["lemma"] for w in response.json()["words"]]
+    # hard (interval=2) comes before easy (interval=4) — least familiar first
+    assert lemmas == ["hard", "easy"]
 
 
 def test_vocabulary_sort_recent(monkeypatch: pytest.MonkeyPatch) -> None:

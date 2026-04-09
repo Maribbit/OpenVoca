@@ -79,7 +79,7 @@ export async function submitFeedback(request: FeedbackRequest): Promise<void> {
 }
 
 export async function fetchVocabulary(
-  sort: "familiarity" | "recent" = "familiarity",
+  sort: "due" | "familiarity" | "recent" = "due",
 ): Promise<VocabularyResponse> {
   const response = await fetch(`/api/vocabulary?sort=${sort}`, {
     headers: { Accept: "application/json" },
