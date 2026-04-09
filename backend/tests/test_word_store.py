@@ -1,6 +1,8 @@
+import pytest
 from src.services.word_store import (
     INTERVAL_BASE,
     INTERVAL_MAX,
+    _make_engine,
     apply_feedback,
     clear_all_words,
     delete_word_record,
@@ -611,3 +613,21 @@ def test_update_stale_record() -> None:
     # Tab B tries to update — stale
     result = update_word_record("apple", "NOUN", interval=8, engine=engine)
     assert result is None
+
+
+# --- OPENVOCA_DATA_DIR engine path ---
+
+
+def test_make_engine_default_path() -> None:
+    """_make_engine() without env var uses a relative openvoca.db path."""
+    engine = _make_engine()
+    assert "openvoca.db" in str(engine.url)
+
+
+def test_make_engine_respects_data_dir(
+    tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """_make_engine() uses OPENVOCA_DATA_DIR when set."""
+    monkeypatch.setenv("OPENVOCA_DATA_DIR", str(tmp_path))
+    engine = _make_engine()
+    assert str(tmp_path / "openvoca.db") in str(engine.url)

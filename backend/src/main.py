@@ -1,12 +1,14 @@
 import csv
 import io
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 
 import httpx
-from contextlib import asynccontextmanager
-from pydantic import BaseModel, ConfigDict, Field
 from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.integrations.openai_compat import OpenAICompatibleClient
 from src.integrations.provider import LLMProvider
@@ -386,3 +388,19 @@ def put_settings_namespace(namespace: str, settings: dict[str, str]) -> dict[str
 def delete_all_settings() -> dict[str, int]:
     count = clear_all_settings()
     return {"deleted": count}
+
+
+# --- Frontend SPA (must be last) ---
+
+_frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
+
+if _frontend_dist.exists():
+    app.mount(
+        "/assets",
+        StaticFiles(directory=_frontend_dist / "assets"),
+        name="static-assets",
+    )
+
+    @app.get("/{path:path}", include_in_schema=False)
+    async def spa_fallback(path: str) -> FileResponse:  # noqa: ARG001
+        return FileResponse(_frontend_dist / "index.html")

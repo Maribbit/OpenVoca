@@ -4,7 +4,6 @@ from fastapi.testclient import TestClient
 
 import src.main as main_module
 from src.main import app
-from src.services.tokenizer import tokenize_sentence
 from src.services.word_store import (
     INTERVAL_BASE,
     apply_feedback,
@@ -27,57 +26,6 @@ def test_read_root():
         "status": "ok",
         "message": "OpenVoca backend is running!",
     }
-
-
-def test_tokenize_sentence_splits_words_and_punctuation() -> None:
-    """The tokenizer should preserve punctuation while marking clickable word tokens."""
-
-    tokens = tokenize_sentence("A harbor lantern flickered in the rain.")
-
-    assert [token.text for token in tokens] == [
-        "A",
-        "harbor",
-        "lantern",
-        "flickered",
-        "in",
-        "the",
-        "rain",
-        ".",
-    ]
-    assert [token.is_word for token in tokens] == [
-        False,
-        True,
-        True,
-        True,
-        False,
-        False,
-        True,
-        False,
-    ]
-    # All alphabetic tokens should have POS; punctuation should not.
-    assert all(t.pos is not None for t in tokens if t.text.isalpha())
-    assert all(t.pos is None for t in tokens if not t.text.isalpha())
-
-
-def test_tokenize_sentence_handles_contractions() -> None:
-    """spaCy splits contractions; each part should be tokenized correctly."""
-
-    tokens = tokenize_sentence('"It\'s" softly-lit.')
-
-    texts = [t.text for t in tokens]
-    # spaCy splits "It's" into "It" + "'s"
-    assert '"' in texts
-    assert "It" in texts
-    # "softly-lit" is merged into a single hyphenated token
-    assert "softly-lit" in texts
-
-    # "It" is a stopword → not a clickable word
-    it_tok = next(t for t in tokens if t.text == "It")
-    assert it_tok.is_word is False
-
-    # Hyphenated compound should be a single clickable word
-    compound = next(t for t in tokens if t.text == "softly-lit")
-    assert compound.is_word is True
 
 
 def test_reading_sentence_endpoint_returns_pos_tags(

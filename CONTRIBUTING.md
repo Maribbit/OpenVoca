@@ -34,3 +34,7 @@ Run the task `✅ Check OpenVoca (All)`.
 - Confirm checks pass locally.
 - Ensure documentation is updated when behavior changes.
 - Keep comments and docstrings in English.
+
+## License
+
+By contributing to OpenVoca, you agree that your contributions will be licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0) that covers this project.

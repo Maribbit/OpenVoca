@@ -25,3 +25,15 @@ Please write tests before implementing any core logic and run checks before comp
 - **Project Version**: Maintained in `VERSION` at the repository root.
 - **Contribution Guide**: See `CONTRIBUTING.md` for feature checklist and pre-commit checks.
 - **Release Guide**: See `RELEASE.md` for how to publish a new version.
+
+## License
+
+Copyright (C) 2026 OpenVoca Contributors
+
+OpenVoca is licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0).
+
+You are free to use, modify, and distribute this software under the terms of the AGPL-3.0. Any modified version distributed or run as a network service must also be released under the AGPL-3.0 with source code made available to users.
+
+**Commercial use is permitted**, but any commercial product or service that includes or is derived from OpenVoca must comply with AGPL-3.0 requirements (including making source code available).
+
+The built-in dictionary data is derived from [ECDICT](https://github.com/skywind3000/ECDICT), licensed under the MIT License.

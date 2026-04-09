@@ -1,4 +1,6 @@
+import os
 from datetime import datetime, timezone
+from pathlib import Path
 
 from sqlalchemy import text
 from sqlmodel import Field, Session, SQLModel, create_engine, select
@@ -16,7 +18,17 @@ class WordRecord(SQLModel, table=True):
     last_context: str | None = Field(default=None)
 
 
-_engine = create_engine("sqlite:///openvoca.db")
+def _make_engine():
+    """Create a SQLite engine, respecting OPENVOCA_DATA_DIR if set."""
+    data_dir = os.environ.get("OPENVOCA_DATA_DIR")
+    if data_dir:
+        db_path = Path(data_dir) / "openvoca.db"
+    else:
+        db_path = Path("openvoca.db")
+    return create_engine(f"sqlite:///{db_path}")
+
+
+_engine = _make_engine()
 SQLModel.metadata.create_all(_engine)
 
 
