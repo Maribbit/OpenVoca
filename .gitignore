@@ -1,6 +1,10 @@
 # Private docs
 design/
 
+# Bundle artifacts
+build/
+dist/
+
 # Environment files
 .env
 .env.*

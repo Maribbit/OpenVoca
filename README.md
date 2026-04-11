@@ -21,6 +21,35 @@ This project embraces Test-Driven Development (TDD):
 - **Workspace Task**: Run VS Code task `✅ Check OpenVoca (All)` to execute both checks.
 Please write tests before implementing any core logic and run checks before completing any task.
 
+## Building a Release Package (Windows)
+
+The `scripts/bundle.py` script assembles a self-contained Windows ZIP that requires no installation. It embeds the Python runtime (via uv) and the compiled frontend assets.
+
+**Prerequisites** (must be in PATH):
+- `uv` — Python environment manager
+- `pnpm` — frontend package manager
+
+**Run from the repository root:**
+```bash
+uv run python scripts/bundle.py
+```
+
+**Output:** `dist/openvoca-{version}-win-x64.zip`
+
+**What the script does (8 steps):**
+1. Builds the frontend (`pnpm run build`)
+2. Creates a production-only Python venv via `uv sync --frozen --no-dev` (no dev dependencies)
+3. Restores the host dev venv (`uv sync --frozen`)
+4. Pre-compiles Python source to `.pyc` bytecode
+5. Assembles the directory: backend source + prod venv + frontend dist + dictionary DB
+6. Writes `openvoca.json` (version + port config)
+7. Writes launcher scripts (`start.py`, `openvoca.bat`) and verifies runtime imports
+8. ZIPs the assembled directory
+
+**To test the bundle:** extract the ZIP, double-click `openvoca.bat`, and wait for the browser to open automatically.
+
+> **Dependency changes are handled automatically** — the bundle always uses the current `uv.lock` for resolution. No manual package list to maintain.
+
 ## Versioning and Contribution
 - **Project Version**: Maintained in `VERSION` at the repository root.
 - **Contribution Guide**: See `CONTRIBUTING.md` for feature checklist and pre-commit checks.

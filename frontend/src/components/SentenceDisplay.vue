@@ -1,5 +1,5 @@
 <template>
-  <article class="w-full max-w-3xl text-center">
+  <article class="w-full min-w-0 max-w-3xl text-center">
     <p
       v-if="isLoading"
       class="sentence-fade font-serif text-inkLight/65"
@@ -25,7 +25,7 @@
         v-for="(token, index) in tokens"
         :key="`${token.text}-${index}`"
       >
-        <span v-if="needsLeadingSpace(index)" aria-hidden="true">&nbsp;</span>
+        <template v-if="needsLeadingSpace(index)">{{ " " }}</template>
         <span v-if="token.isWord" class="inline whitespace-nowrap">
           <button
             type="button"

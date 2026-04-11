@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.7.3
+
+Date: 2026-04-11
+
+### Bug Fixes
+- **Firefox line-wrap fix** — Sentences no longer overflow horizontally in Firefox. Two root causes were addressed:
+  1. Vue's template compiler (condensed whitespace mode) was stripping the space text node inside `<span> </span>`, leaving no line-break opportunities between word spans. The space is now rendered via `{{ ' ' }}` mustache interpolation inside a `<template>` element, which compiles to `createTextVNode(' ')` unconditionally.
+  2. The `<article>` flex item had `min-width: auto` (the flex default), which resolved to the sentence's full one-line width because each word span carries `whitespace-nowrap`. Added `min-w-0` to allow the flex item to shrink and text to wrap.
+
+### Other
+- **`.gitignore`** — Added `build/` and `dist/` entries (bundle script output directories were previously untracked).
+- **README** — New "Building a Release Package (Windows)" section documents prerequisites, the `uv run python scripts/bundle.py` command, the 8-step build process, and a note on automatic dependency management via `uv.lock`.
+
+### Changed Files
+- `frontend/src/components/SentenceDisplay.vue`: space span replaced with `<template>{{ ' ' }}</template>`; `min-w-0` added to `<article>`.
+- `.gitignore`: added `build/` and `dist/`.
+- `README.md`: added build instructions section.
+
+---
+
 ## v0.7.2
 
 Date: 2026-04-12
