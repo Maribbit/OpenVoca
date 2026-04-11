@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.7.4
+
+Date: 2026-04-12
+
+### New Features
+- **Vocabulary import** — Import vocabulary from a CSV file via the Stats page. The endpoint accepts the same four-column format (`lemma`, `pos`, `interval`, `cooldown`) used by export, with row-level validation, case normalization, value clamping, and a 5 000-row / 1 MB limit.
+- **Import mode (skip / overwrite)** — By default, importing preserves existing learning progress (skip mode). When existing words are detected, a contextual "Overwrite" button appears in the result banner, letting users re-import with overwrite mode without selecting the file again.
+- **External dictionary links** — DefinitionToast now shows quick links to Merriam-Webster, Cambridge, and Youdao below the definition for further lookup.
+
+### Improvements
+- **i18n for import messages** — All import result messages (success, partial, failure) are fully localized in English and Chinese.
+
+### Changed Files
+- `backend/src/main.py`: new `POST /api/vocabulary/import` endpoint (multipart CSV + `mode` form field).
+- `backend/src/services/word_store.py`: `ImportResult` dataclass, `import_vocabulary()` with skip/overwrite mode.
+- `frontend/src/api/reading.ts`: `importVocabulary(file, mode)` API helper.
+- `frontend/src/views/StatsView.vue`: import button, file input, result banner with contextual overwrite action.
+- `frontend/src/components/DefinitionToast.vue`: external dictionary links (MW, Cambridge, Youdao).
+- `frontend/src/composables/useI18n.ts`: new i18n keys for import-related messages.
+- `backend/tests/test_word_store.py`, `backend/tests/test_main.py`: 19 new import tests.
+
+---
+
 ## v0.7.3
 
 Date: 2026-04-11

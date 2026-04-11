@@ -11,6 +11,33 @@
           </p>
         </div>
         <div class="flex items-center gap-3">
+          <input
+            ref="importFileInput"
+            type="file"
+            accept=".csv"
+            class="hidden"
+            @change="onFileSelected"
+          />
+          <button
+            type="button"
+            class="flex items-center gap-2 rounded-full border border-black/8 bg-surface px-5 py-2.5 text-sm font-medium text-ink transition-all hover:border-black/15 hover:shadow-sm"
+            @click="importFileInput?.click()"
+          >
+            <svg
+              class="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2m-4-8-4-4m0 0L8 8m4-4v12"
+              />
+            </svg>
+            {{ i18nMessages.importVocabulary }}
+          </button>
           <button
             type="button"
             class="flex items-center gap-2 rounded-full border border-black/8 bg-surface px-5 py-2.5 text-sm font-medium text-ink transition-all hover:border-black/15 hover:shadow-sm"
@@ -52,6 +79,50 @@
           </router-link>
         </div>
       </header>
+
+      <!-- Import result banner -->
+      <Transition name="menu-fade">
+        <div
+          v-if="importStatus"
+          class="mb-6 flex items-center justify-between rounded-xl px-5 py-3 text-sm shadow-sm"
+          :class="
+            importError
+              ? 'border border-red-200 bg-red-50 text-red-600'
+              : 'border border-green-500/20 bg-green-500/5 text-green-600'
+          "
+        >
+          <div class="flex items-center gap-3">
+            <span>{{ importStatus }}</span>
+            <button
+              v-if="lastImportedFile && importSkippedExisting"
+              type="button"
+              class="cursor-pointer rounded-full bg-black/5 px-3 py-1 text-xs font-medium text-ink transition-colors hover:bg-black/10"
+              @click="reimportOverwrite"
+            >
+              {{ i18nMessages.importModeOverwrite }}
+            </button>
+          </div>
+          <button
+            type="button"
+            class="ml-4 cursor-pointer rounded p-1 transition-colors hover:bg-black/5"
+            @click="importStatus = ''"
+          >
+            <svg
+              class="h-3.5 w-3.5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M6 18 18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+      </Transition>
 
       <div
         v-if="words.length === 0"
@@ -274,6 +345,7 @@
     deleteWordRecord,
     exportVocabulary,
     fetchVocabulary,
+    importVocabulary,
     updateWordRecord,
     type WordRecordOut,
   } from "../api/reading";
@@ -285,6 +357,11 @@
   const words = ref<WordRecordOut[]>([]);
   const sortMode = ref<SortMode>("due");
   const expandedKey = ref<string | null>(null);
+  const importFileInput = ref<HTMLInputElement | null>(null);
+  const importStatus = ref<string>("");
+  const importError = ref(false);
+  const lastImportedFile = ref<File | null>(null);
+  const importSkippedExisting = ref(false);
 
   function wordKey(word: WordRecordOut): string {
     return `${word.lemma}-${word.pos}`;
@@ -320,6 +397,64 @@
 
   async function handleExport(): Promise<void> {
     await exportVocabulary();
+  }
+
+  async function onFileSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    input.value = "";
+    importStatus.value = "";
+    importError.value = false;
+    importSkippedExisting.value = false;
+    lastImportedFile.value = file;
+    try {
+      const result = await importVocabulary(file, "skip");
+      importSkippedExisting.value = result.skipped > 0;
+      importStatus.value =
+        result.skipped > 0
+          ? i18nMessages.value.importedSkipped
+              .replace("{0}", String(result.imported))
+              .replace("{1}", String(result.skipped))
+          : i18nMessages.value.importedWords.replace(
+              "{0}",
+              String(result.imported),
+            );
+      importError.value = false;
+      await loadWords();
+    } catch (err) {
+      importError.value = true;
+      lastImportedFile.value = null;
+      importStatus.value =
+        err instanceof Error ? err.message : i18nMessages.value.importFailed;
+    }
+  }
+
+  async function reimportOverwrite(): Promise<void> {
+    const file = lastImportedFile.value;
+    if (!file) return;
+    importStatus.value = "";
+    importError.value = false;
+    importSkippedExisting.value = false;
+    try {
+      const result = await importVocabulary(file, "overwrite");
+      lastImportedFile.value = null;
+      importStatus.value =
+        result.skipped > 0
+          ? i18nMessages.value.importedSkipped
+              .replace("{0}", String(result.imported))
+              .replace("{1}", String(result.skipped))
+          : i18nMessages.value.importedWords.replace(
+              "{0}",
+              String(result.imported),
+            );
+      importError.value = false;
+      await loadWords();
+    } catch (err) {
+      importError.value = true;
+      importStatus.value =
+        err instanceof Error ? err.message : i18nMessages.value.importFailed;
+    }
   }
 
   async function changeInterval(

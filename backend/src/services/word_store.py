@@ -1,6 +1,8 @@
 import os
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Literal
 
 from sqlalchemy import text
 from sqlmodel import Field, Session, SQLModel, create_engine, select
@@ -238,3 +240,101 @@ def delete_word_record(lemma: str, pos: str, engine=None) -> bool:
         session.delete(record)
         session.commit()
         return True
+
+
+# ---------------------------------------------------------------------------
+# Vocabulary import
+# ---------------------------------------------------------------------------
+
+MAX_IMPORT_ROWS = 5_000
+_REQUIRED_IMPORT_COLS = {"lemma", "pos", "interval", "cooldown"}
+
+
+@dataclass
+class ImportResult:
+    imported: int = 0
+    skipped: int = 0
+    errors: list[str] = field(default_factory=list)
+
+
+def import_vocabulary(
+    rows: list[dict[str, str]],
+    *,
+    mode: Literal["skip", "overwrite"] = "skip",
+    engine=None,
+) -> ImportResult:
+    """Import vocabulary from parsed CSV rows.
+
+    Each row must contain: lemma, pos, interval, cooldown.
+    - interval is clamped to [INTERVAL_BASE, INTERVAL_MAX].
+    - cooldown is clamped to [0, interval].
+    - lemma is lowercased; pos is uppercased for normalization.
+    - mode="skip" (default): existing records are kept, only new words imported.
+    - mode="overwrite": existing records are overwritten with imported values.
+    - Invalid rows are skipped and counted in result.skipped.
+    """
+    result = ImportResult()
+
+    if len(rows) > MAX_IMPORT_ROWS:
+        result.errors.append(f"Too many rows: {len(rows)} (max {MAX_IMPORT_ROWS})")
+        return result
+
+    target = engine or _engine
+    now = datetime.now(timezone.utc)
+
+    with Session(target) as session:
+        for i, row in enumerate(rows, start=2):  # row 1 is the CSV header
+            if not _REQUIRED_IMPORT_COLS.issubset(row.keys()):
+                missing = sorted(_REQUIRED_IMPORT_COLS - set(row.keys()))
+                result.skipped += 1
+                result.errors.append(f"Row {i}: missing columns: {missing}")
+                continue
+
+            lemma = row["lemma"].strip().lower()
+            pos = row["pos"].strip().upper()
+
+            if not lemma or not pos:
+                result.skipped += 1
+                result.errors.append(f"Row {i}: lemma and pos must not be empty")
+                continue
+
+            try:
+                interval = int(row["interval"])
+                cooldown = int(row["cooldown"])
+            except ValueError:
+                result.skipped += 1
+                result.errors.append(f"Row {i}: interval and cooldown must be integers")
+                continue
+
+            interval = max(INTERVAL_BASE, min(interval, INTERVAL_MAX))
+            cooldown = max(0, min(cooldown, interval))
+
+            existing = session.exec(
+                select(WordRecord).where(
+                    WordRecord.lemma == lemma, WordRecord.pos == pos
+                )
+            ).first()
+
+            if existing is not None:
+                if mode == "skip":
+                    result.skipped += 1
+                    continue
+                existing.interval = interval
+                existing.cooldown = cooldown
+                existing.last_seen = now
+            else:
+                session.add(
+                    WordRecord(
+                        lemma=lemma,
+                        pos=pos,
+                        interval=interval,
+                        cooldown=cooldown,
+                        last_seen=now,
+                    )
+                )
+
+            result.imported += 1
+
+        session.commit()
+
+    return result

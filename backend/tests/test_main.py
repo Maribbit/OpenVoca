@@ -550,3 +550,197 @@ def test_vocabulary_includes_last_seen(monkeypatch: pytest.MonkeyPatch) -> None:
     word_data = response.json()["words"][0]
     assert "lastSeen" in word_data
     assert word_data["lastSeen"] is not None
+
+
+# ---------------------------------------------------------------------------
+# Vocabulary import endpoint (v0.7.3)
+# ---------------------------------------------------------------------------
+
+
+def test_import_vocabulary_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    """POST /api/vocabulary/import should accept a CSV and return import summary."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    csv_content = "lemma,pos,interval,cooldown\nharbor,NOUN,8,3\nlantern,NOUN,4,0\n"
+    response = client.post(
+        "/api/vocabulary/import",
+        files={"file": ("vocab.csv", csv_content.encode("utf-8"), "text/csv")},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["imported"] == 2
+    assert data["skipped"] == 0
+    assert data["errors"] == []
+    records = {r.lemma: r for r in list_all_words(engine)}
+    assert records["harbor"].interval == 8
+    assert records["lantern"].interval == 4
+
+
+def test_import_vocabulary_endpoint_upserts_existing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Importing a word that already exists should overwrite it."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    apply_feedback(
+        target_words=[("harbor", "NOUN")],
+        marked_words=[],
+        sentence="The harbor.",
+        engine=engine,
+    )
+
+    csv_content = "lemma,pos,interval,cooldown\nharbor,NOUN,32,16\n"
+    response = client.post(
+        "/api/vocabulary/import",
+        data={"mode": "overwrite"},
+        files={"file": ("vocab.csv", csv_content.encode("utf-8"), "text/csv")},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["imported"] == 1
+    records = {r.lemma: r for r in list_all_words(engine)}
+    assert records["harbor"].interval == 32
+    assert records["harbor"].cooldown == 16
+
+
+def test_import_vocabulary_endpoint_skips_invalid_rows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Invalid CSV rows should be skipped and reported."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    csv_content = "lemma,pos,interval,cooldown\ngood,NOUN,4,0\nbad,NOUN,notanint,0\n"
+    response = client.post(
+        "/api/vocabulary/import",
+        files={"file": ("vocab.csv", csv_content.encode("utf-8"), "text/csv")},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["imported"] == 1
+    assert data["skipped"] == 1
+    assert len(data["errors"]) == 1
+
+
+def test_import_vocabulary_endpoint_file_too_large(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Files larger than 1 MB should be rejected with 413."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    large_content = b"lemma,pos,interval,cooldown\n" + b"x," * 600_000
+    response = client.post(
+        "/api/vocabulary/import",
+        files={"file": ("big.csv", large_content, "text/csv")},
+    )
+
+    assert response.status_code == 413
+
+
+def test_import_vocabulary_endpoint_non_utf8(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Non-UTF-8 encoded files should be rejected with 422."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    bad_bytes = b"\xff\xfe" + "harbor,NOUN,4,0\n".encode("utf-16-le")
+    response = client.post(
+        "/api/vocabulary/import",
+        files={"file": ("bad.csv", bad_bytes, "text/csv")},
+    )
+
+    assert response.status_code == 422
+
+
+def test_export_import_roundtrip(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Exported CSV should be importable without any data loss.
+
+    This catches column drift between export (main.py) and import
+    (word_store.py _REQUIRED_IMPORT_COLS). If any column is renamed,
+    added, or removed in either direction, this test will fail.
+    """
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    # Seed 3 words with varying states
+    apply_feedback(
+        target_words=[("harbor", "NOUN"), ("lantern", "NOUN")],
+        marked_words=[("harbor", "NOUN")],
+        sentence="The harbor lantern.",
+        engine=engine,
+    )
+    apply_feedback(
+        target_words=[("glow", "VERB")],
+        marked_words=[],
+        sentence="It glows.",
+        engine=engine,
+    )
+    original = {(r.lemma, r.pos): r for r in list_all_words(engine)}
+    assert len(original) == 3
+
+    # Export
+    export_resp = client.get("/api/vocabulary/export")
+    assert export_resp.status_code == 200
+    csv_bytes = export_resp.content
+
+    # Clear the DB
+    from src.services.word_store import clear_all_words
+
+    clear_all_words(engine)
+    assert list_all_words(engine) == []
+
+    # Re-import the same CSV
+    import_resp = client.post(
+        "/api/vocabulary/import",
+        files={"file": ("roundtrip.csv", csv_bytes, "text/csv")},
+    )
+    assert import_resp.status_code == 200
+    data = import_resp.json()
+    assert data["imported"] == 3
+    assert data["skipped"] == 0
+    assert data["errors"] == []
+
+    # Verify data integrity
+    restored = {(r.lemma, r.pos): r for r in list_all_words(engine)}
+    assert len(restored) == 3
+    for key, orig in original.items():
+        assert key in restored, f"Missing record after roundtrip: {key}"
+        rest = restored[key]
+        assert rest.interval == orig.interval, f"{key} interval mismatch"
+        assert rest.cooldown == orig.cooldown, f"{key} cooldown mismatch"
+
+
+def test_import_vocabulary_endpoint_skip_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Default (skip) mode should preserve existing records and only add new ones."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    apply_feedback(
+        target_words=[("harbor", "NOUN")],
+        marked_words=[],
+        sentence="The harbor.",
+        engine=engine,
+    )
+    original_interval = list_all_words(engine)[0].interval
+
+    csv_content = "lemma,pos,interval,cooldown\nharbor,NOUN,32,16\nlantern,NOUN,4,0\n"
+    response = client.post(
+        "/api/vocabulary/import",
+        files={"file": ("vocab.csv", csv_content.encode("utf-8"), "text/csv")},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["imported"] == 1  # only lantern
+    assert data["skipped"] == 1  # harbor skipped
+    records = {r.lemma: r for r in list_all_words(engine)}
+    assert records["harbor"].interval == original_interval  # preserved
+    assert records["lantern"].interval == 4  # new

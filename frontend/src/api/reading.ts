@@ -108,6 +108,32 @@ export async function exportVocabulary(): Promise<void> {
   URL.revokeObjectURL(url);
 }
 
+export interface VocabularyImportResult {
+  imported: number;
+  skipped: number;
+  errors: string[];
+}
+
+export async function importVocabulary(
+  file: File,
+  mode: "skip" | "overwrite" = "skip",
+): Promise<VocabularyImportResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("mode", mode);
+  const response = await fetch("/api/vocabulary/import", {
+    method: "POST",
+    body: formData,
+  });
+  if (!response.ok) {
+    const detail =
+      ((await response.json()) as { detail?: string }).detail ??
+      "Import failed.";
+    throw new Error(detail);
+  }
+  return (await response.json()) as VocabularyImportResult;
+}
+
 export async function fetchTargetWords(limit: number): Promise<string[]> {
   const response = await fetch(`/api/target-words?limit=${limit}`, {
     headers: { Accept: "application/json" },

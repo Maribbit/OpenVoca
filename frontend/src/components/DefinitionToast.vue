@@ -49,6 +49,33 @@
             }}</span>
           </span>
 
+          <!-- External dictionary links -->
+          <div class="flex items-center justify-center gap-2">
+            <a
+              :href="`https://www.merriam-webster.com/dictionary/${encodeURIComponent(lookupWord)}`"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-[11px] text-inkLight/40 transition-colors hover:text-inkLight"
+              >MW</a
+            >
+            <span class="select-none text-inkLight/20">·</span>
+            <a
+              :href="`https://dictionary.cambridge.org/dictionary/english/${encodeURIComponent(lookupWord)}`"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-[11px] text-inkLight/40 transition-colors hover:text-inkLight"
+              >Cambridge</a
+            >
+            <span class="select-none text-inkLight/20">·</span>
+            <a
+              :href="`https://dict.youdao.com/result?word=${encodeURIComponent(lookupWord)}&lang=en`"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-[11px] text-inkLight/40 transition-colors hover:text-inkLight"
+              >Youdao</a
+            >
+          </div>
+
           <!-- Know / Don't know toggle -->
           <div class="flex justify-center">
             <div
@@ -87,11 +114,12 @@
 </template>
 
 <script setup lang="ts">
+  import { computed } from "vue";
   import type { DictionaryEntry } from "../api/reading";
 
   export type DictionaryDisplayMode = "zh" | "en" | "both";
 
-  defineProps<{
+  const props = defineProps<{
     entry: DictionaryEntry | null;
     notFoundWord: string | null;
     notFoundText: string;
@@ -100,6 +128,10 @@
     isMarked: boolean;
     displayMode: DictionaryDisplayMode;
   }>();
+
+  const lookupWord = computed(
+    () => props.entry?.word ?? props.notFoundWord ?? "",
+  );
 
   defineEmits<{
     mark: [marked: boolean];

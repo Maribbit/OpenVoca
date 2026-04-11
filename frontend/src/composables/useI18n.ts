@@ -35,6 +35,11 @@ interface LocaleMessages {
   backToReading: string;
   clearVocabulary: string;
   exportVocabulary: string;
+  importVocabulary: string;
+  importModeOverwrite: string;
+  importedWords: string;
+  importedSkipped: string;
+  importFailed: string;
   showingWords: string;
   emptyVocabulary: string;
   stats: string;
@@ -153,6 +158,11 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     backToReading: "Back to Reading",
     clearVocabulary: "Clear All",
     exportVocabulary: "Export",
+    importVocabulary: "Import",
+    importModeOverwrite: "Overwrite",
+    importedWords: "Imported {0} words",
+    importedSkipped: "Imported {0} words, skipped {1}",
+    importFailed: "Import failed.",
     showingWords: "words total",
     emptyVocabulary: "No words yet. Start reading to build your vocabulary.",
     stats: "Stats",
@@ -278,6 +288,11 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     backToReading: "返回阅读",
     clearVocabulary: "清空词库",
     exportVocabulary: "导出词库",
+    importVocabulary: "导入词库",
+    importModeOverwrite: "覆盖",
+    importedWords: "已导入 {0} 个单词",
+    importedSkipped: "已导入 {0} 个单词，跳过 {1} 个",
+    importFailed: "导入失败",
     showingWords: "个单词",
     emptyVocabulary: "暂无单词，开始阅读以积累你的词库。",
     stats: "统计",

@@ -2,10 +2,13 @@ import pytest
 from src.services.word_store import (
     INTERVAL_BASE,
     INTERVAL_MAX,
+    ImportResult,
+    MAX_IMPORT_ROWS,
     _make_engine,
     apply_feedback,
     clear_all_words,
     delete_word_record,
+    import_vocabulary,
     list_all_words,
     pick_target_words,
     tick_cooldowns,
@@ -631,3 +634,201 @@ def test_make_engine_respects_data_dir(
     monkeypatch.setenv("OPENVOCA_DATA_DIR", str(tmp_path))
     engine = _make_engine()
     assert str(tmp_path / "openvoca.db") in str(engine.url)
+
+
+# ---------------------------------------------------------------------------
+# Vocabulary import (v0.7.3)
+# ---------------------------------------------------------------------------
+
+
+def test_import_vocabulary_creates_new_records() -> None:
+    """import_vocabulary should insert records that don't exist yet."""
+    engine = _in_memory_engine()
+
+    rows = [
+        {"lemma": "harbor", "pos": "NOUN", "interval": "8", "cooldown": "3"},
+        {"lemma": "lantern", "pos": "NOUN", "interval": "4", "cooldown": "0"},
+    ]
+    result = import_vocabulary(rows, engine=engine)
+
+    assert result.imported == 2
+    assert result.skipped == 0
+    records = {(r.lemma, r.pos): r for r in list_all_words(engine)}
+    assert records[("harbor", "NOUN")].interval == 8
+    assert records[("harbor", "NOUN")].cooldown == 3
+    assert records[("lantern", "NOUN")].interval == 4
+    assert records[("lantern", "NOUN")].cooldown == 0
+
+
+def test_import_vocabulary_overwrite_existing_records() -> None:
+    """import_vocabulary(mode='overwrite') should overwrite existing records."""
+    engine = _in_memory_engine()
+
+    apply_feedback(
+        target_words=[("harbor", "NOUN")],
+        marked_words=[],
+        sentence="The harbor.",
+        engine=engine,
+    )
+    # harbor now has interval=BASE*2, cooldown=BASE*2
+
+    rows = [{"lemma": "harbor", "pos": "NOUN", "interval": "16", "cooldown": "8"}]
+    result = import_vocabulary(rows, mode="overwrite", engine=engine)
+
+    assert result.imported == 1
+    assert result.skipped == 0
+    records = {r.lemma: r for r in list_all_words(engine)}
+    assert records["harbor"].interval == 16
+    assert records["harbor"].cooldown == 8
+
+
+def test_import_vocabulary_skip_preserves_existing_records() -> None:
+    """import_vocabulary(mode='skip') should keep existing records untouched."""
+    engine = _in_memory_engine()
+
+    apply_feedback(
+        target_words=[("harbor", "NOUN")],
+        marked_words=[],
+        sentence="The harbor.",
+        engine=engine,
+    )
+    original_interval = list_all_words(engine)[0].interval
+
+    rows = [
+        {"lemma": "harbor", "pos": "NOUN", "interval": "32", "cooldown": "16"},
+        {"lemma": "lantern", "pos": "NOUN", "interval": "4", "cooldown": "0"},
+    ]
+    result = import_vocabulary(rows, mode="skip", engine=engine)
+
+    assert result.imported == 1  # only lantern
+    assert result.skipped == 1  # harbor skipped
+    records = {r.lemma: r for r in list_all_words(engine)}
+    assert records["harbor"].interval == original_interval  # preserved
+    assert records["lantern"].interval == 4  # new
+
+
+def test_import_vocabulary_default_mode_is_skip() -> None:
+    """The default import mode should be 'skip' (safe default)."""
+    engine = _in_memory_engine()
+
+    apply_feedback(
+        target_words=[("harbor", "NOUN")],
+        marked_words=[],
+        sentence="The harbor.",
+        engine=engine,
+    )
+    original_interval = list_all_words(engine)[0].interval
+
+    rows = [{"lemma": "harbor", "pos": "NOUN", "interval": "32", "cooldown": "16"}]
+    result = import_vocabulary(rows, engine=engine)  # no mode= → default
+
+    assert result.imported == 0
+    assert result.skipped == 1
+    records = {r.lemma: r for r in list_all_words(engine)}
+    assert records["harbor"].interval == original_interval
+
+
+def test_import_vocabulary_skips_missing_columns() -> None:
+    """Rows missing required columns should be skipped and counted."""
+    engine = _in_memory_engine()
+
+    rows = [
+        {"lemma": "apple", "pos": "NOUN", "interval": "4", "cooldown": "0"},
+        {"lemma": "banana", "interval": "4", "cooldown": "0"},  # missing pos
+    ]
+    result = import_vocabulary(rows, engine=engine)
+
+    assert result.imported == 1
+    assert result.skipped == 1
+    assert len(result.errors) == 1
+
+
+def test_import_vocabulary_skips_empty_lemma_or_pos() -> None:
+    """Rows with empty lemma or pos should be skipped."""
+    engine = _in_memory_engine()
+
+    rows = [
+        {"lemma": "", "pos": "NOUN", "interval": "4", "cooldown": "0"},
+        {"lemma": "apple", "pos": "", "interval": "4", "cooldown": "0"},
+    ]
+    result = import_vocabulary(rows, engine=engine)
+
+    assert result.imported == 0
+    assert result.skipped == 2
+
+
+def test_import_vocabulary_skips_non_integer_values() -> None:
+    """Rows with non-integer interval or cooldown should be skipped."""
+    engine = _in_memory_engine()
+
+    rows = [
+        {"lemma": "cherry", "pos": "NOUN", "interval": "abc", "cooldown": "0"},
+        {"lemma": "mango", "pos": "NOUN", "interval": "4", "cooldown": "xyz"},
+    ]
+    result = import_vocabulary(rows, engine=engine)
+
+    assert result.imported == 0
+    assert result.skipped == 2
+    assert len(result.errors) == 2
+
+
+def test_import_vocabulary_clamps_out_of_range_values() -> None:
+    """Interval and cooldown outside valid ranges should be clamped, not rejected."""
+    engine = _in_memory_engine()
+
+    rows = [
+        {"lemma": "alpha", "pos": "NOUN", "interval": "0", "cooldown": "0"},
+        {"lemma": "beta", "pos": "NOUN", "interval": "999", "cooldown": "500"},
+    ]
+    result = import_vocabulary(rows, engine=engine)
+
+    assert result.imported == 2
+    records = {r.lemma: r for r in list_all_words(engine)}
+    assert records["alpha"].interval == INTERVAL_BASE
+    assert records["beta"].interval == INTERVAL_MAX
+    assert records["beta"].cooldown == INTERVAL_MAX  # clamped to interval
+
+
+def test_import_vocabulary_normalizes_case() -> None:
+    """lemma should be lowercased and pos uppercased on import."""
+    engine = _in_memory_engine()
+
+    rows = [{"lemma": "HARBOR", "pos": "noun", "interval": "4", "cooldown": "0"}]
+    import_vocabulary(rows, engine=engine)
+
+    records = list_all_words(engine)
+    assert records[0].lemma == "harbor"
+    assert records[0].pos == "NOUN"
+
+
+def test_import_vocabulary_empty_rows() -> None:
+    """Empty row list should return imported=0 with no errors."""
+    engine = _in_memory_engine()
+    result = import_vocabulary([], engine=engine)
+
+    assert result.imported == 0
+    assert result.skipped == 0
+    assert result.errors == []
+
+
+def test_import_vocabulary_too_many_rows() -> None:
+    """Row count exceeding MAX_IMPORT_ROWS should fail without inserting anything."""
+    engine = _in_memory_engine()
+
+    overflow = [
+        {"lemma": f"word{i}", "pos": "NOUN", "interval": "2", "cooldown": "0"}
+        for i in range(MAX_IMPORT_ROWS + 1)
+    ]
+    result = import_vocabulary(overflow, engine=engine)
+
+    assert result.imported == 0
+    assert len(result.errors) == 1
+    assert len(list_all_words(engine)) == 0
+
+
+def test_import_result_is_dataclass() -> None:
+    """ImportResult should have default zero values."""
+    r = ImportResult()
+    assert r.imported == 0
+    assert r.skipped == 0
+    assert r.errors == []

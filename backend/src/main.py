@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
@@ -20,6 +20,7 @@ from src.services.word_store import (
     apply_feedback,
     clear_all_words,
     delete_word_record,
+    import_vocabulary,
     list_all_words,
     pick_target_words,
     tick_cooldowns,
@@ -332,6 +333,49 @@ def export_vocabulary() -> StreamingResponse:
         buf,
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=openvoca-vocabulary.csv"},
+    )
+
+
+class VocabularyImportResponse(BaseModel):
+    imported: int
+    skipped: int
+    errors: list[str]
+
+
+@app.post("/api/vocabulary/import")
+async def import_vocabulary_endpoint(
+    file: UploadFile = File(...),
+    mode: str = Form(default="skip"),
+) -> VocabularyImportResponse:
+    """Import vocabulary from a CSV file.
+
+    mode: "skip" (default) keeps existing records; "overwrite" replaces them.
+    """
+    if mode not in ("skip", "overwrite"):
+        raise HTTPException(
+            status_code=422, detail="mode must be 'skip' or 'overwrite'"
+        )
+
+    _MAX_BYTES = 1 * 1024 * 1024  # 1 MB
+    content = await file.read(_MAX_BYTES + 1)
+    if len(content) > _MAX_BYTES:
+        raise HTTPException(status_code=413, detail="File too large (max 1 MB)")
+
+    try:
+        text_content = content.decode("utf-8")
+    except UnicodeDecodeError:
+        raise HTTPException(status_code=422, detail="File must be UTF-8 encoded")
+
+    try:
+        rows = list(csv.DictReader(io.StringIO(text_content)))
+    except csv.Error as exc:
+        raise HTTPException(status_code=422, detail=f"CSV parse error: {exc}")
+
+    result = import_vocabulary(rows, mode=mode)  # type: ignore[arg-type]
+    return VocabularyImportResponse(
+        imported=result.imported,
+        skipped=result.skipped,
+        errors=result.errors[:20],
     )
 
 
