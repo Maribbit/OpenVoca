@@ -373,7 +373,7 @@ async def import_vocabulary_endpoint(
         raise HTTPException(status_code=413, detail="File too large (max 1 MB)")
 
     try:
-        text_content = content.decode("utf-8")
+        text_content = content.decode("utf-8-sig")
     except UnicodeDecodeError:
         raise HTTPException(status_code=422, detail="File must be UTF-8 encoded")
 

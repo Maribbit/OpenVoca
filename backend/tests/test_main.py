@@ -715,6 +715,9 @@ def test_export_import_roundtrip(monkeypatch: pytest.MonkeyPatch) -> None:
         assert rest.interval == orig.interval, f"{key} interval mismatch"
         assert rest.cooldown == orig.cooldown, f"{key} cooldown mismatch"
         assert rest.last_context == orig.last_context, f"{key} last_context mismatch"
+        assert rest.last_seen.isoformat() == orig.last_seen.isoformat(), (
+            f"{key} last_seen mismatch"
+        )
 
 
 def test_import_vocabulary_endpoint_skip_mode(
@@ -763,4 +766,23 @@ def test_import_vocabulary_endpoint_minimal_csv(
     assert response.status_code == 200
     data = response.json()
     assert data["imported"] == 2
+    assert data["skipped"] == 0
+
+
+def test_import_vocabulary_endpoint_bom_csv(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A CSV with a UTF-8 BOM (from Excel) should be imported correctly."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    csv_content = "\ufefflemma,pos,interval,cooldown\nharbor,NOUN,8,3\n"
+    response = client.post(
+        "/api/vocabulary/import",
+        files={"file": ("vocab.csv", csv_content.encode("utf-8"), "text/csv")},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["imported"] == 1
     assert data["skipped"] == 0

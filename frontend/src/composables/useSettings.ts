@@ -29,7 +29,19 @@ function loadCache(): SettingsMap {
 
 function saveCache(): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(CACHE_KEY, JSON.stringify(store));
+  // Strip sensitive keys before persisting to localStorage
+  const safe: SettingsMap = {};
+  for (const [ns, entries] of Object.entries(store)) {
+    const filtered: Record<string, string> = {};
+    for (const [k, v] of Object.entries(entries)) {
+      if (ns === "provider" && k === "apiKey") continue;
+      filtered[k] = v;
+    }
+    if (Object.keys(filtered).length > 0) {
+      safe[ns] = filtered;
+    }
+  }
+  window.localStorage.setItem(CACHE_KEY, JSON.stringify(safe));
 }
 
 function applyMap(map: SettingsMap): void {
@@ -100,6 +112,7 @@ export function useSettings() {
     hydrate,
     clearAll,
     exportAll,
+    importAll,
     _reset,
   };
 }
@@ -119,13 +132,50 @@ async function clearAll(): Promise<void> {
 
 /**
  * Export all settings as a JSON-serializable map.
+ * Excludes sensitive keys (e.g. API key) to prevent accidental leakage.
  */
 function exportAll(): SettingsMap {
   const snapshot: SettingsMap = {};
   for (const [ns, entries] of Object.entries(store)) {
-    snapshot[ns] = { ...entries };
+    const filtered: Record<string, string> = {};
+    for (const [k, v] of Object.entries(entries)) {
+      if (ns === "provider" && k === "apiKey") continue;
+      filtered[k] = v;
+    }
+    if (Object.keys(filtered).length > 0) {
+      snapshot[ns] = filtered;
+    }
   }
   return snapshot;
+}
+
+/**
+ * Import settings from a JSON map. Merges into existing settings.
+ * Sensitive keys (e.g. provider.apiKey) are silently skipped.
+ * Persists each namespace to the backend and updates localStorage.
+ */
+async function importAll(data: SettingsMap): Promise<void> {
+  for (const [ns, entries] of Object.entries(data)) {
+    if (
+      typeof entries !== "object" ||
+      entries === null ||
+      Array.isArray(entries)
+    )
+      continue;
+    const filtered: Record<string, string> = {};
+    for (const [k, v] of Object.entries(entries)) {
+      if (typeof v !== "string") continue;
+      if (ns === "provider" && k === "apiKey") continue;
+      filtered[k] = v;
+    }
+    if (Object.keys(filtered).length === 0) continue;
+    if (!store[ns]) store[ns] = {};
+    for (const [k, v] of Object.entries(filtered)) {
+      store[ns][k] = v;
+    }
+    await putNamespace(ns, filtered).catch(() => {});
+  }
+  saveCache();
 }
 
 /** Reset the store for test isolation. */

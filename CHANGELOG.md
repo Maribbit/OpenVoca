@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.7.6
+
+Date: 2026-04-12
+
+### New Features
+- **Import settings** — Restore settings from a previously exported JSON file on the Settings → Data page. API key is excluded from both export and import for security.
+- **Import vocabulary link on Settings page** — A "Go to Vocabulary →" shortcut in the Data section links to the Stats page for CSV import.
+
+### Security
+- **API key excluded from localStorage** — `provider.apiKey` is no longer cached in `localStorage`; it only lives in the backend SQLite DB and in-memory at runtime.
+- **API key excluded from settings export** — Exported JSON files never contain the raw API key.
+
+### Bug Fixes
+- **BOM-aware CSV import** — CSV files with a UTF-8 BOM (common from Excel on Windows) are now parsed correctly instead of failing with "missing columns".
+- **Consistent import banner styling** — Overwrite re-import no longer shows a red error banner on partial success.
+
+### Improvements
+- **Danger zone backup hints** — Clear Vocabulary and Reset Settings confirmation dialogs now remind users to export a backup first.
+- **Full roundtrip fidelity** — Export/import roundtrip now preserves `last_seen` timestamps (verified by test).
+
+### Changed Files
+- `backend/src/main.py`: BOM-safe UTF-8 decoding (`utf-8-sig`), export includes `last_seen`/`last_context`.
+- `frontend/src/composables/useSettings.ts`: `importAll()`, `exportAll()` and `saveCache()` strip `provider.apiKey`.
+- `frontend/src/views/SettingsView.vue`: import settings UI, import vocabulary link, `onSettingsFileSelected()` handler.
+- `frontend/src/views/StatsView.vue`: consistent `importError` flag on reimport.
+- `frontend/src/composables/useI18n.ts`: new keys for import settings, import vocabulary link, danger zone hints.
+- `frontend/tests/useSettings.spec.ts`: 6 new tests for export/import settings.
+- `backend/tests/test_main.py`: BOM test, `last_seen` roundtrip assertion, minimal CSV test.
+
+---
+
 ## v0.7.5
 
 Date: 2026-04-12

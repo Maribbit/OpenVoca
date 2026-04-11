@@ -69,9 +69,16 @@ interface LocaleMessages {
   exportSettings: string;
   exportSettingsDescription: string;
   exportSettingsButton: string;
+  importSettings: string;
+  importSettingsDescription: string;
+  importSettingsButton: string;
+  importSettingsBadFormat: string;
   exportVocabularySettings: string;
   exportVocabularySettingsDescription: string;
   exportVocabularySettingsButton: string;
+  importVocabularySettings: string;
+  importVocabularySettingsDescription: string;
+  importVocabularySettingsButton: string;
   confirmClearVocabulary: string;
   confirmClearSettings: string;
   composerScenario: string;
@@ -198,10 +205,20 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     exportSettingsDescription:
       "Download all settings as a JSON file for backup or migration.",
     exportSettingsButton: "Export JSON",
+    importSettings: "Import settings",
+    importSettingsDescription:
+      "Restore settings from a previously exported JSON file. API key is not imported for security.",
+    importSettingsButton: "Import JSON",
+    importSettingsBadFormat:
+      "Invalid settings file. Please select a valid JSON file exported from OpenVoca.",
     exportVocabularySettings: "Export vocabulary",
     exportVocabularySettingsDescription:
       "Download all word records as a CSV file for backup or analysis.",
     exportVocabularySettingsButton: "Export CSV",
+    importVocabularySettings: "Import vocabulary",
+    importVocabularySettingsDescription:
+      "Import words from a CSV file on the Vocabulary page.",
+    importVocabularySettingsButton: "Go to Vocabulary →",
     confirmClearVocabulary:
       "Are you sure you want to delete all vocabulary? You can export a backup first using the button above. This cannot be undone.",
     confirmClearSettings:
@@ -325,10 +342,19 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     exportSettings: "导出设置",
     exportSettingsDescription: "将所有设置下载为 JSON 文件，用于备份或迁移。",
     exportSettingsButton: "导出 JSON",
+    importSettings: "导入设置",
+    importSettingsDescription:
+      "从之前导出的 JSON 文件恢复设置。为安全起见，API 密钥不会被导入。",
+    importSettingsButton: "导入 JSON",
+    importSettingsBadFormat:
+      "无效的设置文件，请选择从 OpenVoca 导出的 JSON 文件。",
     exportVocabularySettings: "导出词库",
     exportVocabularySettingsDescription:
       "将所有单词记录下载为 CSV 文件，用于备份或分析。",
     exportVocabularySettingsButton: "导出 CSV",
+    importVocabularySettings: "导入词库",
+    importVocabularySettingsDescription: "在词库页面从 CSV 文件导入单词。",
+    importVocabularySettingsButton: "前往词库 →",
     confirmClearVocabulary:
       "确定要删除所有词汇吗？建议先通过上方的导出按钮备份。此操作不可撤销。",
     confirmClearSettings:

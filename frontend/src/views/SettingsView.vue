@@ -427,6 +427,24 @@
           >
             <div>
               <p class="text-sm font-medium text-ink">
+                {{ i18nMessages.importVocabularySettings }}
+              </p>
+              <p class="mt-1 text-xs text-inkLight">
+                {{ i18nMessages.importVocabularySettingsDescription }}
+              </p>
+            </div>
+            <router-link
+              to="/stats"
+              class="whitespace-nowrap rounded-xl border border-black/15 px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-black/4 dark:border-white/15 dark:hover:bg-white/8"
+            >
+              {{ i18nMessages.importVocabularySettingsButton }}
+            </router-link>
+          </div>
+          <div
+            class="flex items-center justify-between border-t border-black/5 p-6"
+          >
+            <div>
+              <p class="text-sm font-medium text-ink">
                 {{ i18nMessages.exportSettings }}
               </p>
               <p class="mt-1 text-xs text-inkLight">
@@ -439,6 +457,32 @@
               @click="handleExportSettings"
             >
               {{ i18nMessages.exportSettingsButton }}
+            </button>
+          </div>
+          <div
+            class="flex items-center justify-between border-t border-black/5 p-6"
+          >
+            <input
+              ref="settingsFileInput"
+              type="file"
+              accept=".json"
+              class="hidden"
+              @change="onSettingsFileSelected"
+            />
+            <div>
+              <p class="text-sm font-medium text-ink">
+                {{ i18nMessages.importSettings }}
+              </p>
+              <p class="mt-1 text-xs text-inkLight">
+                {{ i18nMessages.importSettingsDescription }}
+              </p>
+            </div>
+            <button
+              type="button"
+              class="whitespace-nowrap rounded-xl border border-black/15 px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-black/4 dark:border-white/15 dark:hover:bg-white/8"
+              @click="settingsFileInput?.click()"
+            >
+              {{ i18nMessages.importSettingsButton }}
             </button>
           </div>
         </section>
@@ -521,7 +565,7 @@
     "slate",
   ];
 
-  const { get, set, clearAll, exportAll } = useSettings();
+  const { get, set, clearAll, exportAll, importAll } = useSettings();
   const { locale, messages: i18nMessages, setLocale } = useI18n();
 
   const draftTargetWordCount = ref(
@@ -543,6 +587,7 @@
   const connectionMessage = ref("");
   const showEndpointHint = ref(false);
   const showZoomHint = ref(false);
+  const settingsFileInput = ref<HTMLInputElement | null>(null);
 
   type DictionaryDisplayOption = "zh" | "en" | "both";
   const DICT_DISPLAY_OPTIONS: DictionaryDisplayOption[] = ["en", "both", "zh"];
@@ -714,6 +759,25 @@
     a.download = "openvoca-settings.json";
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function onSettingsFileSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    input.value = "";
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text) as Record<string, unknown>;
+      if (typeof data !== "object" || data === null || Array.isArray(data)) {
+        window.alert(i18nMessages.value.importSettingsBadFormat);
+        return;
+      }
+      await importAll(data as Record<string, Record<string, string>>);
+      window.location.reload();
+    } catch {
+      window.alert(i18nMessages.value.importSettingsBadFormat);
+    }
   }
 
   // Auto-save generation preferences when drafts change
