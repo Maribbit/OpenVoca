@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.7.5
+
+Date: 2026-04-12
+
+### Improvements
+- **Export now includes `last_seen` and `last_context`** — CSV export outputs all 6 fields for complete backup and lossless roundtrip.
+- **Import accepts minimal CSV** — Only `lemma` and `pos` columns are required. `interval`, `cooldown`, `last_seen`, and `last_context` are all optional with sensible defaults (interval=2, cooldown=0, last_seen=now, last_context=null).
+- **Danger zone backup hint** — Clear Vocabulary and Reset Settings confirmation dialogs now remind users they can export a backup first.
+
+### Changed Files
+- `backend/src/main.py`: export endpoint outputs 6-column CSV.
+- `backend/src/services/word_store.py`: import only requires `lemma`+`pos`; optional columns parsed with defaults.
+- `frontend/src/composables/useI18n.ts`: updated confirmation messages; removed unused `importModeSkip` key.
+- `backend/tests/`: 5 new import tests (minimal CSV, last_seen/last_context, bad date, overwrite context, endpoint minimal).
+
+---
+
 ## v0.7.4
 
 Date: 2026-04-12

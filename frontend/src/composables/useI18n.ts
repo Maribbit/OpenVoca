@@ -203,9 +203,9 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
       "Download all word records as a CSV file for backup or analysis.",
     exportVocabularySettingsButton: "Export CSV",
     confirmClearVocabulary:
-      "Are you sure you want to delete all vocabulary? This cannot be undone.",
+      "Are you sure you want to delete all vocabulary? You can export a backup first using the button above. This cannot be undone.",
     confirmClearSettings:
-      "Are you sure you want to reset all settings to defaults? This cannot be undone.",
+      "Are you sure you want to reset all settings to defaults? You can export a backup first using the button above. This cannot be undone.",
     composerScenario: "Scenario",
     composerScenario_absurd_headlines: "Fake News",
     composerScenario_poetry: "Poetry",
@@ -329,8 +329,10 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     exportVocabularySettingsDescription:
       "将所有单词记录下载为 CSV 文件，用于备份或分析。",
     exportVocabularySettingsButton: "导出 CSV",
-    confirmClearVocabulary: "确定要删除所有词汇吗？此操作不可撤销。",
-    confirmClearSettings: "确定要恢复所有设置为默认值吗？此操作不可撤销。",
+    confirmClearVocabulary:
+      "确定要删除所有词汇吗？建议先通过上方的导出按钮备份。此操作不可撤销。",
+    confirmClearSettings:
+      "确定要恢复所有设置为默认值吗？建议先通过上方的导出按钮备份。此操作不可撤销。",
     composerScenario: "场景",
     composerScenario_absurd_headlines: "假新闻",
     composerScenario_poetry: "诗歌",

@@ -247,7 +247,7 @@ def delete_word_record(lemma: str, pos: str, engine=None) -> bool:
 # ---------------------------------------------------------------------------
 
 MAX_IMPORT_ROWS = 5_000
-_REQUIRED_IMPORT_COLS = {"lemma", "pos", "interval", "cooldown"}
+_REQUIRED_IMPORT_COLS = {"lemma", "pos"}
 
 
 @dataclass
@@ -265,9 +265,12 @@ def import_vocabulary(
 ) -> ImportResult:
     """Import vocabulary from parsed CSV rows.
 
-    Each row must contain: lemma, pos, interval, cooldown.
-    - interval is clamped to [INTERVAL_BASE, INTERVAL_MAX].
-    - cooldown is clamped to [0, interval].
+    Required columns: lemma, pos.
+    Optional columns: interval, cooldown, last_seen, last_context.
+    - interval defaults to INTERVAL_BASE, clamped to [INTERVAL_BASE, INTERVAL_MAX].
+    - cooldown defaults to 0, clamped to [0, interval].
+    - last_seen defaults to now (UTC); parsed as ISO 8601 if provided.
+    - last_context defaults to None.
     - lemma is lowercased; pos is uppercased for normalization.
     - mode="skip" (default): existing records are kept, only new words imported.
     - mode="overwrite": existing records are overwritten with imported values.
@@ -298,16 +301,46 @@ def import_vocabulary(
                 result.errors.append(f"Row {i}: lemma and pos must not be empty")
                 continue
 
-            try:
-                interval = int(row["interval"])
-                cooldown = int(row["cooldown"])
-            except ValueError:
-                result.skipped += 1
-                result.errors.append(f"Row {i}: interval and cooldown must be integers")
-                continue
-
+            # --- interval (optional, default INTERVAL_BASE) ---
+            raw_interval = row.get("interval", "").strip()
+            if raw_interval:
+                try:
+                    interval = int(raw_interval)
+                except ValueError:
+                    result.skipped += 1
+                    result.errors.append(f"Row {i}: interval must be an integer")
+                    continue
+            else:
+                interval = INTERVAL_BASE
             interval = max(INTERVAL_BASE, min(interval, INTERVAL_MAX))
+
+            # --- cooldown (optional, default 0) ---
+            raw_cooldown = row.get("cooldown", "").strip()
+            if raw_cooldown:
+                try:
+                    cooldown = int(raw_cooldown)
+                except ValueError:
+                    result.skipped += 1
+                    result.errors.append(f"Row {i}: cooldown must be an integer")
+                    continue
+            else:
+                cooldown = 0
             cooldown = max(0, min(cooldown, interval))
+
+            # --- last_seen (optional, default now) ---
+            raw_last_seen = row.get("last_seen", "").strip()
+            if raw_last_seen:
+                try:
+                    last_seen = datetime.fromisoformat(raw_last_seen)
+                except ValueError:
+                    result.skipped += 1
+                    result.errors.append(f"Row {i}: last_seen must be ISO 8601")
+                    continue
+            else:
+                last_seen = now
+
+            # --- last_context (optional, default None) ---
+            last_context = row.get("last_context", "").strip() or None
 
             existing = session.exec(
                 select(WordRecord).where(
@@ -321,7 +354,8 @@ def import_vocabulary(
                     continue
                 existing.interval = interval
                 existing.cooldown = cooldown
-                existing.last_seen = now
+                existing.last_seen = last_seen
+                existing.last_context = last_context
             else:
                 session.add(
                     WordRecord(
@@ -329,7 +363,8 @@ def import_vocabulary(
                         pos=pos,
                         interval=interval,
                         cooldown=cooldown,
-                        last_seen=now,
+                        last_seen=last_seen,
+                        last_context=last_context,
                     )
                 )
 

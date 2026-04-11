@@ -350,7 +350,7 @@ def test_export_vocabulary_csv(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "openvoca-vocabulary.csv" in response.headers["content-disposition"]
 
     lines = response.text.strip().splitlines()
-    assert lines[0] == "lemma,pos,interval,cooldown"
+    assert lines[0] == "lemma,pos,interval,cooldown,last_seen,last_context"
     assert len(lines) == 3  # header + 2 words
 
     rows = {line.split(",")[0]: line.split(",") for line in lines[1:]}
@@ -366,7 +366,7 @@ def test_export_vocabulary_csv_empty(monkeypatch: pytest.MonkeyPatch) -> None:
     response = client.get("/api/vocabulary/export")
     assert response.status_code == 200
     lines = response.text.strip().splitlines()
-    assert lines == ["lemma,pos,interval,cooldown"]
+    assert lines == ["lemma,pos,interval,cooldown,last_seen,last_context"]
 
 
 def test_patch_vocabulary_word(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -714,6 +714,7 @@ def test_export_import_roundtrip(monkeypatch: pytest.MonkeyPatch) -> None:
         rest = restored[key]
         assert rest.interval == orig.interval, f"{key} interval mismatch"
         assert rest.cooldown == orig.cooldown, f"{key} cooldown mismatch"
+        assert rest.last_context == orig.last_context, f"{key} last_context mismatch"
 
 
 def test_import_vocabulary_endpoint_skip_mode(
@@ -744,3 +745,22 @@ def test_import_vocabulary_endpoint_skip_mode(
     records = {r.lemma: r for r in list_all_words(engine)}
     assert records["harbor"].interval == original_interval  # preserved
     assert records["lantern"].interval == 4  # new
+
+
+def test_import_vocabulary_endpoint_minimal_csv(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A CSV with only lemma and pos columns should import successfully."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    csv_content = "lemma,pos\nharbor,NOUN\nglow,VERB\n"
+    response = client.post(
+        "/api/vocabulary/import",
+        files={"file": ("vocab.csv", csv_content.encode("utf-8"), "text/csv")},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["imported"] == 2
+    assert data["skipped"] == 0

@@ -325,9 +325,20 @@ def export_vocabulary() -> StreamingResponse:
     records = list_all_words()
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow(["lemma", "pos", "interval", "cooldown"])
+    writer.writerow(
+        ["lemma", "pos", "interval", "cooldown", "last_seen", "last_context"]
+    )
     for r in records:
-        writer.writerow([r.lemma, r.pos, r.interval, r.cooldown])
+        writer.writerow(
+            [
+                r.lemma,
+                r.pos,
+                r.interval,
+                r.cooldown,
+                r.last_seen.isoformat() if r.last_seen else "",
+                r.last_context or "",
+            ]
+        )
     buf.seek(0)
     return StreamingResponse(
         buf,

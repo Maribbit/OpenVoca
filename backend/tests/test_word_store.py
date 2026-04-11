@@ -832,3 +832,94 @@ def test_import_result_is_dataclass() -> None:
     assert r.imported == 0
     assert r.skipped == 0
     assert r.errors == []
+
+
+def test_import_vocabulary_minimal_columns() -> None:
+    """Rows with only lemma and pos should import with default values."""
+    engine = _in_memory_engine()
+
+    rows = [
+        {"lemma": "harbor", "pos": "NOUN"},
+        {"lemma": "glow", "pos": "VERB"},
+    ]
+    result = import_vocabulary(rows, engine=engine)
+
+    assert result.imported == 2
+    assert result.skipped == 0
+    records = {r.lemma: r for r in list_all_words(engine)}
+    assert records["harbor"].interval == INTERVAL_BASE
+    assert records["harbor"].cooldown == 0
+    assert records["harbor"].last_context is None
+    assert records["glow"].interval == INTERVAL_BASE
+
+
+def test_import_vocabulary_with_last_seen_and_context() -> None:
+    """Import should accept and preserve last_seen and last_context."""
+    engine = _in_memory_engine()
+
+    rows = [
+        {
+            "lemma": "harbor",
+            "pos": "NOUN",
+            "interval": "8",
+            "cooldown": "3",
+            "last_seen": "2026-01-15T10:30:00+00:00",
+            "last_context": "The harbor was calm.",
+        },
+    ]
+    result = import_vocabulary(rows, engine=engine)
+
+    assert result.imported == 1
+    records = list_all_words(engine)
+    assert records[0].last_seen.year == 2026
+    assert records[0].last_seen.month == 1
+    assert records[0].last_context == "The harbor was calm."
+
+
+def test_import_vocabulary_bad_last_seen_skips_row() -> None:
+    """Invalid last_seen format should cause the row to be skipped."""
+    engine = _in_memory_engine()
+
+    rows = [
+        {
+            "lemma": "harbor",
+            "pos": "NOUN",
+            "interval": "8",
+            "cooldown": "3",
+            "last_seen": "not-a-date",
+        },
+    ]
+    result = import_vocabulary(rows, engine=engine)
+
+    assert result.imported == 0
+    assert result.skipped == 1
+    assert "ISO 8601" in result.errors[0]
+
+
+def test_import_vocabulary_overwrite_preserves_csv_context() -> None:
+    """Overwrite mode should replace last_seen and last_context from CSV."""
+    engine = _in_memory_engine()
+
+    apply_feedback(
+        target_words=[("harbor", "NOUN")],
+        marked_words=[],
+        sentence="The harbor.",
+        engine=engine,
+    )
+
+    rows = [
+        {
+            "lemma": "harbor",
+            "pos": "NOUN",
+            "interval": "16",
+            "cooldown": "8",
+            "last_seen": "2025-06-01T00:00:00+00:00",
+            "last_context": "A quiet harbor.",
+        },
+    ]
+    result = import_vocabulary(rows, mode="overwrite", engine=engine)
+
+    assert result.imported == 1
+    records = list_all_words(engine)
+    assert records[0].last_context == "A quiet harbor."
+    assert records[0].last_seen.year == 2025
