@@ -313,6 +313,18 @@
                       >
                       {{ formatLastSeen(word.lastSeen) }}
                     </div>
+                    <div v-if="word.firstSeen">
+                      <span class="font-medium"
+                        >{{ i18nMessages.firstSeenLabel }}:</span
+                      >
+                      {{ formatLastSeen(word.firstSeen) }}
+                    </div>
+                    <div v-if="word.seenCount !== undefined">
+                      <span class="font-medium"
+                        >{{ i18nMessages.seenCountLabel }}:</span
+                      >
+                      {{ word.seenCount }}×
+                    </div>
                     <div v-if="word.lastContext">
                       <span class="font-medium"
                         >{{ i18nMessages.lastContextLabel }}:</span

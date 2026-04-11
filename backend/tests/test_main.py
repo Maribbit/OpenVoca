@@ -350,7 +350,10 @@ def test_export_vocabulary_csv(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "openvoca-vocabulary.csv" in response.headers["content-disposition"]
 
     lines = response.text.strip().splitlines()
-    assert lines[0] == "lemma,pos,interval,cooldown,last_seen,last_context"
+    assert (
+        lines[0]
+        == "lemma,pos,interval,cooldown,first_seen,last_seen,last_context,seen_count"
+    )
     assert len(lines) == 3  # header + 2 words
 
     rows = {line.split(",")[0]: line.split(",") for line in lines[1:]}
@@ -366,7 +369,9 @@ def test_export_vocabulary_csv_empty(monkeypatch: pytest.MonkeyPatch) -> None:
     response = client.get("/api/vocabulary/export")
     assert response.status_code == 200
     lines = response.text.strip().splitlines()
-    assert lines == ["lemma,pos,interval,cooldown,last_seen,last_context"]
+    assert lines == [
+        "lemma,pos,interval,cooldown,first_seen,last_seen,last_context,seen_count"
+    ]
 
 
 def test_patch_vocabulary_word(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -715,8 +720,12 @@ def test_export_import_roundtrip(monkeypatch: pytest.MonkeyPatch) -> None:
         assert rest.interval == orig.interval, f"{key} interval mismatch"
         assert rest.cooldown == orig.cooldown, f"{key} cooldown mismatch"
         assert rest.last_context == orig.last_context, f"{key} last_context mismatch"
+        assert rest.seen_count == orig.seen_count, f"{key} seen_count mismatch"
         assert rest.last_seen.isoformat() == orig.last_seen.isoformat(), (
             f"{key} last_seen mismatch"
+        )
+        assert rest.first_seen.isoformat() == orig.first_seen.isoformat(), (
+            f"{key} first_seen mismatch"
         )
 
 

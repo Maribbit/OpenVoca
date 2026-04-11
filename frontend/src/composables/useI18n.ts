@@ -128,6 +128,8 @@ interface LocaleMessages {
   sortByRecent: string;
   lastSeenLabel: string;
   lastContextLabel: string;
+  firstSeenLabel: string;
+  seenCountLabel: string;
 }
 
 export const MESSAGES: Record<Locale, LocaleMessages> = {
@@ -271,6 +273,8 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     sortByRecent: "By Recent",
     lastSeenLabel: "Last seen",
     lastContextLabel: "Last context",
+    firstSeenLabel: "First seen",
+    seenCountLabel: "Seen",
   },
   zh: {
     menu: "菜单",
@@ -406,6 +410,8 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     sortByRecent: "按最近复习",
     lastSeenLabel: "上次复习",
     lastContextLabel: "上次例句",
+    firstSeenLabel: "首次记录",
+    seenCountLabel: "出现次数",
   },
 };
 

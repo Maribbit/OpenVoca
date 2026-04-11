@@ -16,8 +16,10 @@ class WordRecord(SQLModel, table=True):
     pos: str = Field(primary_key=True)
     interval: int = Field(default=INTERVAL_BASE, ge=INTERVAL_BASE)
     cooldown: int = Field(default=0, ge=0)
+    first_seen: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     last_seen: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     last_context: str | None = Field(default=None)
+    seen_count: int = Field(default=0, ge=0)
 
 
 def _make_engine():
@@ -94,8 +96,10 @@ def apply_feedback(
                     pos=pos,
                     interval=INTERVAL_BASE,
                     cooldown=INTERVAL_BASE,
+                    first_seen=now,
                     last_seen=now,
                     last_context=sentence,
+                    seen_count=1,
                 )
                 session.add(record)
             else:
@@ -103,6 +107,7 @@ def apply_feedback(
                 record.cooldown = record.interval
                 record.last_seen = now
                 record.last_context = sentence
+                record.seen_count += 1
 
         # Hit: double interval for unmarked target words
         for lemma, pos in unmarked_targets:
@@ -113,8 +118,10 @@ def apply_feedback(
                     pos=pos,
                     interval=INTERVAL_BASE * 2,
                     cooldown=INTERVAL_BASE * 2,
+                    first_seen=now,
                     last_seen=now,
                     last_context=sentence,
+                    seen_count=1,
                 )
                 session.add(record)
             else:
@@ -122,6 +129,7 @@ def apply_feedback(
                 record.cooldown = record.interval
                 record.last_seen = now
                 record.last_context = sentence
+                record.seen_count += 1
 
         session.commit()
 
@@ -270,7 +278,9 @@ def import_vocabulary(
     - interval defaults to INTERVAL_BASE, clamped to [INTERVAL_BASE, INTERVAL_MAX].
     - cooldown defaults to 0, clamped to [0, interval].
     - last_seen defaults to now (UTC); parsed as ISO 8601 if provided.
+    - first_seen defaults to now; parsed as ISO 8601 if provided.
     - last_context defaults to None.
+    - seen_count defaults to 0.
     - lemma is lowercased; pos is uppercased for normalization.
     - mode="skip" (default): existing records are kept, only new words imported.
     - mode="overwrite": existing records are overwritten with imported values.
@@ -339,8 +349,33 @@ def import_vocabulary(
             else:
                 last_seen = now
 
+            # --- first_seen (optional, default now) ---
+            raw_first_seen = row.get("first_seen", "").strip()
+            if raw_first_seen:
+                try:
+                    first_seen = datetime.fromisoformat(raw_first_seen)
+                except ValueError:
+                    result.skipped += 1
+                    result.errors.append(f"Row {i}: first_seen must be ISO 8601")
+                    continue
+            else:
+                first_seen = now
+
             # --- last_context (optional, default None) ---
             last_context = row.get("last_context", "").strip() or None
+
+            # --- seen_count (optional, default 0) ---
+            raw_seen_count = row.get("seen_count", "").strip()
+            if raw_seen_count:
+                try:
+                    seen_count = int(raw_seen_count)
+                except ValueError:
+                    result.skipped += 1
+                    result.errors.append(f"Row {i}: seen_count must be an integer")
+                    continue
+                seen_count = max(0, seen_count)
+            else:
+                seen_count = 0
 
             existing = session.exec(
                 select(WordRecord).where(
@@ -355,7 +390,9 @@ def import_vocabulary(
                 existing.interval = interval
                 existing.cooldown = cooldown
                 existing.last_seen = last_seen
+                existing.first_seen = first_seen
                 existing.last_context = last_context
+                existing.seen_count = seen_count
             else:
                 session.add(
                     WordRecord(
@@ -363,8 +400,10 @@ def import_vocabulary(
                         pos=pos,
                         interval=interval,
                         cooldown=cooldown,
+                        first_seen=first_seen,
                         last_seen=last_seen,
                         last_context=last_context,
+                        seen_count=seen_count,
                     )
                 )
 

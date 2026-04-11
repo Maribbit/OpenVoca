@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.7.7
+
+Date: 2026-04-12
+
+### New Features
+- **`first_seen` timestamp** — Each word record now stores when the word was first encountered as a target word. Shown in the expanded row on the Stats page as "First seen: X days ago".
+- **`seen_count` counter** — Each word record now tallies how many times the word has appeared as a target word (selected by the pick algorithm). Shown in the expanded row as "Seen: N×".
+
+### Improvements
+- **Stats page expanded row** — Clicking a word now reveals four details: Last seen, First seen, Seen count, and Last context.
+- **Export/import roundtrip** — CSV export now includes `first_seen` and `seen_count` columns. Import treats both as optional (defaults: `first_seen=now`, `seen_count=0`).
+
+### Changed Files
+- `backend/src/services/word_store.py`: `WordRecord` gains `first_seen` (datetime) and `seen_count` (int ≥ 0); `apply_feedback` sets `first_seen` on creation only and always increments `seen_count`; `import_vocabulary` handles both new optional columns.
+- `backend/src/main.py`: `WordRecordOut` gains `firstSeen` and `seenCount`; export CSV is now 8 columns.
+- `frontend/src/api/reading.ts`: `WordRecordOut` interface adds `firstSeen?` and `seenCount?`.
+- `frontend/src/views/StatsView.vue`: expanded row shows `firstSeen` and `seenCount`.
+- `frontend/src/composables/useI18n.ts`: new keys `firstSeenLabel` and `seenCountLabel` (EN + ZH).
+- `backend/tests/test_word_store.py`: 2 new tests (`test_apply_feedback_sets_first_seen_once`, `test_apply_feedback_increments_seen_count`).
+- `backend/tests/test_main.py`: export header and roundtrip tests updated for 8-column CSV.
+
+---
+
 ## v0.7.6
 
 Date: 2026-04-12
@@ -163,7 +186,7 @@ Date: 2026-04-11
 
 ## v0.7.0
 
-Date: 2025-04-10
+Date: 2026-04-10
 
 ### Highlights
 - **Phase A — Portable distribution foundation** — The backend now serves the compiled frontend as static files, eliminating the need to run a separate Vite dev server for production use. Mount and SPA fallback are conditional (only active when `frontend/dist` exists), so the existing dev workflow is unaffected.

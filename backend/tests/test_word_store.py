@@ -108,6 +108,56 @@ def test_apply_feedback_caps_interval_at_boundaries() -> None:
     assert words["resolve"].interval == INTERVAL_BASE
 
 
+def test_apply_feedback_sets_first_seen_once() -> None:
+    """first_seen should be set on creation and not modified on updates."""
+    engine = _in_memory_engine()
+
+    apply_feedback(
+        target_words=[("harbor", "NOUN")],
+        marked_words=[],
+        sentence="The harbor.",
+        engine=engine,
+    )
+    original_first_seen = list_all_words(engine)[0].first_seen
+
+    # Tick and apply again — first_seen must stay the same
+    for _ in range(INTERVAL_BASE * 2):
+        tick_cooldowns(engine)
+    apply_feedback(
+        target_words=[("harbor", "NOUN")],
+        marked_words=[("harbor", "NOUN")],
+        sentence="Ships lined the harbor.",
+        engine=engine,
+    )
+
+    words = list_all_words(engine)
+    assert words[0].first_seen == original_first_seen
+
+
+def test_apply_feedback_increments_seen_count() -> None:
+    """seen_count should increment each time a word is a target word."""
+    engine = _in_memory_engine()
+
+    apply_feedback(
+        target_words=[("harbor", "NOUN")],
+        marked_words=[],
+        sentence="The harbor.",
+        engine=engine,
+    )
+    assert list_all_words(engine)[0].seen_count == 1
+
+    for _ in range(INTERVAL_BASE * 2):
+        tick_cooldowns(engine)
+
+    apply_feedback(
+        target_words=[("harbor", "NOUN")],
+        marked_words=[("harbor", "NOUN")],
+        sentence="Ships lined the harbor.",
+        engine=engine,
+    )
+    assert list_all_words(engine)[0].seen_count == 2
+
+
 def test_pick_target_words_returns_lowest_interval() -> None:
     """pick_target_words should return words with lowest interval first."""
     engine = _in_memory_engine()

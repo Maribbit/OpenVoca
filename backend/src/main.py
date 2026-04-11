@@ -109,8 +109,10 @@ class WordRecordOut(BaseModel):
     pos: str
     interval: int
     cooldown: int
+    first_seen: str = Field(alias="firstSeen")
     last_seen: str = Field(alias="lastSeen")
     last_context: str | None = Field(default=None, alias="lastContext")
+    seen_count: int = Field(default=0, alias="seenCount")
 
 
 class VocabularyResponse(BaseModel):
@@ -270,8 +272,10 @@ def get_vocabulary(
                 pos=r.pos,
                 interval=r.interval,
                 cooldown=r.cooldown,
+                first_seen=_utc_iso(r.first_seen),
                 last_seen=_utc_iso(r.last_seen),
                 last_context=r.last_context,
+                seen_count=r.seen_count,
             )
             for r in records
         ],
@@ -306,8 +310,10 @@ def patch_vocabulary_word(
         pos=record.pos,
         interval=record.interval,
         cooldown=record.cooldown,
+        firstSeen=_utc_iso(record.first_seen),
         lastSeen=_utc_iso(record.last_seen),
         lastContext=record.last_context,
+        seenCount=record.seen_count,
     )
 
 
@@ -326,7 +332,16 @@ def export_vocabulary() -> StreamingResponse:
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow(
-        ["lemma", "pos", "interval", "cooldown", "last_seen", "last_context"]
+        [
+            "lemma",
+            "pos",
+            "interval",
+            "cooldown",
+            "first_seen",
+            "last_seen",
+            "last_context",
+            "seen_count",
+        ]
     )
     for r in records:
         writer.writerow(
@@ -335,8 +350,10 @@ def export_vocabulary() -> StreamingResponse:
                 r.pos,
                 r.interval,
                 r.cooldown,
+                r.first_seen.isoformat() if r.first_seen else "",
                 r.last_seen.isoformat() if r.last_seen else "",
                 r.last_context or "",
+                r.seen_count,
             ]
         )
     buf.seek(0)

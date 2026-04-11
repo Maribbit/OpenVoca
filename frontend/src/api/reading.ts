@@ -34,8 +34,10 @@ export interface WordRecordOut {
   pos: string;
   interval: number;
   cooldown: number;
+  firstSeen?: string | null;
   lastSeen?: string | null;
   lastContext?: string | null;
+  seenCount?: number;
 }
 
 export interface VocabularyResponse {
