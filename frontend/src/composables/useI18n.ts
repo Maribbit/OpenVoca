@@ -9,16 +9,24 @@ interface LocaleMessages {
   readingDisplaySettings: string;
   loadingSentence: string;
   connectionError: string;
+  goToSettings: string;
   feedbackError: string;
   model: string;
   targetWordCount: string;
   targetWordCountHint: string;
+  suggestionPoolSize: string;
+  suggestionPoolSizeHint: string;
   language: string;
   fontSize: string;
   spacing: string;
   theme: string;
   themeLight: string;
   themeDark: string;
+  colorTheme: string;
+  colorTheme_default: string;
+  colorTheme_sepia: string;
+  colorTheme_sage: string;
+  colorTheme_slate: string;
   uiSize: string;
   uiSizeHint: string;
   nextSentenceHint: string;
@@ -85,7 +93,7 @@ interface LocaleMessages {
   composerGenerate: string;
   composerPreview: string;
   composerTargetWords: string;
-  composerTargetWordsHint: string;
+  composerRefreshSuggestions: string;
   composerAddWordPlaceholder: string;
   statsLemma: string;
   statsInterval: string;
@@ -110,25 +118,32 @@ interface LocaleMessages {
   lastContextLabel: string;
 }
 
-const STORAGE_KEY = "openvoca.ui.locale";
-
 export const MESSAGES: Record<Locale, LocaleMessages> = {
   en: {
     menu: "MENU",
     readingDisplaySettings: "Reading display settings",
     loadingSentence: "Generating a sentence…",
     connectionError: "Unable to reach the model. Check your settings.",
+    goToSettings: "Go to Settings →",
     feedbackError: "Failed to save your word feedback.",
     model: "Model",
-    targetWordCount: "Words Per Sentence",
+    targetWordCount: "Auto-selected",
     targetWordCountHint:
-      "How many review words the model weaves into each sentence. Fewer words = more natural output.",
+      "How many suggestion chips start pre-selected when the Composer opens. Fewer = more natural output.",
+    suggestionPoolSize: "Suggestion Pool",
+    suggestionPoolSizeHint:
+      "How many vocabulary words are offered as toggleable suggestion chips each round.",
     language: "Language",
     fontSize: "Size",
     spacing: "Spacing",
     theme: "Theme",
     themeLight: "Light",
     themeDark: "Dark",
+    colorTheme: "Color",
+    colorTheme_default: "Ink",
+    colorTheme_sepia: "Sepia",
+    colorTheme_sage: "Sage",
+    colorTheme_slate: "Slate",
     uiSize: "Zoom",
     uiSizeHint:
       "Uses CSS zoom. Requires a modern browser (Chrome 1+, Firefox 126+, Safari 3.1+).",
@@ -206,7 +221,7 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     composerGenerate: "Generate next sentence",
     composerPreview: "Preview prompt",
     composerTargetWords: "Target Words",
-    composerTargetWordsHint: "auto-selected from vocabulary",
+    composerRefreshSuggestions: "Refresh suggestions",
     composerAddWordPlaceholder: "type & enter",
     statsLemma: "Lemma",
     statsInterval: "Familiarity",
@@ -235,16 +250,25 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     readingDisplaySettings: "阅读显示设置",
     loadingSentence: "正在生成例句…",
     connectionError: "无法连接模型。请检查设置。",
+    goToSettings: "前往设置 →",
     feedbackError: "保存词汇反馈失败。",
     model: "模型",
-    targetWordCount: "单轮取词量",
-    targetWordCountHint: "每一句里塞入的复习词数量。越少生成质量越高。",
+    targetWordCount: "自动选中",
+    targetWordCountHint:
+      "每次打开编排器时，推荐词中默认选中多少个。越少生成质量越高。",
+    suggestionPoolSize: "推荐词数",
+    suggestionPoolSizeHint: "每轮从词库抽取多少个词作为推荐词显示。",
     language: "语言",
     fontSize: "字号",
     spacing: "间距",
     theme: "主题",
     themeLight: "明亮",
     themeDark: "暗色",
+    colorTheme: "配色",
+    colorTheme_default: "墨水",
+    colorTheme_sepia: "温柏",
+    colorTheme_sage: "鼠尾草",
+    colorTheme_slate: "石板",
     uiSize: "缩放",
     uiSizeHint:
       "使用 CSS 缩放。需要现代浏览器（Chrome 1+、Firefox 126+、Safari 3.1+）。",
@@ -316,7 +340,7 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     composerGenerate: "生成下一句",
     composerPreview: "预览提示词",
     composerTargetWords: "目标词",
-    composerTargetWordsHint: "从词库自动选取",
+    composerRefreshSuggestions: "刷新推荐词",
     composerAddWordPlaceholder: "输入并回车",
     statsLemma: "词元",
     statsInterval: "熟悉度",
@@ -343,18 +367,14 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
 };
 
 function detectInitialLocale(): Locale {
-  // Try settings store (backed by localStorage cache) first
   const { get } = useSettings();
   const stored = get("interface", "locale", "");
   if (stored === "en" || stored === "zh") return stored;
 
-  // Fall back to legacy localStorage key
   if (typeof window !== "undefined") {
-    const legacy = window.localStorage.getItem(STORAGE_KEY);
-    if (legacy === "en" || legacy === "zh") return legacy;
-
-    const browserLanguage = window.navigator.language.toLowerCase();
-    return browserLanguage.startsWith("zh") ? "zh" : "en";
+    return window.navigator.language.toLowerCase().startsWith("zh")
+      ? "zh"
+      : "en";
   }
 
   return "en";
@@ -367,9 +387,6 @@ export function useI18n() {
 
   function setLocale(nextLocale: Locale): void {
     locale.value = nextLocale;
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, nextLocale);
-    }
   }
 
   return {

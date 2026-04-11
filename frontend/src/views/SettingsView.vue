@@ -45,7 +45,7 @@
             </h2>
           </div>
           <div class="p-6">
-            <div class="flex flex-wrap gap-6">
+            <div class="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
               <!-- Language -->
               <div>
                 <span class="mb-3 block text-sm font-medium text-ink">
@@ -57,18 +57,18 @@
                   <button
                     type="button"
                     class="rounded-lg px-3 py-1.5 text-sm transition-all"
-                    :class="toggleClass(locale === 'zh')"
-                    @click="switchLanguage('zh')"
-                  >
-                    中文
-                  </button>
-                  <button
-                    type="button"
-                    class="rounded-lg px-3 py-1.5 text-sm transition-all"
                     :class="toggleClass(locale === 'en')"
                     @click="switchLanguage('en')"
                   >
                     English
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded-lg px-3 py-1.5 text-sm transition-all"
+                    :class="toggleClass(locale === 'zh')"
+                    @click="switchLanguage('zh')"
+                  >
+                    中文
                   </button>
                 </div>
               </div>
@@ -96,6 +96,31 @@
                     @click="setTheme('dark')"
                   >
                     {{ i18nMessages.themeDark }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Color Theme -->
+              <div>
+                <span class="mb-3 block text-sm font-medium text-ink">
+                  {{ i18nMessages.colorTheme }}
+                </span>
+                <div
+                  class="inline-flex rounded-xl border border-black/8 bg-paper p-1"
+                >
+                  <button
+                    v-for="opt in COLOR_THEME_OPTIONS"
+                    :key="opt"
+                    type="button"
+                    class="rounded-lg px-3 py-1.5 text-sm transition-all"
+                    :class="toggleClass(colorTheme === opt)"
+                    @click="setColorTheme(opt)"
+                  >
+                    {{
+                      i18nMessages[
+                        `colorTheme_${opt}` as keyof typeof i18nMessages
+                      ]
+                    }}
                   </button>
                 </div>
               </div>
@@ -253,7 +278,41 @@
             </h2>
           </div>
           <div class="space-y-6 p-6">
-            <!-- Target word count -->
+            <!-- Suggestion pool size -->
+            <div>
+              <div class="mb-3 flex items-center justify-between">
+                <span class="text-sm font-medium text-ink">
+                  {{ i18nMessages.suggestionPoolSize }}
+                </span>
+                <span
+                  class="rounded-full border border-black/8 bg-paper px-3 py-1 font-mono text-xs text-inkLight"
+                >
+                  {{ draftSuggestionPoolSize }}
+                </span>
+              </div>
+              <input
+                v-model="draftSuggestionPoolSize"
+                type="range"
+                min="1"
+                max="6"
+                step="1"
+                class="w-full accent-ink"
+              />
+              <div
+                class="mt-1 flex justify-between px-1 text-[11px] text-inkLight/70"
+              >
+                <span>1</span>
+                <span>2</span>
+                <span>3</span>
+                <span>4</span>
+                <span>5</span>
+                <span>6</span>
+              </div>
+              <p class="mt-2 text-xs text-inkLight">
+                {{ i18nMessages.suggestionPoolSizeHint }}
+              </p>
+            </div>
+            <!-- Auto-selected count -->
             <div>
               <div class="mb-3 flex items-center justify-between">
                 <span class="text-sm font-medium text-ink">
@@ -268,19 +327,17 @@
               <input
                 v-model="draftTargetWordCount"
                 type="range"
-                min="1"
-                max="5"
+                min="0"
+                :max="draftSuggestionPoolSize"
                 step="1"
                 class="w-full accent-ink"
               />
               <div
                 class="mt-1 flex justify-between px-1 text-[11px] text-inkLight/70"
               >
-                <span>1</span>
-                <span>2</span>
-                <span>3</span>
-                <span>4</span>
-                <span>5</span>
+                <span v-for="i in draftSuggestionPoolSize + 1" :key="i">{{
+                  i - 1
+                }}</span>
               </div>
               <p class="mt-2 text-xs text-inkLight">
                 {{ i18nMessages.targetWordCountHint }}
@@ -311,14 +368,6 @@
                 <button
                   type="button"
                   class="rounded-lg px-3 py-1.5 text-sm transition-all"
-                  :class="toggleClass(dictionaryDisplay === 'zh')"
-                  @click="setDictionaryDisplay('zh')"
-                >
-                  {{ i18nMessages.dictionaryDisplayZh }}
-                </button>
-                <button
-                  type="button"
-                  class="rounded-lg px-3 py-1.5 text-sm transition-all"
                   :class="toggleClass(dictionaryDisplay === 'en')"
                   @click="setDictionaryDisplay('en')"
                 >
@@ -331,6 +380,14 @@
                   @click="setDictionaryDisplay('both')"
                 >
                   {{ i18nMessages.dictionaryDisplayBoth }}
+                </button>
+                <button
+                  type="button"
+                  class="rounded-lg px-3 py-1.5 text-sm transition-all"
+                  :class="toggleClass(dictionaryDisplay === 'zh')"
+                  @click="setDictionaryDisplay('zh')"
+                >
+                  {{ i18nMessages.dictionaryDisplayZh }}
                 </button>
               </div>
             </div>
@@ -452,10 +509,17 @@
 
   type ThemeOption = "light" | "dark";
   type UiFontSizeOption = "xs" | "sm" | "md" | "lg" | "xl";
+  type ColorThemeOption = "default" | "sepia" | "sage" | "slate";
 
   const DEFAULT_MODEL = "";
 
   const THEME_OPTIONS: ThemeOption[] = ["light", "dark"];
+  const COLOR_THEME_OPTIONS: ColorThemeOption[] = [
+    "default",
+    "sepia",
+    "sage",
+    "slate",
+  ];
 
   const { get, set, clearAll, exportAll } = useSettings();
   const { locale, messages: i18nMessages, setLocale } = useI18n();
@@ -464,7 +528,12 @@
     Number(get("generation", "targetWordCount", "1")),
   );
 
+  const draftSuggestionPoolSize = ref(
+    Number(get("generation", "suggestionPoolSize", "3")),
+  );
+
   const currentTheme = ref<ThemeOption>(loadTheme());
+  const colorTheme = ref<ColorThemeOption>(loadColorTheme());
   const uiFontSize = ref<UiFontSizeOption>(loadUiFontSize());
 
   const selectedModel = ref("");
@@ -476,7 +545,7 @@
   const showZoomHint = ref(false);
 
   type DictionaryDisplayOption = "zh" | "en" | "both";
-  const DICT_DISPLAY_OPTIONS: DictionaryDisplayOption[] = ["zh", "en", "both"];
+  const DICT_DISPLAY_OPTIONS: DictionaryDisplayOption[] = ["en", "both", "zh"];
   const dictionaryDisplay = ref<DictionaryDisplayOption>(loadDictDisplay());
 
   const uiFontSizeOptions = [
@@ -505,6 +574,28 @@
     currentTheme.value = theme;
     applyTheme(theme);
     set("reading", { theme });
+  }
+
+  function loadColorTheme(): ColorThemeOption {
+    const saved = get("interface", "colorTheme", "default");
+    return COLOR_THEME_OPTIONS.includes(saved as ColorThemeOption)
+      ? (saved as ColorThemeOption)
+      : "default";
+  }
+
+  function applyColorTheme(theme: ColorThemeOption): void {
+    if (typeof document === "undefined") return;
+    if (theme === "default") {
+      document.documentElement.removeAttribute("data-color-theme");
+    } else {
+      document.documentElement.setAttribute("data-color-theme", theme);
+    }
+  }
+
+  function setColorTheme(theme: ColorThemeOption): void {
+    colorTheme.value = theme;
+    applyColorTheme(theme);
+    set("interface", { colorTheme: theme });
   }
 
   const UI_ZOOM_MAP: Record<UiFontSizeOption, string> = {
@@ -551,10 +642,14 @@
   }
 
   function loadDictDisplay(): DictionaryDisplayOption {
-    const saved = get("dictionary", "display", "both");
-    return DICT_DISPLAY_OPTIONS.includes(saved as DictionaryDisplayOption)
-      ? (saved as DictionaryDisplayOption)
-      : "both";
+    const saved = get("dictionary", "display", "");
+    if (DICT_DISPLAY_OPTIONS.includes(saved as DictionaryDisplayOption)) {
+      return saved as DictionaryDisplayOption;
+    }
+    return typeof window !== "undefined" &&
+      window.navigator.language.toLowerCase().startsWith("zh")
+      ? "both"
+      : "en";
   }
 
   function setDictionaryDisplay(mode: DictionaryDisplayOption): void {
@@ -622,6 +717,16 @@
   }
 
   // Auto-save generation preferences when drafts change
+  watch(draftSuggestionPoolSize, (newPool) => {
+    if (draftTargetWordCount.value > newPool) {
+      draftTargetWordCount.value = newPool;
+    }
+    set("generation", {
+      suggestionPoolSize: String(newPool),
+      targetWordCount: String(draftTargetWordCount.value),
+    });
+  });
+
   watch(draftTargetWordCount, () => {
     set("generation", {
       targetWordCount: String(draftTargetWordCount.value),
@@ -645,6 +750,7 @@
   // Save on leave as a safety net
   onBeforeUnmount(() => {
     set("generation", {
+      suggestionPoolSize: String(draftSuggestionPoolSize.value),
       targetWordCount: String(draftTargetWordCount.value),
     });
   });

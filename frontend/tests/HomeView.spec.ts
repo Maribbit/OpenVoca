@@ -172,8 +172,6 @@ describe("HomeView.vue", () => {
   });
 
   it("switches UI language to Chinese and persists locale", async () => {
-    window.localStorage.setItem("openvoca.ui.locale", "en");
-
     vi.stubGlobal("fetch", mockFetch());
 
     const router = makeRouter();
@@ -194,12 +192,13 @@ describe("HomeView.vue", () => {
 
     expect(wrapper.text()).toContain("设置");
     expect(wrapper.text()).toContain("界面");
-    expect(window.localStorage.getItem("openvoca.ui.locale")).toBe("zh");
+    const cache = JSON.parse(
+      window.localStorage.getItem("openvoca.settings.cache") ?? "{}",
+    );
+    expect(cache?.interface?.locale).toBe("zh");
   });
 
   it("applies and persists dark reading theme from inline settings", async () => {
-    window.localStorage.setItem("openvoca.ui.locale", "en");
-
     vi.stubGlobal("fetch", mockFetch());
 
     const wrapper = mount(HomeView, {

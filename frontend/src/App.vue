@@ -26,5 +26,9 @@
       appEl.style.zoom = zoomVal;
       appEl.style.setProperty("--app-zoom", zoomVal);
     }
+    const colorTheme = get("interface", "colorTheme", "default");
+    if (colorTheme !== "default") {
+      document.documentElement.setAttribute("data-color-theme", colorTheme);
+    }
   });
 </script>

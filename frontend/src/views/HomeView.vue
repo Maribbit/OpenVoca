@@ -70,6 +70,32 @@
     >
       <template v-if="showComposer">
         <ComposerCard @generate="onComposerGenerate" />
+        <Transition name="fade">
+          <p
+            v-if="composerError"
+            class="flex items-center gap-2 text-sm text-red-500/80"
+          >
+            <svg
+              class="h-4 w-4 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
+              />
+            </svg>
+            <span>{{ composerError }}</span>
+            <router-link
+              to="/settings"
+              class="ml-1 underline underline-offset-2 hover:text-red-500 transition-colors"
+              >{{ i18nMessages.goToSettings }}</router-link
+            >
+          </p>
+        </Transition>
       </template>
 
       <template v-else>
@@ -233,6 +259,7 @@
   const sentence = ref("");
   const tokens = ref<ReadingSentenceToken[]>([]);
   const errorMessage = ref("");
+  const composerError = ref("");
   const feedbackError = ref("");
   const isLoading = ref(false);
   const isUiPanelOpen = ref(false);
@@ -259,9 +286,11 @@
   const { messages: i18nMessages } = useI18n();
 
   const dictionaryDisplayMode = computed<DictionaryDisplayMode>(() => {
-    const v = get("dictionary", "display", "both");
-    if (v === "zh" || v === "en") return v;
-    return "both";
+    const v = get("dictionary", "display", "");
+    if (v === "zh" || v === "en" || v === "both") return v;
+    return window.navigator.language.toLowerCase().startsWith("zh")
+      ? "both"
+      : "en";
   });
 
   const sentenceTypographyClass = computed(() => {
@@ -455,7 +484,8 @@
       markedWords.value = new Set();
       dismissDefinition();
     } catch {
-      errorMessage.value = i18nMessages.value.connectionError;
+      showComposer.value = true;
+      composerError.value = i18nMessages.value.connectionError;
       tokens.value = [];
     } finally {
       isLoading.value = false;
@@ -502,6 +532,7 @@
     prompt: string,
     targetWords: string[],
   ): Promise<void> {
+    composerError.value = "";
     showComposer.value = false;
     await loadSentence(prompt, targetWords);
   }

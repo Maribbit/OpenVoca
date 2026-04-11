@@ -25,6 +25,60 @@
   --color-surface: #2D2D36;
 }
 
+/* ---------- Sepia theme ---------- */
+:root[data-color-theme="sepia"] {
+  --color-paper: #F5EDD8;
+  --color-ink: #3D2B1F;
+  --color-inkLight: #8A7060;
+  --color-surface: #FBF5E6;
+  --color-highlight: #D4A432;
+  --color-selectionBg: #F0D480;
+}
+:root[data-color-theme="sepia"][data-reading-theme="dark"] {
+  --color-paper: #2A1F12;
+  --color-ink: #EAD8C0;
+  --color-inkLight: #9A8060;
+  --color-surface: #352818;
+  --color-highlight: #7A4E00;
+  --color-selectionBg: #4A3800;
+}
+
+/* ---------- Sage theme ---------- */
+:root[data-color-theme="sage"] {
+  --color-paper: #EEF3ED;
+  --color-ink: #253626;
+  --color-inkLight: #5A7A60;
+  --color-surface: #F5F9F4;
+  --color-highlight: #80C890;
+  --color-selectionBg: #B8DEC0;
+}
+:root[data-color-theme="sage"][data-reading-theme="dark"] {
+  --color-paper: #1A2A1A;
+  --color-ink: #D4E8D4;
+  --color-inkLight: #688068;
+  --color-surface: #22341E;
+  --color-highlight: #2A5A30;
+  --color-selectionBg: #1A3E20;
+}
+
+/* ---------- Slate theme ---------- */
+:root[data-color-theme="slate"] {
+  --color-paper: #F0F3F8;
+  --color-ink: #1E2A3A;
+  --color-inkLight: #6080A0;
+  --color-surface: #F8FAFC;
+  --color-highlight: #90C0F0;
+  --color-selectionBg: #D0E4F8;
+}
+:root[data-color-theme="slate"][data-reading-theme="dark"] {
+  --color-paper: #10181E;
+  --color-ink: #D0DCE8;
+  --color-inkLight: #6880A0;
+  --color-surface: #18242C;
+  --color-highlight: #1A3A5A;
+  --color-selectionBg: #0E2840;
+}
+
 /* Ensure default background and font take effect per UI spec */
 @layer base {
   html,

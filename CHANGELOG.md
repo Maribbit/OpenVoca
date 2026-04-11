@@ -2,6 +2,44 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.7.2
+
+Date: 2026-04-12
+
+### Highlights
+- **First-run experience** — Generation failures no longer strand the user on a blank reading view. The Composer stays visible and an inline error banner with a direct "Go to Settings →" link appears below the card.
+- **Target Words redesign** — Suggestion chips (from vocabulary) are now toggleable (click to deselect/reselect) and never permanently destroyed. User-typed custom words are visually distinct (lighter fill + ×). A ↺ refresh button lets users fetch a fresh pool without reloading the page.
+- **Word Picking settings split** — The single "Words Per Sentence" slider is now two linked sliders: **Suggestion Pool** (how many chips appear, 1–6) and **Auto-selected** (how many start pre-selected, 0–pool). Reducing the pool automatically clamps the auto-select value.
+- **Language detection fixed** — A stale legacy `localStorage` key (`openvoca.ui.locale`) was shadowing `navigator.language` after clearing settings. The legacy key has been removed entirely; locale now persists exclusively through the settings store.
+- **UI language order** — English moved to the left in the language picker (Settings → Interface). Dictionary display order changed to EN | Both | 中文.
+- **Smart dictionary default** — First-run default for definition language is now browser-detection-aware: **EN** for non-Chinese browsers, **Both** for Chinese browsers (applies to Settings picker and the reading view).
+
+### Frontend
+- `HomeView.vue`: on generation error, `showComposer` is reverted to `true`; new `composerError` ref drives an inline error banner below `ComposerCard` with a `router-link` to `/settings`.
+- `ComposerCard.vue`:
+  - Data model split into `suggestedWords`, `activeSuggestions` (Set), and `customWords`. `effectiveTargetWords` computed combines active suggestions + custom words.
+  - `loadTargetWords()` now reads `generation.suggestionPoolSize` (pool fetch count) and `generation.targetWordCount` (auto-select count separately) — first `autoSelect` fetched words are pre-activated.
+  - Template: suggestion chips use new `.suggestion-chip.active/.inactive` styles (toggleable, no × button); custom chips use `.custom-chip` (lighter fill, × to remove); refresh button replaces the hint text in the header.
+  - Scoped CSS updated: `.word-chip` removed, `.suggestion-chip` and `.custom-chip` added.
+- `SettingsView.vue`:
+  - Added `draftSuggestionPoolSize` ref (reads `generation.suggestionPoolSize`, default 3).
+  - Word Picking section replaced with two sliders; auto-select slider `max` is bound to pool size; pool-change watch clamps auto-select.
+  - Language picker: English button moved left.
+  - Dictionary display order changed to EN | Both | 中文; default now inferred from `navigator.language`.
+- `useI18n.ts`:
+  - Removed legacy `STORAGE_KEY` constant and all `localStorage.setItem/getItem` calls for locale — persistence is now via settings store only.
+  - `targetWordCount` label/hint updated to describe auto-select semantics.
+  - Added `suggestionPoolSize` / `suggestionPoolSizeHint` keys.
+  - Added `goToSettings` key ("Go to Settings →" / "前往设置 →").
+  - Renamed `composerTargetWordsHint` → `composerRefreshSuggestions`.
+- `HomeView.vue`: `dictionaryDisplayMode` default changed from hardcoded `"both"` to browser-language-aware detection.
+- Tests: locale-persistence test updated to assert via `openvoca.settings.cache` instead of deleted `openvoca.ui.locale` key.
+
+### Design
+- `ui_guide_composer_light.html` and `ui_guide_composer_dark.html`: Target Words section updated to show two-zone chip design (toggleable suggestions + custom chips with ×, ↺ refresh button).
+
+---
+
 ## v0.7.1
 
 Date: 2026-04-11

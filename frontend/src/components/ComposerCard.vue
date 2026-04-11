@@ -11,23 +11,55 @@
             class="text-xs font-semibold uppercase tracking-[0.15em] text-inkLight"
             >{{ t.composerTargetWords }}</span
           >
-          <span class="text-xs text-inkLight/50">{{
-            t.composerTargetWordsHint
-          }}</span>
+          <button
+            type="button"
+            class="text-inkLight/40 hover:text-inkLight transition-colors cursor-pointer"
+            :title="t.composerRefreshSuggestions"
+            @click="loadTargetWords"
+          >
+            <svg
+              class="w-3.5 h-3.5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
+              />
+            </svg>
+          </button>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-          <span
-            v-for="(word, idx) in targetWords"
-            :key="idx"
-            class="word-chip"
-            @click="removeWord(idx)"
+          <button
+            v-for="word in suggestedWords"
+            :key="'s-' + word"
+            type="button"
+            :class="[
+              'suggestion-chip',
+              activeSuggestions.has(word) ? 'active' : 'inactive',
+            ]"
+            @click="toggleSuggestion(word)"
           >
-            {{ word }}<span class="remove-btn">×</span>
+            {{ word }}
+          </button>
+          <span
+            v-for="(word, idx) in customWords"
+            :key="'c-' + idx"
+            class="custom-chip"
+          >
+            {{ word
+            }}<span class="remove-btn" @click.stop="removeCustomWord(idx)"
+              >×</span
+            >
           </span>
           <button
             v-if="!addingWord"
-            @click="startAddWord"
+            type="button"
             class="inline-flex items-center justify-center w-7 h-7 rounded-full border border-dashed border-ink/15 text-inkLight hover:border-ink/30 hover:text-ink transition-all cursor-pointer"
+            @click="startAddWord"
           >
             <svg
               class="w-3 h-3"
@@ -253,22 +285,43 @@
   const { get, set } = useSettings();
 
   // --- Target Words ---
-  const targetWords = ref<string[]>([]);
+  const suggestedWords = ref<string[]>([]);
+  const activeSuggestions = ref<Set<string>>(new Set());
+  const customWords = ref<string[]>([]);
   const addingWord = ref(false);
   const newWordText = ref("");
   const addWordInputRef = ref<HTMLInputElement | null>(null);
 
+  const effectiveTargetWords = computed<string[]>(() => [
+    ...suggestedWords.value.filter((w) => activeSuggestions.value.has(w)),
+    ...customWords.value,
+  ]);
+
   async function loadTargetWords(): Promise<void> {
-    const limit = Number(get("generation", "targetWordCount", "1"));
+    const poolSize = Number(get("generation", "suggestionPoolSize", "3"));
+    const autoSelect = Number(get("generation", "targetWordCount", "1"));
     try {
-      targetWords.value = await fetchTargetWords(limit);
+      const words = await fetchTargetWords(poolSize);
+      suggestedWords.value = words;
+      activeSuggestions.value = new Set(words.slice(0, autoSelect));
     } catch {
-      targetWords.value = [];
+      suggestedWords.value = [];
+      activeSuggestions.value = new Set();
     }
   }
 
-  function removeWord(idx: number): void {
-    targetWords.value.splice(idx, 1);
+  function toggleSuggestion(word: string): void {
+    const next = new Set(activeSuggestions.value);
+    if (next.has(word)) {
+      next.delete(word);
+    } else {
+      next.add(word);
+    }
+    activeSuggestions.value = next;
+  }
+
+  function removeCustomWord(idx: number): void {
+    customWords.value.splice(idx, 1);
   }
 
   function startAddWord(): void {
@@ -278,8 +331,9 @@
 
   function confirmAddWord(): void {
     const word = newWordText.value.trim().toLowerCase();
-    if (word && !targetWords.value.includes(word)) {
-      targetWords.value.push(word);
+    const allWords = [...suggestedWords.value, ...customWords.value];
+    if (word && !allWords.includes(word)) {
+      customWords.value.push(word);
     }
     newWordText.value = "";
     addingWord.value = false;
@@ -521,8 +575,8 @@
   }
 
   const fullPreviewText = computed(() => {
-    const words = targetWords.value.length
-      ? targetWords.value
+    const words = effectiveTargetWords.value.length
+      ? effectiveTargetWords.value
       : ["(no words selected)"];
     return buildPrompt(words);
   });
@@ -538,12 +592,43 @@
       customLength: customLength.value,
     });
 
-    emit("generate", buildPrompt(targetWords.value), targetWords.value);
+    emit(
+      "generate",
+      buildPrompt(effectiveTargetWords.value),
+      effectiveTargetWords.value,
+    );
   }
 </script>
 
 <style scoped>
-  .word-chip {
+  .suggestion-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 14px;
+    border-radius: 9999px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .suggestion-chip.active {
+    background: var(--color-ink);
+    color: var(--color-paper);
+  }
+  .suggestion-chip.active:hover {
+    opacity: 0.8;
+  }
+  .suggestion-chip.inactive {
+    background: transparent;
+    border: 1px dashed color-mix(in srgb, var(--color-ink) 20%, transparent);
+    color: color-mix(in srgb, var(--color-inkLight) 45%, transparent);
+  }
+  .suggestion-chip.inactive:hover {
+    border-color: color-mix(in srgb, var(--color-ink) 40%, transparent);
+    color: var(--color-inkLight);
+  }
+  .custom-chip {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -551,25 +636,26 @@
     border-radius: 9999px;
     font-size: 13px;
     font-weight: 500;
-    background: var(--color-ink);
-    color: var(--color-paper);
+    background: color-mix(in srgb, var(--color-ink) 8%, transparent);
+    color: var(--color-ink);
+    border: 1px solid color-mix(in srgb, var(--color-ink) 10%, transparent);
     transition: all 0.15s;
-    cursor: pointer;
   }
-  .word-chip .remove-btn {
+  .custom-chip .remove-btn {
     width: 18px;
     height: 18px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: color-mix(in srgb, var(--color-paper) 15%, transparent);
+    background: color-mix(in srgb, var(--color-ink) 10%, transparent);
     font-size: 11px;
     line-height: 1;
     transition: background 0.15s;
+    cursor: pointer;
   }
-  .word-chip:hover .remove-btn {
-    background: color-mix(in srgb, var(--color-paper) 30%, transparent);
+  .custom-chip .remove-btn:hover {
+    background: color-mix(in srgb, var(--color-ink) 20%, transparent);
   }
 
   .scenario-card {
