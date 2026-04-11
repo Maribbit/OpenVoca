@@ -2,9 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.7.1
+
+Date: 2026-04-11
+
+### Highlights
+- **Static file serving fix** — `GET /` now serves the Vue SPA (`index.html`) in production. The health check was renamed to `GET /api/health` so routing no longer conflicts.
+- **Composer UI polish** — Section dividers removed (spacing-only rhythm), scenario card background unified, and the scenario supplement textarea replaced with a `+ Add details` expand button, preserving access while keeping the default view clean.
+- **Fake News prompt revised** — Removed disaster-biased language (`crisis`, `breaking news`); now explicitly lists diverse beats (science, culture, sports, weather, economics) for varied output.
+
+### Backend
+- `main.py`: health endpoint moved from `GET /` to `GET /api/health`. Added `GET /` (`serve_root`) to the SPA section so the root URL serves the frontend.
+- `test_main.py`: `test_read_root` renamed to `test_health_endpoint`, path updated to `/api/health`.
+
+### Frontend
+- `ComposerCard.vue`:
+  - Section `border-t` dividers removed; card spacing increased to `space-y-6`.
+  - Scenario cards background changed from `paper` to `surface` (matches option-cards in Difficulty/Length).
+  - Supplement textarea replaced with `+ 添加细节` expand button for preset scenarios; textarea auto-shows for "自定义" or when the user has existing content. Scenario switching resets the open state when content is empty.
+  - `absurd_headlines` prompt revised: removed `crisis` / `breaking news`; added explicit beat list (`local news, science, culture, sports, weather, economics`).
+  - Poetry scenario emoji changed `✏️` → `📜`; "无预设" renamed to "自定义" / "No Preset" → "Custom".
+- `useI18n.ts`: added `composerAddDetails` key (`"Add details"` / `"添加细节"`).
+
+### Design
+- `ui_guide_composer_dark.html` and `ui_guide_composer_light.html` updated to reflect all composer changes: scenario card backgrounds, expand-button pattern for supplement input, poetry emoji, "Custom" naming, divider removal, `space-y-6` spacing.
+
+### Breaking Changes
+- `GET /` no longer returns the JSON health response — use `GET /api/health` instead. (Only affects direct API consumers; the frontend was not using this endpoint.)
+
+---
+
 ## v0.7.0
 
-Date: 2025-07-30
+Date: 2025-04-10
 
 ### Highlights
 - **Phase A — Portable distribution foundation** — The backend now serves the compiled frontend as static files, eliminating the need to run a separate Vite dev server for production use. Mount and SPA fallback are conditional (only active when `frontend/dist` exists), so the existing dev workflow is unaffected.

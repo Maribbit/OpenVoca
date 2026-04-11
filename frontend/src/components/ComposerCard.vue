@@ -2,7 +2,7 @@
   <div class="w-full max-w-xl mx-auto fade-enter">
     <!-- Composer Card -->
     <div
-      class="w-full bg-surface/80 backdrop-blur-md rounded-2xl border border-ink/5 shadow-sm p-5 space-y-5"
+      class="w-full bg-surface/80 backdrop-blur-md rounded-2xl border border-ink/5 shadow-sm p-5 space-y-6"
     >
       <!-- Target Words -->
       <div>
@@ -57,8 +57,6 @@
         </div>
       </div>
 
-      <div class="border-t border-ink/5"></div>
-
       <!-- Scenario -->
       <div>
         <span
@@ -76,9 +74,21 @@
             <span class="scenario-label">{{ scenarioLabel(s.key) }}</span>
           </button>
         </div>
-        <!-- Custom input -->
-        <div class="relative mt-3">
+        <!-- Supplement: expand button for presets, always-open for Custom -->
+        <div class="mt-3">
+          <button
+            v-if="
+              selectedScenario !== 'none' &&
+              !supplementOpen &&
+              !customScenario.trim()
+            "
+            @click="supplementOpen = true"
+            class="text-xs text-inkLight/50 hover:text-inkLight transition-colors cursor-pointer"
+          >
+            + {{ t.composerAddDetails }}
+          </button>
           <textarea
+            v-else
             rows="2"
             :placeholder="customPlaceholder"
             v-model="customScenario"
@@ -86,8 +96,6 @@
           ></textarea>
         </div>
       </div>
-
-      <div class="border-t border-ink/5"></div>
 
       <!-- Difficulty (collapsible) -->
       <div>
@@ -138,8 +146,6 @@
         </div>
       </div>
 
-      <div class="border-t border-ink/5"></div>
-
       <!-- Length (collapsible) -->
       <div>
         <button
@@ -188,8 +194,6 @@
         </div>
       </div>
 
-      <div class="border-t border-ink/5"></div>
-
       <!-- Prompt Preview -->
       <div>
         <button
@@ -234,7 +238,7 @@
 </template>
 
 <script setup lang="ts">
-  import { nextTick, onMounted, ref, computed } from "vue";
+  import { nextTick, onMounted, ref, computed, watch } from "vue";
 
   import { fetchTargetWords } from "../api/reading";
   import { DEFAULT_READING_PREFERENCES } from "../composables/readingPreferences";
@@ -292,11 +296,12 @@
 
   const SCENARIO_PROMPTS: Record<string, string> = {
     absurd_headlines:
-      "You are a deadpan news anchor delivering breaking news with absolute " +
-      "seriousness. Report an utterly absurd, impossible event — but treat " +
-      "it with the gravitas of a real crisis. Let the details emerge naturally; " +
-      "the humor comes from the contrast between the ridiculous content and " +
-      "the calm, professional tone.",
+      "You are a deadpan news broadcaster reporting a story with complete " +
+      "professional composure. The story itself is utterly absurd or impossible " +
+      "— but you deliver it with the same measured, straight-faced gravity you " +
+      "would give any ordinary report. The story can belong to any beat: local " +
+      "news, science, culture, sports, weather, economics, or anything else. " +
+      "Let the absurdity speak for itself; never wink at the audience.",
     poetry:
       "Write as a poet — use vivid imagery, metaphor, and rhythm. " +
       "Let the language be evocative and musical.",
@@ -331,7 +336,7 @@
     { key: "slice_of_life", emoji: "💬" },
     { key: "fun_facts", emoji: "🧠" },
     { key: "absurd_headlines", emoji: "📰" },
-    { key: "poetry", emoji: "✏️" },
+    { key: "poetry", emoji: "📜" },
     { key: "none", emoji: "✍️" },
   ] as const;
 
@@ -344,6 +349,13 @@
 
   const savedCustom = get("composer", "customScenario", "");
   const customScenario = ref(savedCustom);
+  const supplementOpen = ref(false);
+
+  watch(selectedScenario, (newKey) => {
+    if (newKey !== "none" && !customScenario.value.trim()) {
+      supplementOpen.value = false;
+    }
+  });
 
   function selectScenario(key: string) {
     if (selectedScenario.value === key && key !== "none") {
@@ -569,7 +581,7 @@
     border-radius: 12px;
     cursor: pointer;
     border: 1px solid color-mix(in srgb, var(--color-ink) 8%, transparent);
-    background: var(--color-paper);
+    background: var(--color-surface);
     transition: all 0.15s;
     text-align: center;
     color: var(--color-inkLight);

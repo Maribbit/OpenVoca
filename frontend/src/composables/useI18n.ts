@@ -69,6 +69,7 @@ interface LocaleMessages {
   composerScenario_none: string;
   composerCustomPlaceholder: string;
   composerCustomPlaceholderSupplement: string;
+  composerAddDetails: string;
   composerCustom: string;
   composerNoLimit: string;
   composerCustomDifficultyPlaceholder: string;
@@ -185,9 +186,10 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     composerScenario_poetry: "Poetry",
     composerScenario_fun_facts: "Fun Facts",
     composerScenario_slice_of_life: "Slice of Life",
-    composerScenario_none: "No Preset",
+    composerScenario_none: "Custom",
     composerCustomPlaceholder: "Describe what you want…",
     composerCustomPlaceholderSupplement: "Add details or context…",
+    composerAddDetails: "Add details",
     composerCustom: "Custom",
     composerNoLimit: "No limit",
     composerCustomDifficultyPlaceholder: "Describe the difficulty level…",
@@ -295,9 +297,10 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     composerScenario_poetry: "诗歌",
     composerScenario_fun_facts: "冷知识",
     composerScenario_slice_of_life: "日常",
-    composerScenario_none: "无预设",
+    composerScenario_none: "自定义",
     composerCustomPlaceholder: "描述你想要的内容…",
     composerCustomPlaceholderSupplement: "添加细节或上下文…",
+    composerAddDetails: "添加细节",
     composerCustom: "自定义",
     composerNoLimit: "不限",
     composerCustomDifficultyPlaceholder: "描述难度要求…",

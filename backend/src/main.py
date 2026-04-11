@@ -124,7 +124,7 @@ def _utc_iso(dt: datetime) -> str:
     return dt.isoformat()
 
 
-@app.get("/")
+@app.get("/api/health")
 def read_root() -> dict[str, str]:
     return {"status": "ok", "message": "OpenVoca backend is running!"}
 
@@ -400,6 +400,10 @@ if _frontend_dist.exists():
         StaticFiles(directory=_frontend_dist / "assets"),
         name="static-assets",
     )
+
+    @app.get("/", include_in_schema=False)
+    async def serve_root() -> FileResponse:
+        return FileResponse(_frontend_dist / "index.html")
 
     @app.get("/{path:path}", include_in_schema=False)
     async def spa_fallback(path: str) -> FileResponse:  # noqa: ARG001

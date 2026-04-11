@@ -16,11 +16,9 @@ from conftest import _in_memory_engine
 client = TestClient(app)
 
 
-def test_read_root():
-    """
-    Test the fundamental health check endpoint of the FastAPI application.
-    """
-    response = client.get("/")
+def test_health_endpoint():
+    """Health check endpoint returns status ok."""
+    response = client.get("/api/health")
     assert response.status_code == 200
     assert response.json() == {
         "status": "ok",
