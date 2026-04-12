@@ -5,9 +5,8 @@ This project uses a single repository-level version in `VERSION`.
 ## Version Source
 - `VERSION` is the single source of truth.
 - Keep package metadata in sync:
-  - `frontend/package.json` → `version`
-  - `backend/pyproject.toml` → `[project].version`
-  - `launcher/build.rs` reads `../VERSION` automatically at compile time.
+  - `frontend/package.json` -> `version`
+  - `backend/pyproject.toml` -> `[project].version`
 
 ## Release Steps
 
@@ -16,7 +15,6 @@ This project uses a single repository-level version in `VERSION`.
 ```bash
 cd frontend && pnpm run check
 cd ../backend && uv run ruff format --check . && uv run ruff check . && uv run pytest
-cd ../launcher && cargo fmt --check && cargo clippy -- -D warnings && cargo test
 ```
 
 Or use the VS Code task: **✅ Check OpenVoca (All)**
@@ -35,7 +33,7 @@ git push origin main --tags
 ```
 
 5. CI automatically:
-   - Runs all tests (frontend, backend, launcher × 3 platforms).
+   - Runs all tests (frontend, backend).
    - Builds portable bundles for Windows, macOS, and Linux.
    - Creates a GitHub Release with the CHANGELOG section and bundle archives attached.
 

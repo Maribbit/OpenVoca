@@ -45,38 +45,12 @@ jobs:
       - run: uv sync --frozen
       - run: uv run pytest
 
-  launcher:
-    name: Launcher (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    defaults:
-      run:
-        working-directory: launcher
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            launcher/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('launcher/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
-      - run: cargo fmt --check
-      - run: cargo clippy -- -D warnings
-      - run: cargo test
-
   # ── Bundle + Release (only on v* tags) ────────────────────────────
 
   bundle:
     name: Bundle (${{ matrix.platform }})
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [frontend, backend, launcher]
+    needs: [frontend, backend]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -104,15 +78,6 @@ jobs:
       - name: Set UV Python preference
         run: echo "UV_PYTHON=3.12" >> $GITHUB_ENV
         shell: bash
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            launcher/target
-          key: ${{ runner.os }}-cargo-release-${{ hashFiles('launcher/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-release-
       - name: Build bundle
         run: uv run --no-project python scripts/bundle.py
       - uses: actions/upload-artifact@v4

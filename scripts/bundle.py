@@ -1,27 +1,25 @@
 """
-OpenVoca Portable Bundle Script (Phase C)
-==========================================
-Assembles a self-contained Windows ZIP that can be extracted and run without
-any prior Python or Node.js installation.
+OpenVoca Portable Bundle Script
+================================
+Assembles a self-contained portable archive that can be extracted and run
+without any prior Python or Node.js installation.
 
 Usage:
     cd <repo-root>
     uv run python scripts/bundle.py
 
 Output:
-    dist/openvoca-{version}-win-x64.zip
-    └── openvoca/
-        ├── openvoca.exe        ← Native Rust launcher (double-click entry point)
-        ├── openvoca.bat        ← Fallback launcher (runs start.py via bundled Python)
-        ├── start.py            ← Python launcher (fallback for environments without Rust)
-        ├── openvoca.json       ← Runtime config (port, host, open_browser, log_level)
-        ├── backend/
-        │   ├── src/            ← Python source + __pycache__ (pre-compiled)
-        │   ├── data/           ← dictionary.db
-        │   └── .venv/          ← Embedded Python + production deps only
-        ├── frontend/
-        │   └── dist/           ← Pre-built Vite SPA
-        └── data/               ← User DB directory (empty; populated at runtime)
+    dist/openvoca-{version}-win-x64.zip  (or .tar.gz on macOS/Linux)
+
+    Windows bundle:
+        openvoca.bat    -- Double-click entry point
+        start.py        -- Cross-platform Python launcher
+        openvoca.json   -- Runtime config
+
+    macOS / Linux bundle:
+        run.sh          -- Entry point; clears quarantine on macOS
+        start.py        -- Cross-platform Python launcher
+        openvoca.json   -- Runtime config
 
 Venv isolation strategy
 -----------------------
@@ -30,7 +28,7 @@ we create a *fresh* venv via ``uv sync --frozen --no-dev --no-install-project``
 in a temporary workspace that contains only pyproject.toml + uv.lock.  This
 delegates the dep-resolution entirely to uv's own lock-file machinery, so the
 bundle will always be consistent with the lock file regardless of future dep
-changes — zero maintenance overhead.
+changes -- zero maintenance overhead.
 """
 
 import compileall
@@ -64,16 +62,11 @@ IS_WINDOWS = _SYSTEM == "Windows"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 BACKEND = REPO_ROOT / "backend"
 FRONTEND = REPO_ROOT / "frontend"
-LAUNCHER = REPO_ROOT / "launcher"
 VERSION = (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip()
 BUILD_DIR = REPO_ROOT / "build" / "openvoca"
 VENV_WORK_DIR = REPO_ROOT / "build" / "_prod_venv"  # temp workspace for prod venv
 DIST_DIR = REPO_ROOT / "dist"
 ARCHIVE_STEM = f"openvoca-{VERSION}-{PLATFORM_TAG}"
-
-# Launcher binary name varies per platform
-LAUNCHER_BIN_NAME = "openvoca-launcher.exe" if IS_WINDOWS else "openvoca-launcher"
-BUNDLE_EXE_NAME = "openvoca.exe" if IS_WINDOWS else "openvoca"
 
 # Python binary within a venv
 _VENV_PYTHON = (
@@ -101,15 +94,7 @@ def _run(cmd: list[str], cwd: Path | None = None) -> None:
 
 
 def _build_prod_venv(work_dir: Path) -> Path:
-    """
-    Create a production-only venv via ``uv sync --frozen --no-dev
-    --no-install-project`` in a temporary workspace (pyproject.toml + uv.lock).
-    Returns the path of the resulting .venv.
-
-    Using uv's lock-file resolution instead of manual package-name matching
-    means dev packages are excluded reliably, and future dep changes need no
-    script maintenance.
-    """
+    """Create a production-only venv in a temporary workspace."""
     if work_dir.exists():
         shutil.rmtree(work_dir)
     work_dir.mkdir(parents=True)
@@ -123,11 +108,7 @@ def _build_prod_venv(work_dir: Path) -> Path:
 
 
 def _verify_bundle(bundle_dir: Path) -> None:
-    """
-    Sanity-check: verify all required runtime packages are importable in the
-    bundled venv.  Fails hard if any import is broken so problems are caught
-    before the ZIP is created.
-    """
+    """Verify all required runtime packages are importable in the bundled venv."""
     python = bundle_dir / "backend" / _VENV_PYTHON
     if not python.exists():
         print(f"  ERROR: bundled Python not found at {python}", file=sys.stderr)
@@ -168,15 +149,19 @@ def _copy_tree(
 
 
 # ---------------------------------------------------------------------------
-# Launcher scripts written into the bundle
+# Scripts written into the bundle
 # ---------------------------------------------------------------------------
 
-_START_PY = '''\
+_START_PY = r'''
 """
 OpenVoca launcher (start.py)
 ============================
 Spawns the uvicorn backend, waits for it to become ready, then opens the
-browser.  Run via openvoca.bat (or directly with the bundled Python).
+browser.  Works on Windows, macOS, and Linux.
+
+Windows:  double-click openvoca.bat
+macOS:    bash run.sh
+Linux:    bash run.sh   (or: ./run.sh)
 """
 import json
 import os
@@ -189,9 +174,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 BACKEND = ROOT / "backend"
-PYTHON = BACKEND / ".venv" / "Scripts" / "python.exe"
 DATA_DIR = ROOT / "data"
 MAX_WAIT_SECONDS = 45
+
+if sys.platform == "win32":
+    PYTHON = BACKEND / ".venv" / "Scripts" / "python.exe"
+else:
+    PYTHON = BACKEND / ".venv" / "bin" / "python3"
 
 
 def _read_config() -> dict:
@@ -211,7 +200,7 @@ def main() -> None:
     DATA_DIR.mkdir(exist_ok=True)
     env = {**os.environ, "OPENVOCA_DATA_DIR": str(DATA_DIR)}
 
-    print(f"Starting OpenVoca {cfg.get(\'version\', \'\')} on http://{host}:{port} ...")
+    print(f"Starting OpenVoca {cfg.get('version', '')} on http://{host}:{port} ...")
     proc = subprocess.Popen(
         [
             str(PYTHON), "-m", "uvicorn", "src.main:app",
@@ -263,7 +252,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-'''
+'''.lstrip("\n")
 
 _OPENVOCA_BAT = (
     "@echo off\r\n"
@@ -272,6 +261,25 @@ _OPENVOCA_BAT = (
     '"%~dp0backend\\.venv\\Scripts\\python.exe" "%~dp0start.py"\r\n'
     "if %errorlevel% neq 0 pause\r\n"
 )
+
+_RUN_SH = """\
+#!/usr/bin/env bash
+# OpenVoca launcher for macOS / Linux
+# Usage:  bash run.sh
+#
+# On macOS, downloaded files are quarantined by Gatekeeper.
+# This script removes the quarantine flag automatically, then launches OpenVoca.
+
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Remove macOS quarantine attribute (no-op on Linux)
+if command -v xattr >/dev/null 2>&1; then
+    xattr -dr com.apple.quarantine "$DIR" 2>/dev/null || true
+fi
+
+exec "$DIR/backend/.venv/bin/python3" "$DIR/start.py"
+"""
 
 
 # ---------------------------------------------------------------------------
@@ -293,7 +301,7 @@ def main() -> None:
     # ------------------------------------------------------------------ #
     # 1. Build frontend
     # ------------------------------------------------------------------ #
-    print("\n[1/9] Building frontend ...")
+    print("\n[1/7] Building frontend ...")
     if not (FRONTEND / "node_modules").exists():
         _run(["pnpm", "install", "--frozen-lockfile"], cwd=FRONTEND)
     _run(["pnpm", "run", "build"], cwd=FRONTEND)
@@ -301,38 +309,26 @@ def main() -> None:
     # ------------------------------------------------------------------ #
     # 2. Build production-only venv (no dev deps, via uv lock-file)
     # ------------------------------------------------------------------ #
-    print("\n[2/9] Building production venv (no dev deps) ...")
+    print("\n[2/7] Building production venv (no dev deps) ...")
     print("  Using uv lock-file resolution -- no manual package filtering needed.")
     prod_venv = _build_prod_venv(VENV_WORK_DIR)
 
     # ------------------------------------------------------------------ #
-    # 3. Build Rust launcher
+    # 3. Sync host dev venv (needed so tests pass on the host machine)
     # ------------------------------------------------------------------ #
-    print("\n[3/9] Building Rust launcher ...")
-    _run(["cargo", "build", "--release"], cwd=LAUNCHER)
-    launcher_exe = LAUNCHER / "target" / "release" / LAUNCHER_BIN_NAME
-    if not launcher_exe.exists():
-        print(f"  ERROR: launcher binary not found at {launcher_exe}", file=sys.stderr)
-        sys.exit(1)
-    launcher_mb = launcher_exe.stat().st_size / 1_048_576
-    print(f"  Launcher binary: {launcher_mb:.1f} MB")
-
-    # ------------------------------------------------------------------ #
-    # 4. Sync host dev venv (needed so tests pass on the host machine)
-    # ------------------------------------------------------------------ #
-    print("\n[4/9] Syncing host dev venv ...")
+    print("\n[3/7] Syncing host dev venv ...")
     _run(["uv", "sync", "--frozen"], cwd=BACKEND)
 
     # ------------------------------------------------------------------ #
-    # 5. Pre-compile Python source to bytecode
+    # 4. Pre-compile Python source to bytecode
     # ------------------------------------------------------------------ #
-    print("\n[5/9] Compiling Python source ...")
+    print("\n[4/7] Compiling Python source ...")
     compileall.compile_dir(str(BACKEND / "src"), force=True, quiet=1)
 
     # ------------------------------------------------------------------ #
-    # 6. Assemble directory tree
+    # 5. Assemble directory tree
     # ------------------------------------------------------------------ #
-    print("\n[6/9] Assembling directory structure ...")
+    print("\n[5/7] Assembling directory structure ...")
 
     # backend/src  (with __pycache__ pre-populated by step 4)
     print("  Copying backend source ...")
@@ -366,9 +362,9 @@ def main() -> None:
     (BUILD_DIR / "data").mkdir()
 
     # ------------------------------------------------------------------ #
-    # 7. Write openvoca.json
+    # 6. Write config + launcher scripts
     # ------------------------------------------------------------------ #
-    print("\n[7/9] Writing openvoca.json ...")
+    print("\n[6/7] Writing openvoca.json + launcher scripts ...")
     config: dict = {
         "version": VERSION,
         "port": 18099,
@@ -380,32 +376,29 @@ def main() -> None:
         json.dumps(config, indent=2, ensure_ascii=False), encoding="utf-8"
     )
 
-    # ------------------------------------------------------------------ #
-    # 8. Write launcher scripts + copy native launcher
-    # ------------------------------------------------------------------ #
-    print("\n[8/9] Writing launcher scripts ...")
-    shutil.copy2(launcher_exe, BUILD_DIR / BUNDLE_EXE_NAME)
-    if not IS_WINDOWS:
-        (BUILD_DIR / BUNDLE_EXE_NAME).chmod(0o755)
-    print(f"  Copied {BUNDLE_EXE_NAME} ({launcher_mb:.1f} MB)")
-    if IS_WINDOWS:
-        (BUILD_DIR / "start.py").write_text(_START_PY, encoding="utf-8")
-        (BUILD_DIR / "openvoca.bat").write_text(_OPENVOCA_BAT, encoding="utf-8")
-        print("  Wrote fallback: start.py + openvoca.bat")
+    (BUILD_DIR / "start.py").write_text(_START_PY, encoding="utf-8")
+    print("  Wrote start.py (cross-platform Python launcher)")
 
-    # ------------------------------------------------------------------ #
-    # 8b. Verify bundled imports (fail-fast before ZIP)
-    # ------------------------------------------------------------------ #
-    print("\n  [verify] ")
+    if IS_WINDOWS:
+        (BUILD_DIR / "openvoca.bat").write_text(_OPENVOCA_BAT, encoding="utf-8")
+        print("  Wrote openvoca.bat")
+    else:
+        run_sh_path = BUILD_DIR / "run.sh"
+        run_sh_path.write_text(_RUN_SH, encoding="utf-8")
+        run_sh_path.chmod(0o755)
+        print("  Wrote run.sh")
+
+    # Verify bundled imports (fail-fast before archive)
+    print()
     _verify_bundle(BUILD_DIR)
 
     # ------------------------------------------------------------------ #
-    # 9. Create archive (.zip on Windows, .tar.gz on Unix)
+    # 7. Create archive (.zip on Windows, .tar.gz on Unix)
     # ------------------------------------------------------------------ #
     if IS_WINDOWS:
         archive_name = f"{ARCHIVE_STEM}.zip"
         archive_path = DIST_DIR / archive_name
-        print(f"\n[9/9] Creating {archive_name} ...")
+        print(f"\n[7/7] Creating {archive_name} ...")
         if archive_path.exists():
             archive_path.unlink()
         file_count = 0
@@ -420,7 +413,7 @@ def main() -> None:
     else:
         archive_name = f"{ARCHIVE_STEM}.tar.gz"
         archive_path = DIST_DIR / archive_name
-        print(f"\n[9/9] Creating {archive_name} ...")
+        print(f"\n[7/7] Creating {archive_name} ...")
         if archive_path.exists():
             archive_path.unlink()
         file_count = 0
@@ -433,7 +426,7 @@ def main() -> None:
 
     mb = archive_path.stat().st_size / 1_048_576
     print(f"\nDone: {archive_path}  ({mb:.1f} MB, {file_count:,} files)")
-    entry_point = "openvoca.exe" if IS_WINDOWS else "./openvoca"
+    entry_point = "openvoca.bat" if IS_WINDOWS else "bash run.sh"
     print(
         f"\nTo test: extract the archive, run {entry_point}, "
         "and wait for the browser to open.\n"
