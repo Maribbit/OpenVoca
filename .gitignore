@@ -22,6 +22,9 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 
+# Launcher
+launcher/target/
+
 # OS files
 .DS_Store
 Thumbs.db

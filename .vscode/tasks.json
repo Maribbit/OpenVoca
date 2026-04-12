@@ -26,8 +26,20 @@
       }
     },
     {
+      "label": "Check Launcher",
+      "type": "shell",
+      "command": "cargo fmt --check && cargo clippy -- -D warnings && cargo test",
+      "options": {
+        "cwd": "${workspaceFolder}/launcher"
+      },
+      "presentation": {
+        "panel": "shared",
+        "group": "checks"
+      }
+    },
+    {
       "label": "✅ Check OpenVoca (All)",
-      "dependsOn": ["Check Backend", "Check Frontend"],
+      "dependsOn": ["Check Backend", "Check Frontend", "Check Launcher"],
       "group": {
         "kind": "test",
         "isDefault": true

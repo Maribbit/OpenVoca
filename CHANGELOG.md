@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.9.0
+
+Date: 2026-04-12
+
+### New Features
+- **Native Rust launcher** — `openvoca.exe` (1.9 MB) replaces the interim `openvoca.bat` + `start.py` as the primary entry point. Reads `openvoca.json`, finds an available port, spawns the Python backend, polls the health endpoint, and opens the browser. Graceful shutdown on Ctrl+C.
+- **Cross-platform bundle script** — `scripts/bundle.py` now auto-detects the host platform (Windows/macOS/Linux), produces `.zip` on Windows and `.tar.gz` on Unix, and uses platform-appropriate binary and Python paths.
+- **CI release pipeline** — Pushing a `v*` tag triggers a 3-platform build matrix (Windows x64, macOS arm64, Linux x64) and creates a GitHub Release with all bundle artifacts attached.
+
+### Improvements
+- **Launcher CI checks** — `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test` run on all three platforms on every push and PR.
+- **CI restructured** — Tests (frontend, backend, launcher) run on every push/PR. Bundle + Release jobs run only on `v*` tags to conserve CI minutes.
+
+### Launcher Modules
+- `config` — Parse `openvoca.json` with serde; all fields have sensible defaults.
+- `port` — Scan downward from configured port to find a free one.
+- `server` — Spawn and manage the uvicorn child process with graceful shutdown.
+- `health` — Poll health endpoint until ready or timeout (15s).
+
+### Changed Files
+- `launcher/` — New Rust project: `Cargo.toml`, `build.rs` (embeds VERSION), `src/{main,config,port,server,health}.rs` with 10 unit tests.
+- `scripts/bundle.py` — Phase C integration: builds Rust launcher in step 3, copies binary into bundle, cross-platform archive creation.
+- `.github/workflows/ci.yml` — Added launcher check job (3 platforms), bundle job (3 platforms, tags only), release job (creates GitHub Release).
+- `.vscode/tasks.json` — Added "Check Launcher" task; "Check All" depends on all three.
+- `.gitignore` — Added `launcher/target/`.
+
+---
+
 ## v0.8.0
 
 Date: 2026-04-12

@@ -2,6 +2,147 @@ name: CI
 
 on:
   push:
+    branches: [main, master]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  # ── Tests (run on every push and PR) ──────────────────────────────
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test -- --run
+      - run: pnpm build
+
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv run pytest
+
+  launcher:
+    name: Launcher (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        working-directory: launcher
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            launcher/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('launcher/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+      - run: cargo fmt --check
+      - run: cargo clippy -- -D warnings
+      - run: cargo test
+
+  # ── Bundle + Release (only on v* tags) ────────────────────────────
+
+  bundle:
+    name: Bundle (${{ matrix.platform }})
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [frontend, backend, launcher]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win-x64
+          - os: macos-latest
+            platform: macos-arm64
+          - os: ubuntu-latest
+            platform: linux-x64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            launcher/target
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('launcher/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-release-
+      - name: Build bundle
+        run: uv run --no-project python scripts/bundle.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openvoca-${{ matrix.platform }}
+          path: dist/openvoca-*
+
+  release:
+    name: GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [bundle]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Collect release assets
+        run: |
+          mkdir -p release-assets
+          find artifacts -type f \( -name '*.zip' -o -name '*.tar.gz' \) -exec cp {} release-assets/ \;
+          ls -lh release-assets/
+      - name: Extract changelog
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk "/^## v${VERSION}$/,/^## v/" CHANGELOG.md | head -n -1 > release-notes.md
+          cat release-notes.md
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: release-notes.md
+          files: release-assets/*
+          draft: false
+          prerelease: false
+name: CI
+
+on:
+  push:
     branches:
       - main
       - master
@@ -57,3 +198,94 @@ jobs:
 
       - name: Run tests
         run: uv run pytest
+
+  launcher:
+    name: Launcher Check
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        working-directory: launcher
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            launcher/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('launcher/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Format check
+        run: cargo fmt --check
+
+      - name: Clippy
+        run: cargo clippy -- -D warnings
+
+      - name: Test
+        run: cargo test
+
+  bundle:
+    name: Bundle (${{ matrix.platform }})
+    needs: [frontend, backend, launcher]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win-x64
+          - os: macos-latest
+            platform: macos-arm64
+          - os: ubuntu-latest
+            platform: linux-x64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            launcher/target
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('launcher/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-release-
+
+      - name: Build bundle
+        run: uv run python scripts/bundle.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openvoca-${{ matrix.platform }}
+          path: dist/openvoca-*

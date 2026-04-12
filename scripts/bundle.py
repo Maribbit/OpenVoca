@@ -1,6 +1,6 @@
 """
-OpenVoca Portable Bundle Script (Phase B)
-=========================================
+OpenVoca Portable Bundle Script (Phase C)
+==========================================
 Assembles a self-contained Windows ZIP that can be extracted and run without
 any prior Python or Node.js installation.
 
@@ -11,8 +11,9 @@ Usage:
 Output:
     dist/openvoca-{version}-win-x64.zip
     └── openvoca/
-        ├── openvoca.bat        ← Double-click entry point (interim; Phase C adds openvoca.exe)
-        ├── start.py            ← Python launcher (health-poll, browser-open)
+        ├── openvoca.exe        ← Native Rust launcher (double-click entry point)
+        ├── openvoca.bat        ← Fallback launcher (runs start.py via bundled Python)
+        ├── start.py            ← Python launcher (fallback for environments without Rust)
         ├── openvoca.json       ← Runtime config (port, host, open_browser, log_level)
         ├── backend/
         │   ├── src/            ← Python source + __pycache__ (pre-compiled)
@@ -34,11 +35,28 @@ changes — zero maintenance overhead.
 
 import compileall
 import json
+import platform
 import shutil
 import subprocess
 import sys
+import tarfile
 import zipfile
 from pathlib import Path
+
+# ---------------------------------------------------------------------------
+# Platform detection
+# ---------------------------------------------------------------------------
+_PLATFORM_MAP = {
+    ("Windows", "AMD64"): "win-x64",
+    ("Windows", "x86_64"): "win-x64",
+    ("Darwin", "arm64"): "macos-arm64",
+    ("Darwin", "x86_64"): "macos-x64",
+    ("Linux", "x86_64"): "linux-x64",
+}
+_SYSTEM = platform.system()
+_MACHINE = platform.machine()
+PLATFORM_TAG = _PLATFORM_MAP.get((_SYSTEM, _MACHINE), f"{_SYSTEM.lower()}-{_MACHINE}")
+IS_WINDOWS = _SYSTEM == "Windows"
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -46,11 +64,23 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 BACKEND = REPO_ROOT / "backend"
 FRONTEND = REPO_ROOT / "frontend"
+LAUNCHER = REPO_ROOT / "launcher"
 VERSION = (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip()
 BUILD_DIR = REPO_ROOT / "build" / "openvoca"
 VENV_WORK_DIR = REPO_ROOT / "build" / "_prod_venv"  # temp workspace for prod venv
 DIST_DIR = REPO_ROOT / "dist"
-ZIP_NAME = f"openvoca-{VERSION}-win-x64.zip"
+ARCHIVE_STEM = f"openvoca-{VERSION}-{PLATFORM_TAG}"
+
+# Launcher binary name varies per platform
+LAUNCHER_BIN_NAME = "openvoca-launcher.exe" if IS_WINDOWS else "openvoca-launcher"
+BUNDLE_EXE_NAME = "openvoca.exe" if IS_WINDOWS else "openvoca"
+
+# Python binary within a venv
+_VENV_PYTHON = (
+    Path(".venv") / "Scripts" / "python.exe"
+    if IS_WINDOWS
+    else Path(".venv") / "bin" / "python3"
+)
 
 # Runtime packages that must be importable in the bundled venv
 _REQUIRED_IMPORTS = ["fastapi", "uvicorn", "spacy", "sqlmodel", "httpx"]
@@ -64,7 +94,7 @@ _REQUIRED_IMPORTS = ["fastapi", "uvicorn", "spacy", "sqlmodel", "httpx"]
 def _run(cmd: list[str], cwd: Path | None = None) -> None:
     print(f"  $ {' '.join(str(c) for c in cmd)}", flush=True)
     # On Windows, pnpm/uv are .cmd wrappers; shell=True lets the OS find them.
-    result = subprocess.run(cmd, cwd=cwd, shell=(sys.platform == "win32"))
+    result = subprocess.run(cmd, cwd=cwd, shell=IS_WINDOWS)
     if result.returncode != 0:
         print(f"ERROR: command failed (exit {result.returncode})", file=sys.stderr)
         sys.exit(result.returncode)
@@ -98,7 +128,7 @@ def _verify_bundle(bundle_dir: Path) -> None:
     bundled venv.  Fails hard if any import is broken so problems are caught
     before the ZIP is created.
     """
-    python = bundle_dir / "backend" / ".venv" / "Scripts" / "python.exe"
+    python = bundle_dir / "backend" / _VENV_PYTHON
     if not python.exists():
         print(f"  ERROR: bundled Python not found at {python}", file=sys.stderr)
         sys.exit(1)
@@ -108,7 +138,7 @@ def _verify_bundle(bundle_dir: Path) -> None:
         r = subprocess.run(
             [str(python), "-c", f"import {pkg}"],
             capture_output=True,
-            shell=(sys.platform == "win32"),
+            shell=IS_WINDOWS,
         )
         if r.returncode == 0:
             print(f"    ✓ {pkg}")
@@ -250,7 +280,7 @@ _OPENVOCA_BAT = (
 
 
 def main() -> None:
-    print(f"\n=== OpenVoca Bundle Script  v{VERSION}  (Windows x64) ===\n")
+    print(f"\n=== OpenVoca Bundle Script  v{VERSION}  ({PLATFORM_TAG}) ===\n")
 
     DIST_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -263,7 +293,7 @@ def main() -> None:
     # ------------------------------------------------------------------ #
     # 1. Build frontend
     # ------------------------------------------------------------------ #
-    print("\n[1/7] Building frontend ...")
+    print("\n[1/9] Building frontend ...")
     if not (FRONTEND / "node_modules").exists():
         _run(["pnpm", "install", "--frozen-lockfile"], cwd=FRONTEND)
     _run(["pnpm", "run", "build"], cwd=FRONTEND)
@@ -271,26 +301,38 @@ def main() -> None:
     # ------------------------------------------------------------------ #
     # 2. Build production-only venv (no dev deps, via uv lock-file)
     # ------------------------------------------------------------------ #
-    print("\n[2/8] Building production venv (no dev deps) ...")
+    print("\n[2/9] Building production venv (no dev deps) ...")
     print("  Using uv lock-file resolution — no manual package filtering needed.")
     prod_venv = _build_prod_venv(VENV_WORK_DIR)
 
     # ------------------------------------------------------------------ #
-    # 3. Sync dev venv (needed so tests pass on the host machine)
+    # 3. Build Rust launcher
     # ------------------------------------------------------------------ #
-    print("\n[3/8] Syncing host dev venv ...")
+    print("\n[3/9] Building Rust launcher ...")
+    _run(["cargo", "build", "--release"], cwd=LAUNCHER)
+    launcher_exe = LAUNCHER / "target" / "release" / LAUNCHER_BIN_NAME
+    if not launcher_exe.exists():
+        print(f"  ERROR: launcher binary not found at {launcher_exe}", file=sys.stderr)
+        sys.exit(1)
+    launcher_mb = launcher_exe.stat().st_size / 1_048_576
+    print(f"  Launcher binary: {launcher_mb:.1f} MB")
+
+    # ------------------------------------------------------------------ #
+    # 4. Sync host dev venv (needed so tests pass on the host machine)
+    # ------------------------------------------------------------------ #
+    print("\n[4/9] Syncing host dev venv ...")
     _run(["uv", "sync", "--frozen"], cwd=BACKEND)
 
     # ------------------------------------------------------------------ #
-    # 4. Pre-compile Python source to bytecode
+    # 5. Pre-compile Python source to bytecode
     # ------------------------------------------------------------------ #
-    print("\n[4/8] Compiling Python source ...")
+    print("\n[5/9] Compiling Python source ...")
     compileall.compile_dir(str(BACKEND / "src"), force=True, quiet=1)
 
     # ------------------------------------------------------------------ #
-    # 5. Assemble directory tree
+    # 6. Assemble directory tree
     # ------------------------------------------------------------------ #
-    print("\n[5/8] Assembling directory structure ...")
+    print("\n[6/9] Assembling directory structure ...")
 
     # backend/src  (with __pycache__ pre-populated by step 4)
     print("  Copying backend source ...")
@@ -324,9 +366,9 @@ def main() -> None:
     (BUILD_DIR / "data").mkdir()
 
     # ------------------------------------------------------------------ #
-    # 6. Write openvoca.json
+    # 7. Write openvoca.json
     # ------------------------------------------------------------------ #
-    print("\n[6/8] Writing openvoca.json ...")
+    print("\n[7/9] Writing openvoca.json ...")
     config: dict = {
         "version": VERSION,
         "port": 18099,
@@ -339,38 +381,61 @@ def main() -> None:
     )
 
     # ------------------------------------------------------------------ #
-    # 7. Write launcher scripts
+    # 8. Write launcher scripts + copy native launcher
     # ------------------------------------------------------------------ #
-    print("\n[7/8] Writing launcher scripts ...")
-    (BUILD_DIR / "start.py").write_text(_START_PY, encoding="utf-8")
-    (BUILD_DIR / "openvoca.bat").write_text(_OPENVOCA_BAT, encoding="utf-8")
+    print("\n[8/9] Writing launcher scripts ...")
+    shutil.copy2(launcher_exe, BUILD_DIR / BUNDLE_EXE_NAME)
+    if not IS_WINDOWS:
+        (BUILD_DIR / BUNDLE_EXE_NAME).chmod(0o755)
+    print(f"  Copied {BUNDLE_EXE_NAME} ({launcher_mb:.1f} MB)")
+    if IS_WINDOWS:
+        (BUILD_DIR / "start.py").write_text(_START_PY, encoding="utf-8")
+        (BUILD_DIR / "openvoca.bat").write_text(_OPENVOCA_BAT, encoding="utf-8")
+        print("  Wrote fallback: start.py + openvoca.bat")
 
     # ------------------------------------------------------------------ #
-    # 7b. Verify bundled imports (fail-fast before ZIP)
+    # 8b. Verify bundled imports (fail-fast before ZIP)
     # ------------------------------------------------------------------ #
     print("\n  [verify] ")
     _verify_bundle(BUILD_DIR)
 
     # ------------------------------------------------------------------ #
-    # 8. Zip
+    # 9. Create archive (.zip on Windows, .tar.gz on Unix)
     # ------------------------------------------------------------------ #
-    zip_path = DIST_DIR / ZIP_NAME
-    print(f"\n[8/8] Creating {zip_path.name} ...")
-    if zip_path.exists():
-        zip_path.unlink()
+    if IS_WINDOWS:
+        archive_name = f"{ARCHIVE_STEM}.zip"
+        archive_path = DIST_DIR / archive_name
+        print(f"\n[9/9] Creating {archive_name} ...")
+        if archive_path.exists():
+            archive_path.unlink()
+        file_count = 0
+        with zipfile.ZipFile(
+            archive_path, "w", zipfile.ZIP_DEFLATED, compresslevel=6
+        ) as zf:
+            for f in BUILD_DIR.rglob("*"):
+                if f.is_file():
+                    arc_name = Path("openvoca") / f.relative_to(BUILD_DIR)
+                    zf.write(f, arc_name)
+                    file_count += 1
+    else:
+        archive_name = f"{ARCHIVE_STEM}.tar.gz"
+        archive_path = DIST_DIR / archive_name
+        print(f"\n[9/9] Creating {archive_name} ...")
+        if archive_path.exists():
+            archive_path.unlink()
+        file_count = 0
+        with tarfile.open(archive_path, "w:gz", compresslevel=6) as tf:
+            for f in BUILD_DIR.rglob("*"):
+                if f.is_file():
+                    arc_name = str(Path("openvoca") / f.relative_to(BUILD_DIR))
+                    tf.add(f, arcname=arc_name)
+                    file_count += 1
 
-    file_count = 0
-    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
-        for f in BUILD_DIR.rglob("*"):
-            if f.is_file():
-                arc_name = Path("openvoca") / f.relative_to(BUILD_DIR)
-                zf.write(f, arc_name)
-                file_count += 1
-
-    mb = zip_path.stat().st_size / 1_048_576
-    print(f"\n✅  Done: {zip_path}  ({mb:.1f} MB, {file_count:,} files)")
+    mb = archive_path.stat().st_size / 1_048_576
+    print(f"\n✅  Done: {archive_path}  ({mb:.1f} MB, {file_count:,} files)")
+    entry_point = "openvoca.exe" if IS_WINDOWS else "./openvoca"
     print(
-        "\nTo test: extract the ZIP, double-click openvoca.bat, "
+        f"\nTo test: extract the archive, run {entry_point}, "
         "and wait for the browser to open.\n"
     )
 
