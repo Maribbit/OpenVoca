@@ -141,9 +141,9 @@ def _verify_bundle(bundle_dir: Path) -> None:
             shell=IS_WINDOWS,
         )
         if r.returncode == 0:
-            print(f"    ✓ {pkg}")
+            print(f"    OK {pkg}")
         else:
-            print(f"    ✗ {pkg}  ← FAILED")
+            print(f"    FAIL {pkg}")
             failed.append(pkg)
     if failed:
         print(
@@ -302,7 +302,7 @@ def main() -> None:
     # 2. Build production-only venv (no dev deps, via uv lock-file)
     # ------------------------------------------------------------------ #
     print("\n[2/9] Building production venv (no dev deps) ...")
-    print("  Using uv lock-file resolution — no manual package filtering needed.")
+    print("  Using uv lock-file resolution -- no manual package filtering needed.")
     prod_venv = _build_prod_venv(VENV_WORK_DIR)
 
     # ------------------------------------------------------------------ #
@@ -432,7 +432,7 @@ def main() -> None:
                     file_count += 1
 
     mb = archive_path.stat().st_size / 1_048_576
-    print(f"\n✅  Done: {archive_path}  ({mb:.1f} MB, {file_count:,} files)")
+    print(f"\nDone: {archive_path}  ({mb:.1f} MB, {file_count:,} files)")
     entry_point = "openvoca.exe" if IS_WINDOWS else "./openvoca"
     print(
         f"\nTo test: extract the archive, run {entry_point}, "
