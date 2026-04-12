@@ -21,18 +21,20 @@ Output:
         start.py        -- Cross-platform Python launcher
         openvoca.json   -- Runtime config
 
-Venv isolation strategy
------------------------
-Rather than copying the dev venv and manually stripping packages (error-prone),
-we create a *fresh* venv via ``uv sync --frozen --no-dev --no-install-project``
-in a temporary workspace that contains only pyproject.toml + uv.lock.  This
-delegates the dep-resolution entirely to uv's own lock-file machinery, so the
-bundle will always be consistent with the lock file regardless of future dep
-changes -- zero maintenance overhead.
+Python isolation strategy
+-------------------------
+Rather than copying the dev venv (which hard-codes the CI runner's Python path
+in the shim/symlink), we bundle the UV-managed CPython interpreter itself
+together with a fresh site-packages extracted from
+``uv sync --frozen --no-dev --no-install-project``.
+start.py passes ``PYTHONPATH=site-packages`` to the uvicorn subprocess, so no
+venv activation is needed.  The bundle is fully self-contained and portable
+across machines regardless of where Python is installed.
 """
 
 import compileall
 import json
+import os
 import platform
 import shutil
 import subprocess
@@ -68,14 +70,7 @@ VENV_WORK_DIR = REPO_ROOT / "build" / "_prod_venv"  # temp workspace for prod ve
 DIST_DIR = REPO_ROOT / "dist"
 ARCHIVE_STEM = f"openvoca-{VERSION}-{PLATFORM_TAG}"
 
-# Python binary within a venv
-_VENV_PYTHON = (
-    Path(".venv") / "Scripts" / "python.exe"
-    if IS_WINDOWS
-    else Path(".venv") / "bin" / "python3"
-)
-
-# Runtime packages that must be importable in the bundled venv
+# Runtime packages that must be importable via the bundled Python + site-packages
 _REQUIRED_IMPORTS = ["fastapi", "uvicorn", "spacy", "sqlmodel", "httpx"]
 
 
@@ -107,19 +102,46 @@ def _build_prod_venv(work_dir: Path) -> Path:
     return work_dir / ".venv"
 
 
+def _find_python_root() -> Path:
+    """Return the root dir of the UV-managed Python 3.12 installation."""
+    raw = subprocess.check_output(
+        ["uv", "python", "find", "3.12"],
+        shell=IS_WINDOWS,
+    ).decode().strip().strip('"')
+    exe = Path(raw)
+    # Windows: <root>/python.exe  --  Unix: <root>/bin/python3
+    return exe.parent if IS_WINDOWS else exe.parent.parent
+
+
+def _get_site_packages(venv: Path) -> Path:
+    """Return the site-packages directory inside a uv venv."""
+    if IS_WINDOWS:
+        return venv / "Lib" / "site-packages"
+    lib = venv / "lib"
+    for child in sorted(lib.iterdir()):
+        if child.name.startswith("python"):
+            return child / "site-packages"
+    raise RuntimeError(f"No pythonX.Y directory found in {lib}")
+
+
 def _verify_bundle(bundle_dir: Path) -> None:
-    """Verify all required runtime packages are importable in the bundled venv."""
-    python = bundle_dir / "backend" / _VENV_PYTHON
+    """Verify all required runtime packages are importable in the bundled Python."""
+    if IS_WINDOWS:
+        python = bundle_dir / "python" / "python.exe"
+    else:
+        python = bundle_dir / "python" / "bin" / "python3"
+    site_pkgs = bundle_dir / "site-packages"
     if not python.exists():
         print(f"  ERROR: bundled Python not found at {python}", file=sys.stderr)
         sys.exit(1)
-    print("  Verifying runtime imports in bundled venv ...")
+    print("  Verifying runtime imports in bundled Python ...")
     failed: list[str] = []
     for pkg in _REQUIRED_IMPORTS:
         r = subprocess.run(
             [str(python), "-c", f"import {pkg}"],
             capture_output=True,
             shell=IS_WINDOWS,
+            env={**os.environ, "PYTHONPATH": str(site_pkgs)},
         )
         if r.returncode == 0:
             print(f"    OK {pkg}")
@@ -178,9 +200,10 @@ DATA_DIR = ROOT / "data"
 MAX_WAIT_SECONDS = 45
 
 if sys.platform == "win32":
-    PYTHON = BACKEND / ".venv" / "Scripts" / "python.exe"
+    PYTHON = ROOT / "python" / "python.exe"
 else:
-    PYTHON = BACKEND / ".venv" / "bin" / "python3"
+    PYTHON = ROOT / "python" / "bin" / "python3"
+SITE_PACKAGES = ROOT / "site-packages"
 
 
 def _read_config() -> dict:
@@ -198,7 +221,11 @@ def main() -> None:
     health_url = f"http://{host}:{port}/api/health"
 
     DATA_DIR.mkdir(exist_ok=True)
-    env = {**os.environ, "OPENVOCA_DATA_DIR": str(DATA_DIR)}
+    env = {
+        **os.environ,
+        "OPENVOCA_DATA_DIR": str(DATA_DIR),
+        "PYTHONPATH": str(SITE_PACKAGES),
+    }
 
     print(f"Starting OpenVoca {cfg.get('version', '')} on http://{host}:{port} ...")
     proc = subprocess.Popen(
@@ -258,7 +285,7 @@ _OPENVOCA_BAT = (
     "@echo off\r\n"
     "title OpenVoca\r\n"
     'cd /d "%~dp0"\r\n'
-    '"%~dp0backend\\.venv\\Scripts\\python.exe" "%~dp0start.py"\r\n'
+    '"%~dp0python\\python.exe" "%~dp0start.py"\r\n'
     "if %errorlevel% neq 0 pause\r\n"
 )
 
@@ -278,7 +305,7 @@ if command -v xattr >/dev/null 2>&1; then
     xattr -dr com.apple.quarantine "$DIR" 2>/dev/null || true
 fi
 
-exec "$DIR/backend/.venv/bin/python3" "$DIR/start.py"
+exec "$DIR/python/bin/python3" "$DIR/start.py"
 """
 
 
@@ -311,6 +338,8 @@ def main() -> None:
     # ------------------------------------------------------------------ #
     print("\n[2/7] Building production venv (no dev deps) ...")
     print("  Using uv lock-file resolution -- no manual package filtering needed.")
+    python_root = _find_python_root()
+    print(f"  UV Python root: {python_root}")
     prod_venv = _build_prod_venv(VENV_WORK_DIR)
 
     # ------------------------------------------------------------------ #
@@ -350,9 +379,14 @@ def main() -> None:
     if (BACKEND / "assets").exists():
         shutil.copytree(BACKEND / "assets", BUILD_DIR / "backend" / "assets")
 
-    # backend/.venv  (production-only venv from step 2)
-    print("  Copying production venv ...")
-    shutil.copytree(prod_venv, BUILD_DIR / "backend" / ".venv", symlinks=True)
+    # Python interpreter (UV-managed, self-contained, no venv shims)
+    print("  Copying Python interpreter ...")
+    shutil.copytree(python_root, BUILD_DIR / "python", symlinks=True)
+
+    # site-packages (runtime deps extracted from prod venv -- no activation needed)
+    print("  Copying site-packages ...")
+    site_pkgs_src = _get_site_packages(prod_venv)
+    shutil.copytree(site_pkgs_src, BUILD_DIR / "site-packages")
 
     # frontend/dist
     print("  Copying frontend dist ...")
