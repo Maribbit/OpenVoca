@@ -14,6 +14,7 @@
           {{ i18nMessages.menu }}
         </router-link>
         <button
+          v-if="!showComposer"
           type="button"
           data-testid="reading-settings-trigger"
           class="cursor-pointer rounded-full p-2 transition-all hover:text-ink opacity-0 group-hover:opacity-100 focus:opacity-100"
@@ -43,9 +44,13 @@
         </button>
       </div>
 
-      <div
-        class="pointer-events-none flex flex-1 items-center justify-center"
-      ></div>
+      <div class="pointer-events-none flex flex-1 items-center justify-center">
+        <span
+          v-if="showComposer"
+          class="font-serif text-[13px] tracking-[0.35em] text-inkLight/40"
+          >OpenVoca</span
+        >
+      </div>
 
       <div class="flex flex-1 items-center justify-end">
         <router-link
@@ -96,6 +101,43 @@
             >
           </p>
         </Transition>
+
+        <!-- Footer links -->
+        <div class="flex items-center gap-4 text-inkLight/25">
+          <a
+            href="https://github.com/Maribbit/OpenVoca"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="transition-colors hover:text-inkLight/60"
+            title="GitHub"
+          >
+            <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12Z"
+              />
+            </svg>
+          </a>
+          <button
+            type="button"
+            class="cursor-pointer transition-colors hover:text-inkLight/60"
+            :title="i18nMessages.aboutOpenVoca"
+            @click="showAbout = true"
+          >
+            <svg
+              class="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M11.25 11.25l.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"
+              />
+            </svg>
+          </button>
+        </div>
       </template>
 
       <template v-else>
@@ -213,6 +255,45 @@
         {{ feedbackError }}
       </p>
     </Transition>
+
+    <!-- About modal -->
+    <Transition name="fade">
+      <div
+        v-if="showAbout"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm"
+        @click.self="showAbout = false"
+      >
+        <div
+          class="mx-4 w-full max-w-xs rounded-2xl border border-black/5 bg-surface p-6 text-center shadow-lg dark:border-white/5"
+        >
+          <h2 class="font-serif text-xl tracking-wide text-ink">OpenVoca</h2>
+          <p class="mt-1 text-xs text-inkLight">
+            {{ i18nMessages.aboutTagline }}
+          </p>
+          <p class="mt-3 text-xs leading-relaxed text-inkLight/70">
+            {{ i18nMessages.aboutDescription }}
+          </p>
+          <p class="mt-4 font-mono text-[10px] text-inkLight/40">
+            v{{ appVersion }}
+          </p>
+          <div class="mt-4 flex items-center justify-center gap-3">
+            <a
+              href="https://github.com/Maribbit/OpenVoca"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-inkLight/40 transition-colors hover:text-inkLight"
+              title="GitHub"
+            >
+              <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                <path
+                  d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12Z"
+                />
+              </svg>
+            </a>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -256,6 +337,7 @@
 
   const { get, set } = useSettings();
 
+  const appVersion = __APP_VERSION__;
   const sentence = ref("");
   const tokens = ref<ReadingSentenceToken[]>([]);
   const errorMessage = ref("");
@@ -265,6 +347,7 @@
   const isUiPanelOpen = ref(false);
   const markedWords = ref<Set<string>>(new Set());
   const showComposer = ref(true);
+  const showAbout = ref(false);
   const copyConfirmed = ref(false);
   const isSpeaking = ref(false);
 
@@ -358,7 +441,7 @@
 
   function applyTheme(theme: ThemeOption): void {
     if (typeof window === "undefined") return;
-    window.document.documentElement.setAttribute("data-reading-theme", theme);
+    window.document.documentElement.setAttribute("data-theme", theme);
   }
 
   // --- UI panel ---
@@ -521,6 +604,7 @@
     }
 
     showComposer.value = true;
+    closeUiPanel();
     dismissDefinition();
     if (window.speechSynthesis) {
       window.speechSynthesis.cancel();

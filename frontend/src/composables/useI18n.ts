@@ -130,6 +130,9 @@ interface LocaleMessages {
   lastContextLabel: string;
   firstSeenLabel: string;
   seenCountLabel: string;
+  aboutOpenVoca: string;
+  aboutTagline: string;
+  aboutDescription: string;
 }
 
 export const MESSAGES: Record<Locale, LocaleMessages> = {
@@ -275,6 +278,10 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     lastContextLabel: "Last context",
     firstSeenLabel: "First seen",
     seenCountLabel: "Seen",
+    aboutOpenVoca: "About OpenVoca",
+    aboutTagline: "Build Vocabulary Naturally.",
+    aboutDescription:
+      "A minimalistic, LLM-powered English vocabulary tool — learn new words by reading AI-generated sentences in context.",
   },
   zh: {
     menu: "菜单",
@@ -412,6 +419,10 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     lastContextLabel: "上次例句",
     firstSeenLabel: "首次记录",
     seenCountLabel: "出现次数",
+    aboutOpenVoca: "关于 OpenVoca",
+    aboutTagline: "在阅读中自然积累词汇。",
+    aboutDescription:
+      "一个极简的、基于 LLM 的英语词汇工具——通过阅读 AI 生成的上下文例句来学习新单词。",
   },
 };
 

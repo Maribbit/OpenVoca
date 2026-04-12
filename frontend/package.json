@@ -1,7 +1,12 @@
 {
-  "name": "frontend",
-  "private": true,
-  "version": "0.7.7",
+  "name": "openvoca-frontend",
+  "version": "0.8.0",
+  "description": "Frontend for OpenVoca — LLM-powered vocabulary learning through contextual reading",
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Maribbit/OpenVoca"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",

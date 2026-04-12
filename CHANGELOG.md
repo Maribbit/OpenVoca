@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.8.0
+
+Date: 2026-04-12
+
+### New Features
+- **`first_seen` and `seen_count` fields** — Each word record now tracks when the word was first encountered as a target word (`first_seen`) and how many times it has appeared as a target word (`seen_count`). Both fields are shown in the Stats page expanded row and included in CSV export/import.
+- **OpenVoca branding in Composer** — The app title "OpenVoca" now appears in the header center when the Composer is active. GitHub and About icons are shown below the Composer card.
+- **About modal** — Clicking the info icon opens a compact overlay with the app tagline, description, version number, and GitHub link. Version is read from the `VERSION` file at build time.
+- **Chinese README** — Added `README.zh-CN.md` with a language toggle link at the top of both READMEs.
+
+### Bug Fixes
+- **Theme sync across pages** — Fixed a bug where navigating directly to the Stats page would show light mode even when dark mode was set. The reading theme (`data-theme`) is now applied centrally in `App.vue` on mount, ensuring consistency regardless of entry route.
+- **Settings gear hidden in Composer** — The reading display settings icon is now hidden when the Composer is open, since reading settings don't apply to the Composer state. The settings panel auto-closes when switching to Composer.
+
+### Improvements
+- **Renamed theme attributes** — `data-reading-theme` → `data-theme`, `data-color-theme` → `data-palette` for clarity.
+- **README rewritten** — Added a "What is OpenVoca?" section with a plain-language explanation of the core workflow for first-time visitors. Moved bundling details into the script comments.
+- **Package metadata** — Updated `pyproject.toml` and `package.json` with proper descriptions, license, and repository URLs. Fixed `index.html` title to "OpenVoca" and added a meta description tag.
+- **Open-source readiness** — Added GitHub issue templates (bug report, feature request), pull request template, CODE_OF_CONDUCT.md, and SECURITY.md.
+- **Gitee mirror instructions** — Added a Gitee Mirror section to CONTRIBUTING.md with setup steps.
+
+### Changed Files
+- `backend/src/services/word_store.py`: `WordRecord` gains `first_seen` and `seen_count`; `apply_feedback` and `import_vocabulary` updated.
+- `backend/src/main.py`: `WordRecordOut` gains `firstSeen` and `seenCount`; export CSV is now 8 columns.
+- `frontend/src/App.vue`: centralized `data-theme` application on mount.
+- `frontend/src/views/HomeView.vue`: branding elements, About modal, settings gear hidden in Composer.
+- `frontend/src/views/StatsView.vue`: expanded row shows `firstSeen` and `seenCount`.
+- `frontend/src/composables/useI18n.ts`: new keys for `firstSeenLabel`, `seenCountLabel`, `aboutOpenVoca`, `aboutTagline`, `aboutDescription`.
+- `frontend/src/main.css`: renamed `data-reading-theme` → `data-theme`, `data-color-theme` → `data-palette`.
+- `frontend/vite.config.ts`, `frontend/vitest.config.ts`: inject `__APP_VERSION__` from VERSION file.
+- `README.md`, `README.zh-CN.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`: new or updated.
+- `.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md`: new.
+- `backend/pyproject.toml`, `frontend/package.json`, `frontend/index.html`: metadata fixes.
+
+---
+
 ## v0.7.7
 
 Date: 2026-04-12

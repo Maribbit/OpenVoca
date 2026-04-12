@@ -223,9 +223,7 @@ describe("HomeView.vue", () => {
     await darkThemeButton.trigger("click");
     await flushPromises();
 
-    expect(document.documentElement.getAttribute("data-reading-theme")).toBe(
-      "dark",
-    );
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
 
     const cache = window.localStorage.getItem("openvoca.settings.cache");
     expect(cache).not.toBeNull();

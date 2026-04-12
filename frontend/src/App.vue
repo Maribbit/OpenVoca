@@ -28,7 +28,9 @@
     }
     const colorTheme = get("interface", "colorTheme", "default");
     if (colorTheme !== "default") {
-      document.documentElement.setAttribute("data-color-theme", colorTheme);
+      document.documentElement.setAttribute("data-palette", colorTheme);
     }
+    const readingTheme = get("reading", "theme", "light");
+    document.documentElement.setAttribute("data-theme", readingTheme);
   });
 </script>

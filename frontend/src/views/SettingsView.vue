@@ -612,7 +612,7 @@
 
   function applyTheme(theme: ThemeOption): void {
     if (typeof window === "undefined") return;
-    window.document.documentElement.setAttribute("data-reading-theme", theme);
+    window.document.documentElement.setAttribute("data-theme", theme);
   }
 
   function setTheme(theme: ThemeOption): void {
@@ -631,9 +631,9 @@
   function applyColorTheme(theme: ColorThemeOption): void {
     if (typeof document === "undefined") return;
     if (theme === "default") {
-      document.documentElement.removeAttribute("data-color-theme");
+      document.documentElement.removeAttribute("data-palette");
     } else {
-      document.documentElement.setAttribute("data-color-theme", theme);
+      document.documentElement.setAttribute("data-palette", theme);
     }
   }
 

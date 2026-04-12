@@ -1,9 +1,14 @@
 [project]
-name = "backend"
-version = "0.7.7"
-description = "Add your description here"
+name = "openvoca-backend"
+version = "0.8.0"
+description = "Backend for OpenVoca — LLM-powered vocabulary learning through contextual reading"
 readme = "README.md"
 requires-python = ">=3.12"
+license = "AGPL-3.0-only"
+
+[project.urls]
+Homepage = "https://github.com/Maribbit/OpenVoca"
+Repository = "https://github.com/Maribbit/OpenVoca"
 dependencies = [
     "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
     "fastapi[standard]>=0.135.1",

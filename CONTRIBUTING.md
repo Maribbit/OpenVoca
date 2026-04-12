@@ -35,6 +35,16 @@ Run the task `✅ Check OpenVoca (All)`.
 - Ensure documentation is updated when behavior changes.
 - Keep comments and docstrings in English.
 
+## Gitee Mirror
+
+The Gitee repository is a read-only mirror synced automatically from GitHub. Do not open Issues or PRs on Gitee — please use GitHub instead.
+
+To set up the mirror:
+1. Create a new Gitee repository → select "Import from GitHub".
+2. Enable automatic sync in the Gitee repository settings.
+3. Set the Gitee repository description to: `GitHub 镜像，Issue 和 PR 请提交至 GitHub`.
+4. Optionally set the default README to `README.zh-CN.md` in the Gitee repository settings.
+
 ## License
 
 By contributing to OpenVoca, you agree that your contributions will be licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0) that covers this project.
