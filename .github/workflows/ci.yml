@@ -6,6 +6,9 @@ on:
     tags: ["v*"]
   pull_request:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   # ── Tests (run on every push and PR) ──────────────────────────────
 
@@ -38,6 +41,7 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
+      - run: uv python install 3.12
       - run: uv sync --frozen
       - run: uv run pytest
 
@@ -75,6 +79,7 @@ jobs:
     needs: [frontend, backend, launcher]
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: windows-latest
@@ -94,6 +99,11 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
+      - name: Pin Python 3.12
+        run: uv python install 3.12
+      - name: Set UV Python preference
+        run: echo "UV_PYTHON=3.12" >> $GITHUB_ENV
+        shell: bash
       - uses: dtolnay/rust-toolchain@stable
       - uses: actions/cache@v4
         with:
