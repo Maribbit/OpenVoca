@@ -1,5 +1,7 @@
+import asyncio
 import csv
 import io
+import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -36,10 +38,57 @@ from src.services.settings_store import (
 )
 from src.services.dictionary import lookup as dict_lookup
 
+# ---------------------------------------------------------------------------
+# Update check
+# ---------------------------------------------------------------------------
+
+_GITHUB_REPO = "Maribbit/OpenVoca"
+
+_update_info: dict = {
+    "checked": False,
+    "hasUpdate": False,
+    "currentVersion": "",
+    "latestVersion": "",
+    "url": "",
+}
+
+
+def _version_gt(a: str, b: str) -> bool:
+    """Return True if version string a is strictly greater than b."""
+    try:
+        return tuple(int(x) for x in a.split(".")) > tuple(int(x) for x in b.split("."))
+    except ValueError:
+        return False
+
+
+async def _check_for_updates() -> None:
+    """Background startup task: query GitHub Releases for a newer version."""
+    current = os.environ.get("OPENVOCA_VERSION", "").strip()
+    _update_info["currentVersion"] = current
+    if not current:
+        return
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(
+                f"https://api.github.com/repos/{_GITHUB_REPO}/releases/latest",
+                headers={"User-Agent": f"OpenVoca/{current}"},
+            )
+        if resp.status_code == 200:
+            data = resp.json()
+            latest = data.get("tag_name", "").lstrip("v")
+            url = data.get("html_url", "")
+            _update_info["checked"] = True
+            _update_info["latestVersion"] = latest
+            _update_info["url"] = url
+            _update_info["hasUpdate"] = _version_gt(latest, current)
+    except Exception:  # noqa: BLE001
+        pass  # network failure is expected in offline / air-gapped environments
+
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):  # noqa: ARG001
     """Close the persistent LLM HTTP client on shutdown."""
+    asyncio.create_task(_check_for_updates())
     yield
     if isinstance(llm, OpenAICompatibleClient):
         await llm.aclose()
@@ -130,6 +179,12 @@ def _utc_iso(dt: datetime) -> str:
 @app.get("/api/health")
 def read_root() -> dict[str, str]:
     return {"status": "ok", "message": "OpenVoca backend is running!"}
+
+
+@app.get("/api/update-check")
+def get_update_check() -> dict:
+    """Return the result of the background update check (non-blocking)."""
+    return _update_info
 
 
 def _mask_api_key(key: str) -> str:

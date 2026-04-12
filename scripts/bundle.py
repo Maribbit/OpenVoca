@@ -224,6 +224,7 @@ def main() -> None:
     env = {
         **os.environ,
         "OPENVOCA_DATA_DIR": str(DATA_DIR),
+        "OPENVOCA_VERSION": cfg.get("version", ""),
         "PYTHONPATH": str(SITE_PACKAGES),
     }
 

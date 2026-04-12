@@ -795,3 +795,33 @@ def test_import_vocabulary_endpoint_bom_csv(
     data = response.json()
     assert data["imported"] == 1
     assert data["skipped"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Update check
+# ---------------------------------------------------------------------------
+
+
+def test_update_check_endpoint_returns_expected_shape() -> None:
+    """GET /api/update-check always returns the required fields."""
+    response = client.get("/api/update-check")
+    assert response.status_code == 200
+    data = response.json()
+    assert "checked" in data
+    assert "hasUpdate" in data
+    assert "currentVersion" in data
+    assert "latestVersion" in data
+    assert "url" in data
+    assert isinstance(data["checked"], bool)
+    assert isinstance(data["hasUpdate"], bool)
+
+
+def test_version_gt_comparisons() -> None:
+    """_version_gt returns correct ordering for semantic versions."""
+    from src.main import _version_gt
+
+    assert _version_gt("0.9.1", "0.9.0") is True
+    assert _version_gt("1.0.0", "0.9.9") is True
+    assert _version_gt("0.9.0", "0.9.0") is False
+    assert _version_gt("0.9.0", "0.9.1") is False
+    assert _version_gt("0.10.0", "0.9.0") is True

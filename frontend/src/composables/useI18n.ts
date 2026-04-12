@@ -133,6 +133,9 @@ interface LocaleMessages {
   aboutOpenVoca: string;
   aboutTagline: string;
   aboutDescription: string;
+  updateAvailable: string;
+  updateDownload: string;
+  updateDismiss: string;
 }
 
 export const MESSAGES: Record<Locale, LocaleMessages> = {
@@ -282,6 +285,9 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     aboutTagline: "Build Vocabulary Naturally.",
     aboutDescription:
       "A minimalistic, LLM-powered English vocabulary tool — learn new words by reading AI-generated sentences in context.",
+    updateAvailable: "New version available: v{0}",
+    updateDownload: "Download",
+    updateDismiss: "Dismiss",
   },
   zh: {
     menu: "菜单",
@@ -423,6 +429,9 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     aboutTagline: "在阅读中自然积累词汇。",
     aboutDescription:
       "一个极简的、基于 LLM 的英语词汇工具——通过阅读 AI 生成的上下文例句来学习新单词。",
+    updateAvailable: "发现新版本：v{0}",
+    updateDownload: "下载",
+    updateDismiss: "关闭",
   },
 };
 
