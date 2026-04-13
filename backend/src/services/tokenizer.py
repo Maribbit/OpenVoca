@@ -121,6 +121,11 @@ def tokenize_sentence(sentence: str) -> list[SentenceToken]:
         pos = spacy_token.pos_ if is_alpha else None
         lemma = spacy_token.lemma_.lower() if is_alpha else None
 
+        # Fix spaCy's spurious de-pluralization of words ending in double-s
+        # (e.g. "fiberglass" → "fiberglas", "compass" → "compas").
+        if lemma and text.lower().endswith("ss") and lemma == text.lower()[:-1]:
+            lemma = text.lower()
+
         is_word = False
         if is_alpha:
             is_word = pos not in FUNCTION_POS

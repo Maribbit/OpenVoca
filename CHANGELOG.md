@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.9.1
+
+Date: 2026-04-13
+
+### New Features
+- **Streaming sentence generation** -- New SSE endpoint `POST /api/reading-sentence/next/stream` streams progress events during LLM generation. The frontend now shows a live elapsed timer ("3s") while waiting for the model, then switches to a word counter ("12 words") as tokens arrive.
+- **Update check** -- Background version check against GitHub Releases on startup; dismissible banner in the UI when a newer version is available.
+
+### Bug Fixes
+- **Double-s lemma correction** -- Fixed spaCy's statistical lemmatizer spuriously de-pluralizing words ending in double-s (e.g. "fiberglass" → "fiberglas", "compass" → "compas"). A lightweight heuristic in the tokenizer now preserves the correct form.
+
+### Changed Files
+- `backend/src/integrations/openai_compat.py` -- Added `generate_completion_stream()` async generator for SSE streaming.
+- `backend/src/integrations/provider.py` -- `LLMProvider` protocol now includes `generate_completion_stream()`.
+- `backend/src/main.py` -- New `POST /api/reading-sentence/next/stream` SSE endpoint.
+- `backend/src/services/tokenizer.py` -- Double-s lemma heuristic fix.
+- `frontend/src/api/reading.ts` -- Added `fetchNextReadingSentenceStream()` with progress callbacks.
+- `frontend/src/components/SentenceDisplay.vue` -- New `loadingProgress` prop for live progress display.
+- `frontend/src/views/HomeView.vue` -- Elapsed timer + streaming word count during generation.
+- `frontend/src/composables/useI18n.ts` -- Added `wordSingular`, `wordPlural` i18n keys.
+
+---
+
 ## v0.9.0
 
 Date: 2026-04-12

@@ -5,7 +5,13 @@
       class="sentence-fade font-serif text-inkLight/65"
       :class="typographyClass"
     >
-      {{ loadingText }}
+      {{ loadingText
+      }}<span
+        v-if="loadingProgress != null"
+        class="ml-2 font-sans text-[0.5em] tabular-nums tracking-normal text-inkLight/40"
+        data-testid="loading-progress"
+        >{{ loadingProgress }}</span
+      >
     </p>
 
     <p
@@ -66,6 +72,7 @@
     isLoading: boolean;
     errorMessage: string;
     loadingText: string;
+    loadingProgress?: string | null;
     typographyClass: string;
   }>();
 

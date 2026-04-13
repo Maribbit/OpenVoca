@@ -1,3 +1,6 @@
+import json
+from collections.abc import AsyncGenerator
+
 import httpx
 
 
@@ -66,3 +69,40 @@ class OpenAICompatibleClient:
             )
 
         return " ".join(content.split())
+
+    async def generate_completion_stream(
+        self, prompt: str
+    ) -> AsyncGenerator[str, None]:
+        """Stream text chunks from the chat completions API.
+
+        Yields individual content deltas as they arrive.
+        """
+        headers: dict[str, str] = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
+        payload = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": True,
+        }
+
+        async with self._client.stream(
+            "POST",
+            "/v1/chat/completions",
+            json=payload,
+            headers=headers,
+        ) as response:
+            response.raise_for_status()
+            async for line in response.aiter_lines():
+                if not line.startswith("data: "):
+                    continue
+                data_str = line[len("data: ") :]
+                if data_str.strip() == "[DONE]":
+                    break
+                chunk = json.loads(data_str)
+                delta = (
+                    chunk.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                )
+                if delta:
+                    yield delta

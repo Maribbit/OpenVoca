@@ -65,6 +65,67 @@ export async function fetchNextReadingSentence(
   return (await response.json()) as ReadingSentenceResponse;
 }
 
+export interface StreamCallbacks {
+  onProgress: (wordCount: number) => void;
+  onComplete: (response: ReadingSentenceResponse) => void;
+  onError: (error: string) => void;
+}
+
+export async function fetchNextReadingSentenceStream(
+  request: GenerateReadingSentenceRequest,
+  callbacks: StreamCallbacks,
+  signal?: AbortSignal,
+): Promise<void> {
+  const response = await fetch("/api/reading-sentence/next/stream", {
+    method: "POST",
+    headers: {
+      Accept: "text/event-stream",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(request),
+    cache: "no-store",
+    signal,
+  });
+
+  if (!response.ok) {
+    throw new Error("Unable to load reading sentence.");
+  }
+
+  const reader = response.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    const parts = buffer.split("\n\n");
+    buffer = parts.pop()!;
+
+    for (const part of parts) {
+      const lines = part.split("\n");
+      let eventType = "";
+      let data = "";
+      for (const line of lines) {
+        if (line.startsWith("event: ")) eventType = line.slice(7);
+        else if (line.startsWith("data: ")) data = line.slice(6);
+      }
+      if (!eventType || !data) continue;
+
+      if (eventType === "progress") {
+        const parsed = JSON.parse(data) as { wordCount: number };
+        callbacks.onProgress(parsed.wordCount);
+      } else if (eventType === "complete") {
+        callbacks.onComplete(JSON.parse(data) as ReadingSentenceResponse);
+      } else if (eventType === "error") {
+        const parsed = JSON.parse(data) as { detail: string };
+        callbacks.onError(parsed.detail);
+      }
+    }
+  }
+}
+
 export async function submitFeedback(request: FeedbackRequest): Promise<void> {
   const response = await fetch("/api/feedback", {
     method: "POST",

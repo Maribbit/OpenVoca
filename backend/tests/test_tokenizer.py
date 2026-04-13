@@ -243,3 +243,14 @@ def test_tokens_include_lemma() -> None:
     # Non-alpha tokens should have no lemma
     dot = next(t for t in tokens if t.text == ".")
     assert dot.lemma is None
+
+
+def test_double_s_lemma_preserved() -> None:
+    """Words ending in double-s should not be spuriously de-pluralized."""
+    tokens = tokenize_sentence("sheets of fiberglass covered the roof.")
+    fg = next(t for t in tokens if t.text == "fiberglass")
+    assert fg.lemma == "fiberglass"
+
+    tokens2 = tokenize_sentence("The compass pointed north.")
+    cp = next(t for t in tokens2 if t.text == "compass")
+    assert cp.lemma == "compass"

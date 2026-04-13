@@ -147,6 +147,7 @@
           :is-loading="isLoading"
           :error-message="errorMessage"
           :loading-text="i18nMessages.loadingSentence"
+          :loading-progress="loadingProgress"
           :typography-class="sentenceTypographyClass"
           @word-click="onWordClick"
         />
@@ -301,7 +302,7 @@
   import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
   import {
-    fetchNextReadingSentence,
+    fetchNextReadingSentenceStream,
     fetchDefinition,
     submitFeedback,
     tokensToPlainText,
@@ -344,6 +345,7 @@
   const composerError = ref("");
   const feedbackError = ref("");
   const isLoading = ref(false);
+  const loadingProgress = ref<string | null>(null);
   const isUiPanelOpen = ref(false);
   const markedWords = ref<Set<string>>(new Set());
   const showComposer = ref(true);
@@ -551,27 +553,62 @@
     }
   }
 
+  let elapsedTimer: ReturnType<typeof setInterval> | null = null;
+
+  function startElapsedTimer(): void {
+    let seconds = 0;
+    loadingProgress.value = "0s";
+    elapsedTimer = setInterval(() => {
+      seconds += 1;
+      loadingProgress.value = `${seconds}s`;
+    }, 1000);
+  }
+
+  function stopElapsedTimer(): void {
+    if (elapsedTimer !== null) {
+      clearInterval(elapsedTimer);
+      elapsedTimer = null;
+    }
+  }
+
   async function loadSentence(
     prompt: string,
     targetWords: string[],
   ): Promise<void> {
     isLoading.value = true;
+    loadingProgress.value = null;
     errorMessage.value = "";
+    startElapsedTimer();
     try {
-      const response = await fetchNextReadingSentence({
-        prompt,
-        targetWords,
-      });
-      sentence.value = response.sentence;
-      tokens.value = response.tokens;
-      markedWords.value = new Set();
-      dismissDefinition();
+      await fetchNextReadingSentenceStream(
+        { prompt, targetWords },
+        {
+          onProgress(wordCount: number) {
+            stopElapsedTimer();
+            loadingProgress.value = `${wordCount} ${wordCount === 1 ? i18nMessages.value.wordSingular : i18nMessages.value.wordPlural}`;
+          },
+          onComplete(response) {
+            sentence.value = response.sentence;
+            tokens.value = response.tokens;
+            markedWords.value = new Set();
+            dismissDefinition();
+          },
+          onError(detail: string) {
+            throw new Error(detail);
+          },
+        },
+      );
+      if (!sentence.value) {
+        throw new Error("No response received.");
+      }
     } catch {
       showComposer.value = true;
       composerError.value = i18nMessages.value.connectionError;
       tokens.value = [];
     } finally {
+      stopElapsedTimer();
       isLoading.value = false;
+      loadingProgress.value = null;
     }
   }
 
@@ -650,6 +687,7 @@
   });
 
   onUnmounted(() => {
+    stopElapsedTimer();
     holdButtonRef.value?.abortHold();
     window.removeEventListener("keydown", handleKeydown);
     window.removeEventListener("keyup", handleKeyup);

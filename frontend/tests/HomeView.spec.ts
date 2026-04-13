@@ -49,10 +49,46 @@ describe("HomeView.vue", () => {
           json: async () => targetWordsResponse,
         });
       }
+      if (
+        typeof url === "string" &&
+        url.startsWith("/api/reading-sentence/next/stream")
+      ) {
+        return Promise.resolve({
+          ok: true,
+          body: makeSseStream(tokenizedSentence),
+        });
+      }
+      if (
+        typeof url === "string" &&
+        url.startsWith("/api/reading-sentence/next")
+      ) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => tokenizedSentence,
+        });
+      }
       return Promise.resolve({
         ok: true,
-        json: async () => tokenizedSentence,
+        json: async () => ({}),
       });
+    });
+  }
+
+  /** Build a ReadableStream that emits SSE progress + complete events. */
+  function makeSseStream(data: typeof tokenizedSentence): ReadableStream {
+    const encoder = new TextEncoder();
+    const wordCount = data.sentence.split(/\s+/).length;
+    const lines = [
+      `event: progress\ndata: ${JSON.stringify({ wordCount })}\n\n`,
+      `event: complete\ndata: ${JSON.stringify(data)}\n\n`,
+    ];
+    return new ReadableStream({
+      start(controller) {
+        for (const line of lines) {
+          controller.enqueue(encoder.encode(line));
+        }
+        controller.close();
+      },
     });
   }
 
@@ -149,7 +185,7 @@ describe("HomeView.vue", () => {
     await generateFromComposer(wrapper);
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/reading-sentence/next",
+      "/api/reading-sentence/next/stream",
       expect.objectContaining({
         method: "POST",
       }),
@@ -261,5 +297,69 @@ describe("HomeView.vue", () => {
     expect(
       wrapper.find('[data-testid="reading-settings-overlay"]').exists(),
     ).toBe(false);
+  });
+
+  it("shows streaming word count progress during generation", async () => {
+    window.localStorage.setItem("openvoca.ui.locale", "en");
+
+    const encoder = new TextEncoder();
+    let enqueueRef: ReadableStreamDefaultController<Uint8Array> | null = null;
+
+    const fetchMock = vi.fn((url: string) => {
+      if (typeof url === "string" && url.startsWith("/api/target-words")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => targetWordsResponse,
+        });
+      }
+      if (
+        typeof url === "string" &&
+        url.startsWith("/api/reading-sentence/next/stream")
+      ) {
+        const stream = new ReadableStream<Uint8Array>({
+          start(controller) {
+            enqueueRef = controller;
+          },
+        });
+        return Promise.resolve({ ok: true, body: stream });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = mount(HomeView, {
+      global: { plugins: [makeRouter()] },
+    });
+    await flushPromises();
+
+    // Trigger generate from composer
+    await generateFromComposer(wrapper);
+
+    // Send a progress event
+    enqueueRef!.enqueue(
+      encoder.encode(
+        `event: progress\ndata: ${JSON.stringify({ wordCount: 5 })}\n\n`,
+      ),
+    );
+    await flushPromises();
+
+    const progress = wrapper.find('[data-testid="loading-progress"]');
+    expect(progress.exists()).toBe(true);
+    expect(progress.text()).toContain("5");
+
+    // Send complete event
+    enqueueRef!.enqueue(
+      encoder.encode(
+        `event: complete\ndata: ${JSON.stringify(tokenizedSentence)}\n\n`,
+      ),
+    );
+    enqueueRef!.close();
+    await flushPromises();
+
+    // Sentence should now be displayed
+    expect(wrapper.text()).toContain("lantern");
+    expect(wrapper.find('[data-testid="loading-progress"]').exists()).toBe(
+      false,
+    );
   });
 });

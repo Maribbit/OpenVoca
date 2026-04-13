@@ -4,6 +4,7 @@ All LLM integrations implement the ``LLMProvider`` protocol so the rest
 of the application can depend on a single, stable API surface.
 """
 
+from collections.abc import AsyncGenerator
 from typing import Protocol, runtime_checkable
 
 
@@ -18,5 +19,14 @@ class LLMProvider(Protocol):
         - raise ``httpx.HTTPError`` (or subclass) on transport failures.
         - raise ``ValueError`` when the model response is unparseable.
         - return a single, whitespace-normalised string.
+        """
+        ...
+
+    async def generate_completion_stream(
+        self, prompt: str
+    ) -> AsyncGenerator[str, None]:
+        """Stream text chunks from the model as they are generated.
+
+        Yields individual content deltas.
         """
         ...

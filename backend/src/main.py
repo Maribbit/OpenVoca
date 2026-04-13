@@ -1,4 +1,5 @@
 import asyncio
+import json
 import csv
 import io
 import os
@@ -303,6 +304,63 @@ async def get_next_reading_sentence(
     """
     tick_cooldowns()
     return await _generate_reading_response(request.prompt, request.target_words)
+
+
+@app.post("/api/reading-sentence/next/stream")
+async def stream_next_reading_sentence(
+    request: ReadingSentenceRequest,
+) -> StreamingResponse:
+    """Generate a sentence with SSE progress events.
+
+    Events:
+    - ``progress``: ``{"wordCount": N}`` — running word count
+    - ``complete``: full ``ReadingSentenceResponse`` JSON
+    - ``error``: ``{"detail": "..."}``
+    """
+    tick_cooldowns()
+    final_prompt = build_sentence_generation_prompt(
+        request.prompt, request.target_words
+    )
+
+    async def event_stream():  # noqa: ANN202
+        accumulated = ""
+        try:
+            async for chunk in llm.generate_completion_stream(final_prompt):
+                accumulated += chunk
+                word_count = len(accumulated.split())
+                yield f"event: progress\ndata: {json.dumps({'wordCount': word_count})}\n\n"
+        except (httpx.HTTPError, ValueError) as exc:
+            yield f"event: error\ndata: {json.dumps({'detail': str(exc)[:300]})}\n\n"
+            return
+
+        sentence = " ".join(accumulated.split())
+        if not sentence:
+            yield f"event: error\ndata: {json.dumps({'detail': 'Empty response from model.'})}\n\n"
+            return
+
+        tokens = tokenize_sentence(sentence)
+        result = ReadingSentenceResponse(
+            sentence=sentence,
+            words=request.target_words,
+            tokens=[
+                ReadingSentenceToken(
+                    text=t.text,
+                    is_word=t.is_word,
+                    is_target=t.is_target,
+                    pos=t.pos,
+                    lemma=t.lemma,
+                    trailing_space=t.trailing_space,
+                )
+                for t in tokens
+            ],
+        )
+        yield f"event: complete\ndata: {result.model_dump_json(by_alias=True)}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.post("/api/feedback")

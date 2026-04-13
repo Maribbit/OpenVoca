@@ -825,3 +825,96 @@ def test_version_gt_comparisons() -> None:
     assert _version_gt("0.9.0", "0.9.0") is False
     assert _version_gt("0.9.0", "0.9.1") is False
     assert _version_gt("0.10.0", "0.9.0") is True
+
+
+# ---------------------------------------------------------------------------
+# Streaming endpoint
+# ---------------------------------------------------------------------------
+
+
+def test_stream_endpoint_returns_sse_progress_and_complete(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """POST /api/reading-sentence/next/stream should emit progress + complete SSE events."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    async def fake_stream(prompt: str):
+        yield "A "
+        yield "*harbor* "
+        yield "gleamed."
+
+    monkeypatch.setattr(
+        main_module.llm,
+        "generate_completion_stream",
+        fake_stream,
+    )
+
+    with client.stream(
+        "POST",
+        "/api/reading-sentence/next/stream",
+        json={
+            "prompt": "Write a sentence with harbor.",
+            "targetWords": ["harbor"],
+        },
+    ) as response:
+        assert response.status_code == 200
+        assert "text/event-stream" in response.headers["content-type"]
+        body = response.read().decode()
+
+    import json as _json
+
+    events = []
+    for block in body.strip().split("\n\n"):
+        lines = block.strip().split("\n")
+        event_type = ""
+        data = ""
+        for line in lines:
+            if line.startswith("event: "):
+                event_type = line[7:]
+            elif line.startswith("data: "):
+                data = line[6:]
+        if event_type and data:
+            events.append((event_type, _json.loads(data)))
+
+    progress_events = [e for e in events if e[0] == "progress"]
+    assert len(progress_events) >= 1
+    assert progress_events[-1][1]["wordCount"] >= 2
+
+    complete_events = [e for e in events if e[0] == "complete"]
+    assert len(complete_events) == 1
+    result = complete_events[0][1]
+    assert result["sentence"] == "A *harbor* gleamed."
+    assert "tokens" in result
+    assert result["words"] == ["harbor"]
+
+
+def test_stream_endpoint_returns_error_on_llm_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Streaming endpoint should emit an error event when the LLM raises."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    async def fake_stream(prompt: str):
+        raise ValueError("Model unavailable")
+        yield  # noqa: RET503 — make it a generator
+
+    monkeypatch.setattr(
+        main_module.llm,
+        "generate_completion_stream",
+        fake_stream,
+    )
+
+    with client.stream(
+        "POST",
+        "/api/reading-sentence/next/stream",
+        json={
+            "prompt": "Write a sentence.",
+            "targetWords": ["word"],
+        },
+    ) as response:
+        body = response.read().decode()
+
+    assert "event: error" in body
+    assert "Model unavailable" in body

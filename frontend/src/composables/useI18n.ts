@@ -136,6 +136,8 @@ interface LocaleMessages {
   updateAvailable: string;
   updateDownload: string;
   updateDismiss: string;
+  wordSingular: string;
+  wordPlural: string;
 }
 
 export const MESSAGES: Record<Locale, LocaleMessages> = {
@@ -288,6 +290,8 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     updateAvailable: "New version available: v{0}",
     updateDownload: "Download",
     updateDismiss: "Dismiss",
+    wordSingular: "word",
+    wordPlural: "words",
   },
   zh: {
     menu: "菜单",
@@ -432,6 +436,8 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     updateAvailable: "发现新版本：v{0}",
     updateDownload: "下载",
     updateDismiss: "关闭",
+    wordSingular: "词",
+    wordPlural: "词",
   },
 };
 

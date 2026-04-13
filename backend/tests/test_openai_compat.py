@@ -109,3 +109,37 @@ async def test_openai_compatible_client_aclose() -> None:
         transport=transport,
     )
     await client_obj.aclose()
+
+
+@pytest.mark.anyio
+async def test_openai_compatible_client_streams_chunks() -> None:
+    """generate_completion_stream should yield content deltas from SSE chunks."""
+
+    sse_body = (
+        'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n'
+        'data: {"choices":[{"delta":{"content":" world"}}]}\n\n'
+        'data: {"choices":[{"delta":{"content":"."}}]}\n\n'
+        "data: [DONE]\n\n"
+    )
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code=200,
+            content=sse_body.encode(),
+            headers={"content-type": "text/event-stream"},
+        )
+
+    transport = httpx.MockTransport(handler)
+    client_obj = OpenAICompatibleClient(
+        base_url="https://api.example.com",
+        model="test",
+        api_key="sk-test",
+        transport=transport,
+    )
+
+    chunks: list[str] = []
+    async for chunk in client_obj.generate_completion_stream("test prompt"):
+        chunks.append(chunk)
+
+    assert chunks == ["Hello", " world", "."]
+    await client_obj.aclose()
