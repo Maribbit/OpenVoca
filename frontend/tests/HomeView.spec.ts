@@ -67,6 +67,13 @@ describe("HomeView.vue", () => {
           json: async () => tokenizedSentence,
         });
       }
+      if (typeof url === "string" && url.startsWith("/api/tts")) {
+        return Promise.resolve({
+          ok: true,
+          blob: async () =>
+            new Blob([new Uint8Array([0xff, 0xfb])], { type: "audio/mpeg" }),
+        });
+      }
       return Promise.resolve({
         ok: true,
         json: async () => ({}),
@@ -361,5 +368,50 @@ describe("HomeView.vue", () => {
     expect(wrapper.find('[data-testid="loading-progress"]').exists()).toBe(
       false,
     );
+  });
+
+  it("plays TTS audio from backend when read aloud is clicked", async () => {
+    window.localStorage.setItem("openvoca.ui.locale", "en");
+
+    let playWasCalled = false;
+    let audioSrc = "";
+
+    class FakeAudio {
+      src = "";
+      onplaying: (() => void) | null = null;
+      onended: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      play = vi.fn(() => {
+        audioSrc = this.src;
+        playWasCalled = true;
+        // Simulate the playing event
+        if (this.onplaying) this.onplaying();
+        return Promise.resolve();
+      });
+      pause = vi.fn();
+      constructor(url?: string) {
+        if (url) this.src = url;
+      }
+    }
+    vi.stubGlobal("Audio", FakeAudio);
+
+    vi.stubGlobal("fetch", mockFetch());
+
+    const wrapper = mount(HomeView, {
+      global: { plugins: [makeRouter()] },
+    });
+    await flushPromises();
+    await generateFromComposer(wrapper);
+
+    // Find and click the read-aloud button
+    const readAloudBtn = wrapper
+      .findAll("button")
+      .find((b) => b.attributes("title") === "Read aloud");
+    expect(readAloudBtn).toBeDefined();
+    await readAloudBtn!.trigger("click");
+    await flushPromises();
+
+    expect(playWasCalled).toBe(true);
+    expect(audioSrc).toContain("/api/tts?text=");
   });
 });

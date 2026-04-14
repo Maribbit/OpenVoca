@@ -8,7 +8,7 @@
           class="flex flex-col gap-2 rounded-xl border border-ink/5 bg-surface px-4 py-2.5 shadow-lg dark:border-white/10"
         >
           <span v-if="entry" class="flex min-w-0 flex-col gap-0.5">
-            <span class="flex items-baseline gap-2">
+            <span class="flex items-center gap-2">
               <span class="font-sans text-sm font-semibold text-ink">{{
                 entry.word
               }}</span>
@@ -22,6 +22,34 @@
                 class="rounded bg-ink/5 px-1 py-px font-mono text-[10px] leading-none text-inkLight/60 dark:bg-white/10"
                 >{{ entry.pos.toUpperCase() }}</span
               >
+              <button
+                type="button"
+                data-testid="speak-word"
+                class="ml-auto shrink-0 rounded-full p-0.5 text-inkLight/40 transition-colors hover:text-ink"
+                :class="{ 'animate-pulse text-ink': wordSpeaking }"
+                :title="pronounceLabel"
+                @click="speakWord"
+              >
+                <svg
+                  class="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M11 5L6 9H2v6h4l5 4V5Z"
+                  />
+                  <path
+                    v-if="!wordSpeaking"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M15.54 8.46a5 5 0 0 1 0 7.07"
+                  />
+                </svg>
+              </button>
             </span>
             <template v-if="displayMode !== 'en' && entry.translation">
               <span
@@ -41,9 +69,39 @@
             </template>
           </span>
           <span v-else class="flex min-w-0 flex-col gap-0.5">
-            <span class="font-sans text-sm font-semibold text-ink">{{
-              notFoundWord
-            }}</span>
+            <span class="flex items-center gap-2">
+              <span class="font-sans text-sm font-semibold text-ink">{{
+                notFoundWord
+              }}</span>
+              <button
+                type="button"
+                data-testid="speak-word"
+                class="ml-auto shrink-0 rounded-full p-0.5 text-inkLight/40 transition-colors hover:text-ink"
+                :class="{ 'animate-pulse text-ink': wordSpeaking }"
+                :title="pronounceLabel"
+                @click="speakWord"
+              >
+                <svg
+                  class="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M11 5L6 9H2v6h4l5 4V5Z"
+                  />
+                  <path
+                    v-if="!wordSpeaking"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M15.54 8.46a5 5 0 0 1 0 7.07"
+                  />
+                </svg>
+              </button>
+            </span>
             <span class="font-sans text-sm leading-snug text-inkLight/60">{{
               notFoundText
             }}</span>
@@ -114,7 +172,7 @@
 </template>
 
 <script setup lang="ts">
-  import { computed } from "vue";
+  import { computed, ref, onBeforeUnmount } from "vue";
   import type { DictionaryEntry } from "../api/reading";
 
   export type DictionaryDisplayMode = "zh" | "en" | "both";
@@ -127,6 +185,7 @@
     dontKnowText: string;
     isMarked: boolean;
     displayMode: DictionaryDisplayMode;
+    pronounceLabel: string;
   }>();
 
   const lookupWord = computed(
@@ -146,6 +205,72 @@
       .filter(Boolean)
       .slice(0, MAX_LINES);
   }
+
+  // --- Word pronunciation ---
+
+  const wordSpeaking = ref(false);
+  let wordAudio: HTMLAudioElement | null = null;
+
+  function stopWordAudio(): void {
+    if (wordAudio) {
+      wordAudio.pause();
+      wordAudio.src = "";
+      wordAudio = null;
+    }
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    wordSpeaking.value = false;
+  }
+
+  function speakWordBrowser(word: string): void {
+    const utterance = new SpeechSynthesisUtterance(word);
+    utterance.lang = "en-US";
+    utterance.onend = () => {
+      wordSpeaking.value = false;
+    };
+    wordSpeaking.value = true;
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function speakWord(): void {
+    const word = lookupWord.value;
+    if (!word) return;
+    if (wordSpeaking.value) {
+      stopWordAudio();
+      return;
+    }
+    stopWordAudio();
+    wordSpeaking.value = true;
+    const params = new URLSearchParams({ text: word });
+    const audio = new Audio(`/api/tts?${params.toString()}`);
+    wordAudio = audio;
+    audio.onplaying = () => {
+      wordSpeaking.value = true;
+    };
+    audio.onended = () => {
+      wordAudio = null;
+      wordSpeaking.value = false;
+    };
+    audio.onerror = () => {
+      wordAudio = null;
+      wordSpeaking.value = false;
+      if (window.speechSynthesis) {
+        speakWordBrowser(word);
+      }
+    };
+    audio.play().catch(() => {
+      wordAudio = null;
+      wordSpeaking.value = false;
+      if (window.speechSynthesis) {
+        speakWordBrowser(word);
+      }
+    });
+  }
+
+  onBeforeUnmount(() => {
+    stopWordAudio();
+  });
 </script>
 
 <style scoped>

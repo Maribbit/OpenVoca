@@ -540,6 +540,62 @@ def get_definition(word: str) -> dict:
     }
 
 
+# --- TTS (Text-to-Speech via Edge TTS) ---
+
+_DEFAULT_VOICE = "en-US-EmmaMultilingualNeural"
+_MAX_TTS_LENGTH = 2000
+
+
+@app.get("/api/tts")
+async def get_tts(
+    text: str = Query(min_length=1, max_length=_MAX_TTS_LENGTH),
+    voice: str = Query(default=_DEFAULT_VOICE, max_length=100),
+) -> StreamingResponse:
+    """Stream MP3 audio for the given text using Edge TTS."""
+    import edge_tts
+
+    communicate = edge_tts.Communicate(text, voice=voice)
+
+    async def audio_stream():  # noqa: ANN202
+        try:
+            async for chunk in communicate.stream():
+                if chunk["type"] == "audio":
+                    yield chunk["data"]
+        except Exception:  # noqa: BLE001
+            # Edge TTS unavailable — yield nothing so the client gets
+            # an empty / truncated response and can fall back to browser TTS.
+            return
+
+    return StreamingResponse(
+        audio_stream(),
+        media_type="audio/mpeg",
+        headers={
+            "Cache-Control": "no-cache",
+            "Content-Disposition": "inline",
+        },
+    )
+
+
+@app.get("/api/tts/voices")
+async def get_tts_voices(
+    locale: str = Query(default="en", max_length=20),
+) -> list[dict[str, str]]:
+    """Return available TTS voices filtered by locale prefix."""
+    import edge_tts
+
+    all_voices = await edge_tts.list_voices()
+    return [
+        {
+            "name": v["ShortName"],
+            "gender": v["Gender"],
+            "locale": v["Locale"],
+            "friendlyName": v["FriendlyName"],
+        }
+        for v in all_voices
+        if v["Locale"].startswith(locale)
+    ]
+
+
 # --- Settings ---
 
 

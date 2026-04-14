@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.9.2
+
+Date: 2026-04-14
+
+### New Features
+- **Edge TTS read-aloud** -- Sentence read-aloud now uses Microsoft Edge TTS (`edge-tts`) for natural, neural-quality speech. Falls back to browser `SpeechSynthesis` when Edge TTS is unavailable. Three-state button (idle / loading / playing) with progressive streaming playback.
+- **Word pronunciation** -- Speaker button in the definition toast lets users hear individual words via Edge TTS (with browser fallback). Available for both found and not-found dictionary entries.
+- **TTS voice listing endpoint** -- `GET /api/tts/voices?locale=en` returns available Edge TTS voices filtered by locale.
+
+### Changed Files
+- `backend/pyproject.toml` -- Added `edge-tts>=6.1.26` dependency.
+- `backend/src/main.py` -- New `GET /api/tts` and `GET /api/tts/voices` endpoints.
+- `frontend/src/views/HomeView.vue` -- Sentence read-aloud with Edge TTS, 3-state button, browser fallback.
+- `frontend/src/components/DefinitionToast.vue` -- Added word pronunciation button with Edge TTS + browser fallback.
+- `frontend/src/api/reading.ts` -- Added `fetchTtsAudio()` helper.
+- `frontend/src/composables/useI18n.ts` -- Added `pronounceWord` i18n key.
+
+---
+
 ## v0.9.1
 
 Date: 2026-04-13

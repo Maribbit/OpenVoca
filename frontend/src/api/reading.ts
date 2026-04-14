@@ -248,6 +248,17 @@ export async function updateWordRecord(
   return (await response.json()) as WordRecordOut;
 }
 
+export async function fetchTtsAudio(
+  text: string,
+  voice?: string,
+): Promise<Blob> {
+  const params = new URLSearchParams({ text });
+  if (voice) params.set("voice", voice);
+  const response = await fetch(`/api/tts?${params.toString()}`);
+  if (!response.ok) throw new Error("TTS request failed.");
+  return await response.blob();
+}
+
 export async function deleteWordRecord(
   lemma: string,
   pos: string,

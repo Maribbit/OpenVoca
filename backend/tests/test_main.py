@@ -918,3 +918,96 @@ def test_stream_endpoint_returns_error_on_llm_failure(
 
     assert "event: error" in body
     assert "Model unavailable" in body
+
+
+def test_tts_endpoint_returns_audio(monkeypatch: pytest.MonkeyPatch) -> None:
+    """GET /api/tts should return streamed MP3 audio from Edge TTS."""
+    import types
+
+    fake_chunks = [
+        {"type": "audio", "data": b"\xff\xfb\x90\x00"},
+        {"type": "WordBoundary", "text": "Hello", "offset": 0.0, "duration": 0.5},
+        {"type": "audio", "data": b"\xff\xfb\x90\x01"},
+    ]
+
+    class FakeCommunicate:
+        def __init__(self, text: str, voice: str = "") -> None:
+            self.text = text
+            self.voice = voice
+
+        async def stream(self):
+            for chunk in fake_chunks:
+                yield chunk
+
+    fake_edge_tts = types.ModuleType("edge_tts")
+    fake_edge_tts.Communicate = FakeCommunicate  # type: ignore[attr-defined]
+    monkeypatch.setitem(__import__("sys").modules, "edge_tts", fake_edge_tts)
+
+    response = client.get("/api/tts", params={"text": "Hello world"})
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "audio/mpeg"
+    assert response.content == b"\xff\xfb\x90\x00\xff\xfb\x90\x01"
+
+
+def test_tts_endpoint_rejects_empty_text() -> None:
+    """GET /api/tts should reject empty text."""
+    response = client.get("/api/tts", params={"text": ""})
+    assert response.status_code == 422
+
+
+def test_tts_voices_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    """GET /api/tts/voices should return filtered voice list."""
+    import types
+
+    fake_voices = [
+        {
+            "ShortName": "en-US-EmmaNeural",
+            "Gender": "Female",
+            "Locale": "en-US",
+            "FriendlyName": "Emma",
+        },
+        {
+            "ShortName": "zh-CN-XiaoxiaoNeural",
+            "Gender": "Female",
+            "Locale": "zh-CN",
+            "FriendlyName": "Xiaoxiao",
+        },
+    ]
+
+    async def fake_list_voices():
+        return fake_voices
+
+    fake_edge_tts = types.ModuleType("edge_tts")
+    fake_edge_tts.list_voices = fake_list_voices  # type: ignore[attr-defined]
+    monkeypatch.setitem(__import__("sys").modules, "edge_tts", fake_edge_tts)
+
+    response = client.get("/api/tts/voices", params={"locale": "en"})
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["name"] == "en-US-EmmaNeural"
+    assert data[0]["gender"] == "Female"
+
+
+def test_tts_endpoint_graceful_on_edge_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """GET /api/tts should return empty audio when Edge TTS is unavailable."""
+    import types
+
+    class FakeCommunicateError:
+        def __init__(self, text: str, voice: str = "") -> None:
+            pass
+
+        async def stream(self):
+            raise ConnectionError("Edge TTS unreachable")
+            yield  # noqa: RET503 — make it a generator
+
+    fake_edge_tts = types.ModuleType("edge_tts")
+    fake_edge_tts.Communicate = FakeCommunicateError  # type: ignore[attr-defined]
+    monkeypatch.setitem(__import__("sys").modules, "edge_tts", fake_edge_tts)
+
+    response = client.get("/api/tts", params={"text": "Hello"})
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "audio/mpeg"
+    assert response.content == b""

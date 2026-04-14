@@ -197,13 +197,29 @@
             type="button"
             class="cursor-pointer rounded-full p-2 transition-colors hover:bg-black/4"
             :class="
-              isSpeaking ? 'text-ink' : 'text-inkLight/40 hover:text-inkLight'
+              isSpeaking || ttsLoading
+                ? 'text-ink'
+                : 'text-inkLight/40 hover:text-inkLight'
             "
             :title="i18nMessages.readAloud"
             @click="readAloud"
           >
             <svg
-              v-if="!isSpeaking"
+              v-if="ttsLoading"
+              class="h-4 w-4 animate-pulse"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"
+              />
+            </svg>
+            <svg
+              v-else-if="!isSpeaking"
               class="h-4 w-4"
               fill="none"
               stroke="currentColor"
@@ -245,6 +261,7 @@
       :dont-know-text="i18nMessages.definitionDontKnow"
       :is-marked="isCurrentWordMarked"
       :display-mode="dictionaryDisplayMode"
+      :pronounce-label="i18nMessages.pronounceWord"
       @mark="onDefinitionMark"
     />
 
@@ -352,6 +369,8 @@
   const showAbout = ref(false);
   const copyConfirmed = ref(false);
   const isSpeaking = ref(false);
+  const ttsLoading = ref(false);
+  let ttsAudio: HTMLAudioElement | null = null;
 
   const holdButtonRef = ref<InstanceType<typeof HoldButton> | null>(null);
 
@@ -464,15 +483,20 @@
     }, 1500);
   }
 
-  function readAloud(): void {
-    if (isSpeaking.value) {
-      window.speechSynthesis.cancel();
-      isSpeaking.value = false;
-      return;
+  function stopTts(): void {
+    if (ttsAudio) {
+      ttsAudio.pause();
+      ttsAudio.src = "";
+      ttsAudio = null;
     }
-    const text = tokensToPlainText(tokens.value);
-    if (!text) return;
-    window.speechSynthesis.cancel();
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    isSpeaking.value = false;
+    ttsLoading.value = false;
+  }
+
+  function readAloudBrowser(text: string): void {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = "en-US";
     utterance.onend = () => {
@@ -480,6 +504,44 @@
     };
     isSpeaking.value = true;
     window.speechSynthesis.speak(utterance);
+  }
+
+  function readAloud(): void {
+    if (isSpeaking.value || ttsLoading.value) {
+      stopTts();
+      return;
+    }
+    const text = tokensToPlainText(tokens.value);
+    if (!text) return;
+    stopTts();
+    ttsLoading.value = true;
+    const params = new URLSearchParams({ text });
+    const audio = new Audio(`/api/tts?${params.toString()}`);
+    ttsAudio = audio;
+    audio.onplaying = () => {
+      ttsLoading.value = false;
+      isSpeaking.value = true;
+    };
+    audio.onended = () => {
+      ttsAudio = null;
+      isSpeaking.value = false;
+    };
+    audio.onerror = () => {
+      ttsAudio = null;
+      ttsLoading.value = false;
+      // Fallback to browser TTS
+      if (window.speechSynthesis) {
+        readAloudBrowser(text);
+      }
+    };
+    audio.play().catch(() => {
+      ttsAudio = null;
+      ttsLoading.value = false;
+      // Fallback to browser TTS
+      if (window.speechSynthesis) {
+        readAloudBrowser(text);
+      }
+    });
   }
 
   function onReadingSettingsChange(next: ReadingUiSettings): void {
@@ -643,10 +705,7 @@
     showComposer.value = true;
     closeUiPanel();
     dismissDefinition();
-    if (window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-      isSpeaking.value = false;
-    }
+    stopTts();
   }
 
   async function onComposerGenerate(

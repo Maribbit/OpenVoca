@@ -115,6 +115,7 @@ interface LocaleMessages {
   definitionNotFound: string;
   copySentence: string;
   readAloud: string;
+  pronounceWord: string;
   dictionarySection: string;
   dictionaryDisplay: string;
   dictionaryDisplayZh: string;
@@ -268,6 +269,7 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     definitionNotFound: "No definition found",
     copySentence: "Copy sentence",
     readAloud: "Read aloud",
+    pronounceWord: "Pronounce",
     dictionarySection: "Dictionary",
     dictionaryDisplay: "Definition Language",
     dictionaryDisplayZh: "中文",
@@ -414,6 +416,7 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     definitionNotFound: "未找到释义",
     copySentence: "复制句子",
     readAloud: "朗读",
+    pronounceWord: "发音",
     dictionarySection: "词典",
     dictionaryDisplay: "释义语言",
     dictionaryDisplayZh: "中文",
