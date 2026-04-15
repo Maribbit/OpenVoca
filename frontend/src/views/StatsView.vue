@@ -136,43 +136,50 @@
         class="overflow-hidden rounded-2xl border border-black/5 bg-surface shadow-sm"
       >
         <!-- Sort toggle -->
-        <div class="flex gap-1 border-b border-black/5 px-6 py-3">
-          <button
-            type="button"
-            class="rounded-full px-3 py-1 text-xs font-medium transition-colors"
-            :class="
-              sortMode === 'due'
-                ? 'bg-black/8 text-ink'
-                : 'text-inkLight hover:bg-black/4'
-            "
-            @click="sortMode = 'due'"
-          >
-            {{ i18nMessages.sortByDue }}
-          </button>
-          <button
-            type="button"
-            class="rounded-full px-3 py-1 text-xs font-medium transition-colors"
-            :class="
-              sortMode === 'familiarity'
-                ? 'bg-black/8 text-ink'
-                : 'text-inkLight hover:bg-black/4'
-            "
-            @click="sortMode = 'familiarity'"
-          >
-            {{ i18nMessages.sortByFamiliarity }}
-          </button>
-          <button
-            type="button"
-            class="rounded-full px-3 py-1 text-xs font-medium transition-colors"
-            :class="
-              sortMode === 'recent'
-                ? 'bg-black/8 text-ink'
-                : 'text-inkLight hover:bg-black/4'
-            "
-            @click="sortMode = 'recent'"
-          >
-            {{ i18nMessages.sortByRecent }}
-          </button>
+        <div
+          class="flex flex-wrap items-center justify-between gap-1 border-b border-black/5 px-6 py-3"
+        >
+          <div class="flex gap-1">
+            <button
+              type="button"
+              class="rounded-full px-3 py-1 text-xs font-medium transition-colors"
+              :class="
+                sortMode === 'due'
+                  ? 'bg-black/8 text-ink'
+                  : 'text-inkLight hover:bg-black/4'
+              "
+              @click="sortMode = 'due'"
+            >
+              {{ i18nMessages.sortByDue }}
+            </button>
+            <button
+              type="button"
+              class="rounded-full px-3 py-1 text-xs font-medium transition-colors"
+              :class="
+                sortMode === 'familiarity'
+                  ? 'bg-black/8 text-ink'
+                  : 'text-inkLight hover:bg-black/4'
+              "
+              @click="sortMode = 'familiarity'"
+            >
+              {{ i18nMessages.sortByFamiliarity }}
+            </button>
+            <button
+              type="button"
+              class="rounded-full px-3 py-1 text-xs font-medium transition-colors"
+              :class="
+                sortMode === 'recent'
+                  ? 'bg-black/8 text-ink'
+                  : 'text-inkLight hover:bg-black/4'
+              "
+              @click="sortMode = 'recent'"
+            >
+              {{ i18nMessages.sortByRecent }}
+            </button>
+          </div>
+          <span class="text-xs text-inkLight/60">
+            {{ i18nMessages.statsIntervalTip }}
+          </span>
         </div>
 
         <table class="w-full border-collapse text-left">
@@ -212,66 +219,25 @@
                   </span>
                 </td>
                 <td class="px-6 py-4">
-                  <div class="flex items-center gap-2">
-                    <button
-                      type="button"
-                      class="cursor-pointer rounded p-0.5 text-inkLight/40 transition-colors hover:bg-black/5 hover:text-inkLight disabled:cursor-not-allowed disabled:opacity-30"
-                      :disabled="word.interval <= 2"
-                      :title="i18nMessages.intervalHalve"
-                      @click.stop="changeInterval(word, word.interval / 2)"
-                    >
-                      <svg
-                        class="h-3 w-3"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          d="M5 12h14"
-                        />
-                      </svg>
-                    </button>
-                    <div
-                      class="h-1.5 w-16 overflow-hidden rounded-full bg-black/5"
-                    >
-                      <div
-                        class="h-full rounded-full transition-all"
-                        :class="intervalBarColor(word.interval)"
-                        :style="{ width: intervalPercent(word.interval) + '%' }"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      class="cursor-pointer rounded p-0.5 text-inkLight/40 transition-colors hover:bg-black/5 hover:text-inkLight disabled:cursor-not-allowed disabled:opacity-30"
-                      :disabled="word.interval >= 64"
-                      :title="i18nMessages.intervalDouble"
-                      @click.stop="changeInterval(word, word.interval * 2)"
-                    >
-                      <svg
-                        class="h-3 w-3"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          d="M12 5v14m-7-7h14"
-                        />
-                      </svg>
-                    </button>
-                  </div>
+                  <input
+                    type="number"
+                    :value="word.level"
+                    :min="1"
+                    :max="6"
+                    class="w-14 rounded border border-transparent bg-transparent px-1 py-0.5 text-center font-mono text-xs outline-none transition-colors focus:border-black/15 focus:bg-surface"
+                    :class="
+                      word.level >= 6 ? 'text-emerald-500' : 'text-inkLight'
+                    "
+                    @change="onLevelInput(word, $event)"
+                    @click.stop
+                  />
                 </td>
                 <td class="px-6 py-4">
                   <input
                     type="number"
                     :value="word.cooldown"
                     :min="0"
-                    :max="word.interval"
+                    :max="2 ** word.level"
                     class="w-14 rounded border border-transparent bg-transparent px-1 py-0.5 text-center font-mono text-xs outline-none transition-colors focus:border-black/15 focus:bg-surface"
                     :class="
                       word.cooldown > 0 ? 'text-inkLight' : 'text-green-500'
@@ -469,15 +435,15 @@
     }
   }
 
-  async function changeInterval(
+  async function changeLevel(
     word: WordRecordOut,
-    newInterval: number,
+    newLevel: number,
   ): Promise<void> {
     try {
       const updated = await updateWordRecord(word.lemma, word.pos, {
-        interval: Math.round(newInterval),
+        level: Math.round(newLevel),
       });
-      word.interval = updated.interval;
+      word.level = updated.level;
       word.cooldown = updated.cooldown;
     } catch {
       /* silently ignore */
@@ -496,6 +462,16 @@
     } catch {
       /* silently ignore */
     }
+  }
+
+  function onLevelInput(word: WordRecordOut, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const value = parseInt(input.value, 10);
+    if (Number.isNaN(value)) {
+      input.value = String(word.level);
+      return;
+    }
+    void changeLevel(word, value);
   }
 
   function onCooldownInput(word: WordRecordOut, event: Event): void {
@@ -517,21 +493,6 @@
     } catch {
       /* silently ignore — record may already be deleted */
     }
-  }
-
-  function intervalBarColor(interval: number): string {
-    if (interval <= 2) return "bg-orange-400";
-    if (interval <= 8) return "bg-yellow-400";
-    if (interval <= 32) return "bg-green-400";
-    return "bg-emerald-500";
-  }
-
-  function intervalPercent(interval: number): number {
-    // Map interval 2→64 to percentage 0→100 using log scale
-    const min = Math.log2(2); // 1
-    const max = Math.log2(64); // 6
-    const current = Math.log2(Math.min(Math.max(interval, 2), 64));
-    return Math.round(((current - min) / (max - min)) * 100);
   }
 
   watch(sortMode, () => {

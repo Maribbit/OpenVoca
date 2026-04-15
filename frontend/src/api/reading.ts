@@ -32,7 +32,7 @@ export interface FeedbackRequest {
 export interface WordRecordOut {
   lemma: string;
   pos: string;
-  interval: number;
+  level: number;
   cooldown: number;
   firstSeen?: string | null;
   lastSeen?: string | null;
@@ -234,7 +234,7 @@ export async function fetchDefinition(
 export async function updateWordRecord(
   lemma: string,
   pos: string,
-  update: { interval?: number; cooldown?: number },
+  update: { level?: number; cooldown?: number },
 ): Promise<WordRecordOut> {
   const response = await fetch(
     `/api/vocabulary/${encodeURIComponent(lemma)}/${encodeURIComponent(pos)}`,

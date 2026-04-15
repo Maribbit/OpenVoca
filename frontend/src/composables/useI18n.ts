@@ -109,6 +109,7 @@ interface LocaleMessages {
   composerAddWordPlaceholder: string;
   statsLemma: string;
   statsInterval: string;
+  statsIntervalTip: string;
   statsCooldown: string;
   definitionKnow: string;
   definitionDontKnow: string;
@@ -121,8 +122,6 @@ interface LocaleMessages {
   dictionaryDisplayZh: string;
   dictionaryDisplayEn: string;
   dictionaryDisplayBoth: string;
-  intervalHalve: string;
-  intervalDouble: string;
   deleteWord: string;
   sortByDue: string;
   sortByFamiliarity: string;
@@ -263,6 +262,7 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     composerAddWordPlaceholder: "type & enter",
     statsLemma: "Lemma",
     statsInterval: "Familiarity",
+    statsIntervalTip: "Each level doubles the cooldown: 2, 4, 8, 16, 32, 64",
     statsCooldown: "Cooldown",
     definitionKnow: "Know",
     definitionDontKnow: "Don't know",
@@ -275,8 +275,6 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     dictionaryDisplayZh: "中文",
     dictionaryDisplayEn: "EN",
     dictionaryDisplayBoth: "Both",
-    intervalHalve: "Decrease familiarity",
-    intervalDouble: "Increase familiarity",
     deleteWord: "Delete word",
     sortByDue: "Due for Review",
     sortByFamiliarity: "By Familiarity",
@@ -410,6 +408,7 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     composerAddWordPlaceholder: "输入并回车",
     statsLemma: "词元",
     statsInterval: "熟悉度",
+    statsIntervalTip: "每升一级，冷却翻倍：2, 4, 8, 16, 32, 64",
     statsCooldown: "冷却剩余",
     definitionKnow: "认识",
     definitionDontKnow: "不认识",
@@ -422,8 +421,6 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     dictionaryDisplayZh: "中文",
     dictionaryDisplayEn: "EN",
     dictionaryDisplayBoth: "双语",
-    intervalHalve: "降低熟悉度",
-    intervalDouble: "提高熟悉度",
     deleteWord: "删除词条",
     sortByDue: "即将复习",
     sortByFamiliarity: "按熟悉度",

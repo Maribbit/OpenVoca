@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.9.3
+
+Date: 2026-04-15
+
+### Changed
+- **Level-based SRS model** -- Replaced raw interval values with a level exponent (1--6). Actual cooldown = 2^level generations. Simplifies the data model and makes the algorithm easier to reason about.
+- **Stats display overhaul** -- Familiarity column now shows a plain integer input (1--6) instead of a progress bar with +/- buttons. Matches the cooldown column's editable-number style.
+- **Algorithm hint in Stats** -- Sort toolbar shows a brief explanation: "Each level doubles the cooldown: 2, 4, 8, 16, 32, 64".
+
+### Changed Files
+- `backend/src/services/word_store.py` -- `interval` field renamed to `level`; constants `INTERVAL_BASE`/`INTERVAL_MAX` replaced with `LEVEL_MIN`/`LEVEL_MAX`/`LEVEL_BASE`; algorithm functions updated.
+- `backend/src/main.py` -- Pydantic response/update models use `level` instead of `interval`.
+- `backend/tests/test_main.py`, `backend/tests/test_word_store.py` -- Tests updated for level-based model.
+- `frontend/src/api/reading.ts` -- TypeScript `WordRecordOut.interval` renamed to `.level`.
+- `frontend/src/views/StatsView.vue` -- Integer input for familiarity; removed progress bar, +/- buttons, and helper functions. Added algorithm hint in sort bar.
+- `frontend/src/composables/useI18n.ts` -- Added `statsIntervalTip` key; removed dead `intervalHalve`/`intervalDouble` keys.
+
+---
+
 ## v0.9.2
 
 Date: 2026-04-14

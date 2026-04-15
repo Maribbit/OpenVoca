@@ -7,14 +7,15 @@ from typing import Literal
 from sqlalchemy import text
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
-INTERVAL_BASE = 2
-INTERVAL_MAX = 64
+LEVEL_MIN = 1
+LEVEL_MAX = 6
+LEVEL_BASE = 2  # actual interval = LEVEL_BASE ** level
 
 
 class WordRecord(SQLModel, table=True):
     lemma: str = Field(primary_key=True)
     pos: str = Field(primary_key=True)
-    interval: int = Field(default=INTERVAL_BASE, ge=INTERVAL_BASE)
+    level: int = Field(default=LEVEL_MIN, ge=LEVEL_MIN)
     cooldown: int = Field(default=0, ge=0)
     first_seen: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     last_seen: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -59,11 +60,9 @@ def _find_record(session: Session, lemma: str, pos: str) -> WordRecord | None:
     ).first()
     if record is not None:
         return record
-    # Fallback: match by lemma alone, prefer lowest interval (most likely picked)
+    # Fallback: match by lemma alone, prefer lowest level (most likely picked)
     return session.exec(
-        select(WordRecord)
-        .where(WordRecord.lemma == lemma)
-        .order_by(WordRecord.interval)
+        select(WordRecord).where(WordRecord.lemma == lemma).order_by(WordRecord.level)
     ).first()
 
 
@@ -73,11 +72,11 @@ def apply_feedback(
     sentence: str,
     engine=None,
 ) -> None:
-    """Update interval/cooldown based on user feedback.
+    """Update level/cooldown based on user feedback.
 
     Each word is a (lemma, pos) tuple.
-    - Marked words (user flagged as unknown): halve interval (min INTERVAL_BASE).
-    - Unmarked target words (user already knows): double interval (max INTERVAL_MAX).
+    - Marked words (user flagged as unknown): decrement level (min LEVEL_MIN).
+    - Unmarked target words (user already knows): increment level (max LEVEL_MAX).
     """
     target = engine or _engine
     now = datetime.now(timezone.utc)
@@ -87,15 +86,16 @@ def apply_feedback(
     unmarked_targets = target_set - marked_set
 
     with Session(target) as session:
-        # Miss: halve interval for marked (unknown) words
+        # Miss: decrement level for marked (unknown) words
         for lemma, pos in marked_set:
             record = _find_record(session, lemma, pos)
             if record is None:
+                new_level = LEVEL_MIN
                 record = WordRecord(
                     lemma=lemma,
                     pos=pos,
-                    interval=INTERVAL_BASE,
-                    cooldown=INTERVAL_BASE,
+                    level=new_level,
+                    cooldown=LEVEL_BASE**new_level,
                     first_seen=now,
                     last_seen=now,
                     last_context=sentence,
@@ -103,21 +103,22 @@ def apply_feedback(
                 )
                 session.add(record)
             else:
-                record.interval = max(INTERVAL_BASE, record.interval // 2)
-                record.cooldown = record.interval
+                record.level = max(LEVEL_MIN, record.level - 1)
+                record.cooldown = LEVEL_BASE**record.level
                 record.last_seen = now
                 record.last_context = sentence
                 record.seen_count += 1
 
-        # Hit: double interval for unmarked target words
+        # Hit: increment level for unmarked target words
         for lemma, pos in unmarked_targets:
             record = _find_record(session, lemma, pos)
             if record is None:
+                new_level = LEVEL_MIN + 1
                 record = WordRecord(
                     lemma=lemma,
                     pos=pos,
-                    interval=INTERVAL_BASE * 2,
-                    cooldown=INTERVAL_BASE * 2,
+                    level=new_level,
+                    cooldown=LEVEL_BASE**new_level,
                     first_seen=now,
                     last_seen=now,
                     last_context=sentence,
@@ -125,8 +126,8 @@ def apply_feedback(
                 )
                 session.add(record)
             else:
-                record.interval = min(record.interval * 2, INTERVAL_MAX)
-                record.cooldown = record.interval
+                record.level = min(record.level + 1, LEVEL_MAX)
+                record.cooldown = LEVEL_BASE**record.level
                 record.last_seen = now
                 record.last_context = sentence
                 record.seen_count += 1
@@ -147,15 +148,15 @@ def tick_cooldowns(engine=None) -> None:
 def pick_target_words(limit: int = 3, engine=None) -> list[str]:
     """Return up to `limit` unique lemmas that are due for review.
 
-    Only words with cooldown == 0 and interval < INTERVAL_MAX are eligible.
-    Sorted by interval ASC (least familiar first), then last_seen ASC (oldest first).
+    Only words with cooldown == 0 and level < LEVEL_MAX are eligible.
+    Sorted by level ASC (least familiar first), then last_seen ASC (oldest first).
     """
     target = engine or _engine
     with Session(target) as session:
         statement = (
             select(WordRecord)
-            .where(WordRecord.cooldown == 0, WordRecord.interval < INTERVAL_MAX)
-            .order_by(WordRecord.interval, WordRecord.last_seen)
+            .where(WordRecord.cooldown == 0, WordRecord.level < LEVEL_MAX)
+            .order_by(WordRecord.level, WordRecord.last_seen)
         )
         results = session.exec(statement).all()
         seen: set[str] = set()
@@ -173,8 +174,8 @@ def list_all_words(engine=None, *, sort: str = "due") -> list[WordRecord]:
     """Return all word records sorted by the given mode.
 
     Modes:
-        - "due": cooldown ASC, interval ASC (due for review first)
-        - "familiarity": interval ASC, cooldown ASC (least familiar first)
+        - "due": cooldown ASC, level ASC (due for review first)
+        - "familiarity": level ASC, cooldown ASC (least familiar first)
         - "recent": last_seen DESC (most recently reviewed first)
     """
     target = engine or _engine
@@ -185,11 +186,11 @@ def list_all_words(engine=None, *, sort: str = "due") -> list[WordRecord]:
             )
         elif sort == "familiarity":
             statement = select(WordRecord).order_by(
-                WordRecord.interval, WordRecord.cooldown
+                WordRecord.level, WordRecord.cooldown
             )
         else:
             statement = select(WordRecord).order_by(
-                WordRecord.cooldown, WordRecord.interval
+                WordRecord.cooldown, WordRecord.level
             )
         results = session.exec(statement).all()
         return list(results)
@@ -208,14 +209,14 @@ def update_word_record(
     lemma: str,
     pos: str,
     *,
-    interval: int | None = None,
+    level: int | None = None,
     cooldown: int | None = None,
     engine=None,
 ) -> WordRecord | None:
-    """Update interval and/or cooldown for a specific word record.
+    """Update level and/or cooldown for a specific word record.
 
-    Interval is clamped to [INTERVAL_BASE, INTERVAL_MAX].
-    Cooldown is clamped to [0, record.interval].
+    Level is clamped to [LEVEL_MIN, LEVEL_MAX].
+    Cooldown is clamped to [0, LEVEL_BASE ** record.level].
     Returns the updated record, or None if not found.
     """
     target = engine or _engine
@@ -226,10 +227,10 @@ def update_word_record(
         if record is None:
             return None
 
-        if interval is not None:
-            record.interval = max(INTERVAL_BASE, min(interval, INTERVAL_MAX))
+        if level is not None:
+            record.level = max(LEVEL_MIN, min(level, LEVEL_MAX))
         if cooldown is not None:
-            record.cooldown = max(0, min(cooldown, record.interval))
+            record.cooldown = max(0, min(cooldown, LEVEL_BASE**record.level))
 
         session.commit()
         session.refresh(record)
@@ -274,9 +275,9 @@ def import_vocabulary(
     """Import vocabulary from parsed CSV rows.
 
     Required columns: lemma, pos.
-    Optional columns: interval, cooldown, last_seen, last_context.
-    - interval defaults to INTERVAL_BASE, clamped to [INTERVAL_BASE, INTERVAL_MAX].
-    - cooldown defaults to 0, clamped to [0, interval].
+    Optional columns: level, cooldown, last_seen, last_context.
+    - level defaults to LEVEL_MIN, clamped to [LEVEL_MIN, LEVEL_MAX].
+    - cooldown defaults to 0, clamped to [0, LEVEL_BASE ** level].
     - last_seen defaults to now (UTC); parsed as ISO 8601 if provided.
     - first_seen defaults to now; parsed as ISO 8601 if provided.
     - last_context defaults to None.
@@ -311,18 +312,18 @@ def import_vocabulary(
                 result.errors.append(f"Row {i}: lemma and pos must not be empty")
                 continue
 
-            # --- interval (optional, default INTERVAL_BASE) ---
-            raw_interval = row.get("interval", "").strip()
-            if raw_interval:
+            # --- level (optional, default LEVEL_MIN) ---
+            raw_level = row.get("level", "").strip()
+            if raw_level:
                 try:
-                    interval = int(raw_interval)
+                    level = int(raw_level)
                 except ValueError:
                     result.skipped += 1
-                    result.errors.append(f"Row {i}: interval must be an integer")
+                    result.errors.append(f"Row {i}: level must be an integer")
                     continue
             else:
-                interval = INTERVAL_BASE
-            interval = max(INTERVAL_BASE, min(interval, INTERVAL_MAX))
+                level = LEVEL_MIN
+            level = max(LEVEL_MIN, min(level, LEVEL_MAX))
 
             # --- cooldown (optional, default 0) ---
             raw_cooldown = row.get("cooldown", "").strip()
@@ -335,7 +336,7 @@ def import_vocabulary(
                     continue
             else:
                 cooldown = 0
-            cooldown = max(0, min(cooldown, interval))
+            cooldown = max(0, min(cooldown, LEVEL_BASE**level))
 
             # --- last_seen (optional, default now) ---
             raw_last_seen = row.get("last_seen", "").strip()
@@ -387,7 +388,7 @@ def import_vocabulary(
                 if mode == "skip":
                     result.skipped += 1
                     continue
-                existing.interval = interval
+                existing.level = level
                 existing.cooldown = cooldown
                 existing.last_seen = last_seen
                 existing.first_seen = first_seen
@@ -398,7 +399,7 @@ def import_vocabulary(
                     WordRecord(
                         lemma=lemma,
                         pos=pos,
-                        interval=interval,
+                        level=level,
                         cooldown=cooldown,
                         first_seen=first_seen,
                         last_seen=last_seen,

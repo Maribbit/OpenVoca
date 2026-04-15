@@ -5,7 +5,8 @@ from fastapi.testclient import TestClient
 import src.main as main_module
 from src.main import app
 from src.services.word_store import (
-    INTERVAL_BASE,
+    LEVEL_BASE,
+    LEVEL_MIN,
     apply_feedback,
     list_all_words,
     tick_cooldowns,
@@ -88,7 +89,7 @@ def test_target_words_endpoint_picks_from_vocabulary(
         engine=engine,
     )
     # Tick cooldowns so word becomes available
-    for _ in range(INTERVAL_BASE):
+    for _ in range(LEVEL_BASE**LEVEL_MIN):
         tick_cooldowns(engine)
 
     response = client.get("/api/target-words?limit=3")
@@ -162,13 +163,13 @@ def test_feedback_with_pos_via_api(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
     assert response.status_code == 200
-    records = {(r.lemma, r.pos): r.interval for r in list_all_words(engine)}
-    assert records[("harbor", "NOUN")] == INTERVAL_BASE  # miss
-    assert records[("glow", "VERB")] == INTERVAL_BASE * 2  # hit
+    records = {(r.lemma, r.pos): r.level for r in list_all_words(engine)}
+    assert records[("harbor", "NOUN")] == LEVEL_MIN  # miss
+    assert records[("glow", "VERB")] == LEVEL_MIN + 1  # hit
 
 
 def test_vocabulary_includes_pos(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The /api/vocabulary endpoint should include POS and interval in the response."""
+    """The /api/vocabulary endpoint should include POS and level in the response."""
     engine = _in_memory_engine()
     monkeypatch.setattr("src.services.word_store._engine", engine)
 
@@ -186,8 +187,8 @@ def test_vocabulary_includes_pos(monkeypatch: pytest.MonkeyPatch) -> None:
     word_data = data["words"][0]
     assert word_data["lemma"] == "lantern"
     assert word_data["pos"] == "NOUN"
-    assert word_data["interval"] == INTERVAL_BASE * 2  # hit → BASE*2
-    assert word_data["cooldown"] == INTERVAL_BASE * 2
+    assert word_data["level"] == LEVEL_MIN + 1  # hit → MIN+1
+    assert word_data["cooldown"] == LEVEL_BASE ** (LEVEL_MIN + 1)
 
 
 def test_next_endpoint_ticks_cooldowns(
@@ -205,7 +206,7 @@ def test_next_endpoint_ticks_cooldowns(
         engine=engine,
     )
     # Tick to cooldown=1
-    for _ in range(INTERVAL_BASE - 1):
+    for _ in range(LEVEL_BASE**LEVEL_MIN - 1):
         tick_cooldowns(engine)
 
     records = {r.lemma: r for r in list_all_words(engine)}
@@ -247,7 +248,7 @@ def test_target_words_endpoint_does_not_tick(
         engine=engine,
     )
     # Tick to cooldown=1
-    for _ in range(INTERVAL_BASE - 1):
+    for _ in range(LEVEL_BASE**LEVEL_MIN - 1):
         tick_cooldowns(engine)
 
     records = {r.lemma: r for r in list_all_words(engine)}
@@ -352,7 +353,7 @@ def test_export_vocabulary_csv(monkeypatch: pytest.MonkeyPatch) -> None:
     lines = response.text.strip().splitlines()
     assert (
         lines[0]
-        == "lemma,pos,interval,cooldown,first_seen,last_seen,last_context,seen_count"
+        == "lemma,pos,level,cooldown,first_seen,last_seen,last_context,seen_count"
     )
     assert len(lines) == 3  # header + 2 words
 
@@ -370,12 +371,12 @@ def test_export_vocabulary_csv_empty(monkeypatch: pytest.MonkeyPatch) -> None:
     assert response.status_code == 200
     lines = response.text.strip().splitlines()
     assert lines == [
-        "lemma,pos,interval,cooldown,first_seen,last_seen,last_context,seen_count"
+        "lemma,pos,level,cooldown,first_seen,last_seen,last_context,seen_count"
     ]
 
 
 def test_patch_vocabulary_word(monkeypatch: pytest.MonkeyPatch) -> None:
-    """PATCH /api/vocabulary/{lemma}/{pos} should update interval and cooldown."""
+    """PATCH /api/vocabulary/{lemma}/{pos} should update level and cooldown."""
     engine = _in_memory_engine()
     monkeypatch.setattr("src.services.word_store._engine", engine)
 
@@ -388,11 +389,11 @@ def test_patch_vocabulary_word(monkeypatch: pytest.MonkeyPatch) -> None:
 
     response = client.patch(
         "/api/vocabulary/alpha/NOUN",
-        json={"interval": 8, "cooldown": 0},
+        json={"level": 3, "cooldown": 0},
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["interval"] == 8
+    assert data["level"] == 3
     assert data["cooldown"] == 0
 
 
@@ -403,7 +404,7 @@ def test_patch_vocabulary_word_not_found(monkeypatch: pytest.MonkeyPatch) -> Non
 
     response = client.patch(
         "/api/vocabulary/missing/NOUN",
-        json={"interval": 4},
+        json={"level": 2},
     )
     assert response.status_code == 404
 
@@ -455,13 +456,13 @@ def test_delete_then_patch_stale(monkeypatch: pytest.MonkeyPatch) -> None:
     # Tab B tries to patch (stale)
     response = client.patch(
         "/api/vocabulary/alpha/NOUN",
-        json={"interval": 8},
+        json={"level": 3},
     )
     assert response.status_code == 404
 
 
 def test_vocabulary_sort_due(monkeypatch: pytest.MonkeyPatch) -> None:
-    """GET /api/vocabulary?sort=due returns words by cooldown ASC, interval ASC."""
+    """GET /api/vocabulary?sort=due returns words by cooldown ASC, level ASC."""
     engine = _in_memory_engine()
     monkeypatch.setattr("src.services.word_store._engine", engine)
 
@@ -471,8 +472,8 @@ def test_vocabulary_sort_due(monkeypatch: pytest.MonkeyPatch) -> None:
         sentence="Alpha and beta.",
         engine=engine,
     )
-    # alpha: marked (miss) → interval=2, cooldown=2
-    # beta: unmarked target (hit) → interval=4, cooldown=4
+    # alpha: marked (miss) → level=1, cooldown=2
+    # beta: unmarked target (hit) → level=2, cooldown=4
 
     response = client.get("/api/vocabulary?sort=due")
     assert response.status_code == 200
@@ -482,7 +483,7 @@ def test_vocabulary_sort_due(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_vocabulary_sort_familiarity(monkeypatch: pytest.MonkeyPatch) -> None:
-    """GET /api/vocabulary?sort=familiarity returns words by interval ASC, cooldown ASC."""
+    """GET /api/vocabulary?sort=familiarity returns words by level ASC, cooldown ASC."""
     engine = _in_memory_engine()
     monkeypatch.setattr("src.services.word_store._engine", engine)
 
@@ -492,13 +493,13 @@ def test_vocabulary_sort_familiarity(monkeypatch: pytest.MonkeyPatch) -> None:
         sentence="Easy and hard.",
         engine=engine,
     )
-    # hard: marked (miss) → interval=2, cooldown=2
-    # easy: unmarked target (hit) → interval=4, cooldown=4
+    # hard: marked (miss) → level=1, cooldown=2
+    # easy: unmarked target (hit) → level=2, cooldown=4
 
     response = client.get("/api/vocabulary?sort=familiarity")
     assert response.status_code == 200
     lemmas = [w["lemma"] for w in response.json()["words"]]
-    # hard (interval=2) comes before easy (interval=4) — least familiar first
+    # hard (level=1) comes before easy (level=2) — least familiar first
     assert lemmas == ["hard", "easy"]
 
 
@@ -567,7 +568,7 @@ def test_import_vocabulary_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
     engine = _in_memory_engine()
     monkeypatch.setattr("src.services.word_store._engine", engine)
 
-    csv_content = "lemma,pos,interval,cooldown\nharbor,NOUN,8,3\nlantern,NOUN,4,0\n"
+    csv_content = "lemma,pos,level,cooldown\nharbor,NOUN,3,3\nlantern,NOUN,2,0\n"
     response = client.post(
         "/api/vocabulary/import",
         files={"file": ("vocab.csv", csv_content.encode("utf-8"), "text/csv")},
@@ -579,8 +580,8 @@ def test_import_vocabulary_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
     assert data["skipped"] == 0
     assert data["errors"] == []
     records = {r.lemma: r for r in list_all_words(engine)}
-    assert records["harbor"].interval == 8
-    assert records["lantern"].interval == 4
+    assert records["harbor"].level == 3
+    assert records["lantern"].level == 2
 
 
 def test_import_vocabulary_endpoint_upserts_existing(
@@ -597,7 +598,7 @@ def test_import_vocabulary_endpoint_upserts_existing(
         engine=engine,
     )
 
-    csv_content = "lemma,pos,interval,cooldown\nharbor,NOUN,32,16\n"
+    csv_content = "lemma,pos,level,cooldown\nharbor,NOUN,5,16\n"
     response = client.post(
         "/api/vocabulary/import",
         data={"mode": "overwrite"},
@@ -607,7 +608,7 @@ def test_import_vocabulary_endpoint_upserts_existing(
     assert response.status_code == 200
     assert response.json()["imported"] == 1
     records = {r.lemma: r for r in list_all_words(engine)}
-    assert records["harbor"].interval == 32
+    assert records["harbor"].level == 5
     assert records["harbor"].cooldown == 16
 
 
@@ -618,7 +619,7 @@ def test_import_vocabulary_endpoint_skips_invalid_rows(
     engine = _in_memory_engine()
     monkeypatch.setattr("src.services.word_store._engine", engine)
 
-    csv_content = "lemma,pos,interval,cooldown\ngood,NOUN,4,0\nbad,NOUN,notanint,0\n"
+    csv_content = "lemma,pos,level,cooldown\ngood,NOUN,2,0\nbad,NOUN,notanint,0\n"
     response = client.post(
         "/api/vocabulary/import",
         files={"file": ("vocab.csv", csv_content.encode("utf-8"), "text/csv")},
@@ -638,7 +639,7 @@ def test_import_vocabulary_endpoint_file_too_large(
     engine = _in_memory_engine()
     monkeypatch.setattr("src.services.word_store._engine", engine)
 
-    large_content = b"lemma,pos,interval,cooldown\n" + b"x," * 600_000
+    large_content = b"lemma,pos,level,cooldown\n" + b"x," * 600_000
     response = client.post(
         "/api/vocabulary/import",
         files={"file": ("big.csv", large_content, "text/csv")},
@@ -717,7 +718,7 @@ def test_export_import_roundtrip(monkeypatch: pytest.MonkeyPatch) -> None:
     for key, orig in original.items():
         assert key in restored, f"Missing record after roundtrip: {key}"
         rest = restored[key]
-        assert rest.interval == orig.interval, f"{key} interval mismatch"
+        assert rest.level == orig.level, f"{key} level mismatch"
         assert rest.cooldown == orig.cooldown, f"{key} cooldown mismatch"
         assert rest.last_context == orig.last_context, f"{key} last_context mismatch"
         assert rest.seen_count == orig.seen_count, f"{key} seen_count mismatch"
@@ -742,9 +743,9 @@ def test_import_vocabulary_endpoint_skip_mode(
         sentence="The harbor.",
         engine=engine,
     )
-    original_interval = list_all_words(engine)[0].interval
+    original_level = list_all_words(engine)[0].level
 
-    csv_content = "lemma,pos,interval,cooldown\nharbor,NOUN,32,16\nlantern,NOUN,4,0\n"
+    csv_content = "lemma,pos,level,cooldown\nharbor,NOUN,5,16\nlantern,NOUN,2,0\n"
     response = client.post(
         "/api/vocabulary/import",
         files={"file": ("vocab.csv", csv_content.encode("utf-8"), "text/csv")},
@@ -755,8 +756,8 @@ def test_import_vocabulary_endpoint_skip_mode(
     assert data["imported"] == 1  # only lantern
     assert data["skipped"] == 1  # harbor skipped
     records = {r.lemma: r for r in list_all_words(engine)}
-    assert records["harbor"].interval == original_interval  # preserved
-    assert records["lantern"].interval == 4  # new
+    assert records["harbor"].level == original_level  # preserved
+    assert records["lantern"].level == 2  # new
 
 
 def test_import_vocabulary_endpoint_minimal_csv(
@@ -785,7 +786,7 @@ def test_import_vocabulary_endpoint_bom_csv(
     engine = _in_memory_engine()
     monkeypatch.setattr("src.services.word_store._engine", engine)
 
-    csv_content = "\ufefflemma,pos,interval,cooldown\nharbor,NOUN,8,3\n"
+    csv_content = "\ufefflemma,pos,level,cooldown\nharbor,NOUN,3,3\n"
     response = client.post(
         "/api/vocabulary/import",
         files={"file": ("vocab.csv", csv_content.encode("utf-8"), "text/csv")},

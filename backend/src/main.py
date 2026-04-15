@@ -157,7 +157,7 @@ class WordRecordOut(BaseModel):
 
     lemma: str
     pos: str
-    interval: int
+    level: int
     cooldown: int
     first_seen: str = Field(alias="firstSeen")
     last_seen: str = Field(alias="lastSeen")
@@ -383,7 +383,7 @@ def get_vocabulary(
             WordRecordOut(
                 lemma=r.lemma,
                 pos=r.pos,
-                interval=r.interval,
+                level=r.level,
                 cooldown=r.cooldown,
                 first_seen=_utc_iso(r.first_seen),
                 last_seen=_utc_iso(r.last_seen),
@@ -405,7 +405,7 @@ def delete_vocabulary() -> dict[str, int]:
 class WordRecordUpdate(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    interval: int | None = None
+    level: int | None = None
     cooldown: int | None = None
 
 
@@ -413,15 +413,13 @@ class WordRecordUpdate(BaseModel):
 def patch_vocabulary_word(
     lemma: str, pos: str, body: WordRecordUpdate
 ) -> WordRecordOut:
-    record = update_word_record(
-        lemma, pos, interval=body.interval, cooldown=body.cooldown
-    )
+    record = update_word_record(lemma, pos, level=body.level, cooldown=body.cooldown)
     if record is None:
         raise HTTPException(status_code=404, detail="Word not found")
     return WordRecordOut(
         lemma=record.lemma,
         pos=record.pos,
-        interval=record.interval,
+        level=record.level,
         cooldown=record.cooldown,
         firstSeen=_utc_iso(record.first_seen),
         lastSeen=_utc_iso(record.last_seen),
@@ -448,7 +446,7 @@ def export_vocabulary() -> StreamingResponse:
         [
             "lemma",
             "pos",
-            "interval",
+            "level",
             "cooldown",
             "first_seen",
             "last_seen",
@@ -461,7 +459,7 @@ def export_vocabulary() -> StreamingResponse:
             [
                 r.lemma,
                 r.pos,
-                r.interval,
+                r.level,
                 r.cooldown,
                 r.first_seen.isoformat() if r.first_seen else "",
                 r.last_seen.isoformat() if r.last_seen else "",

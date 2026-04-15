@@ -1,7 +1,8 @@
 import pytest
 from src.services.word_store import (
-    INTERVAL_BASE,
-    INTERVAL_MAX,
+    LEVEL_BASE,
+    LEVEL_MAX,
+    LEVEL_MIN,
     ImportResult,
     MAX_IMPORT_ROWS,
     _make_engine,
@@ -24,7 +25,7 @@ from conftest import _in_memory_engine
 
 
 def test_apply_feedback_creates_new_records() -> None:
-    """Marked words should be created with interval=BASE, unmarked targets with BASE*2."""
+    """Marked words should be created with level=LEVEL_MIN, unmarked targets with LEVEL_MIN+1."""
     engine = _in_memory_engine()
 
     apply_feedback(
@@ -35,15 +36,15 @@ def test_apply_feedback_creates_new_records() -> None:
     )
 
     words = {(r.lemma, r.pos): r for r in list_all_words(engine)}
-    assert words[("lantern", "NOUN")].interval == INTERVAL_BASE * 2  # hit → BASE*2
-    assert words[("meadow", "NOUN")].interval == INTERVAL_BASE  # miss → BASE
+    assert words[("lantern", "NOUN")].level == LEVEL_MIN + 1  # hit → MIN+1
+    assert words[("meadow", "NOUN")].level == LEVEL_MIN  # miss → MIN
 
 
 def test_apply_feedback_decreases_interval_for_marked_words() -> None:
-    """Marking a previously known word should halve its interval."""
+    """Marking a previously known word should decrement its level."""
     engine = _in_memory_engine()
 
-    # First round: word becomes known (hit → interval = BASE*2)
+    # First round: word becomes known (hit → level = LEVEL_MIN+1)
     apply_feedback(
         target_words=[("harbor", "NOUN")],
         marked_words=[],
@@ -51,10 +52,10 @@ def test_apply_feedback_decreases_interval_for_marked_words() -> None:
         engine=engine,
     )
     words = {r.lemma: r for r in list_all_words(engine)}
-    assert words["harbor"].interval == INTERVAL_BASE * 2
+    assert words["harbor"].level == LEVEL_MIN + 1
 
     # Tick cooldowns to make it available, then mark as unknown
-    for _ in range(INTERVAL_BASE * 2):
+    for _ in range(LEVEL_BASE ** (LEVEL_MIN + 1)):
         tick_cooldowns(engine)
 
     apply_feedback(
@@ -64,22 +65,21 @@ def test_apply_feedback_decreases_interval_for_marked_words() -> None:
         engine=engine,
     )
     words = {r.lemma: r for r in list_all_words(engine)}
-    assert words["harbor"].interval == max(INTERVAL_BASE, (INTERVAL_BASE * 2) // 2)
+    assert words["harbor"].level == LEVEL_MIN
 
 
 def test_apply_feedback_caps_interval_at_boundaries() -> None:
-    """Interval should never go below INTERVAL_BASE or above INTERVAL_MAX."""
+    """Level should never go below LEVEL_MIN or above LEVEL_MAX."""
     engine = _in_memory_engine()
 
-    # Increase to max: need log2(INTERVAL_MAX / (BASE*2)) + 1 hits
-    # Start at BASE*2=4, then 8, 16, 32, 64 = 4 more hits
+    # Increase to max: keep hitting
     apply_feedback(
         target_words=[("resolve", "NOUN")],
         marked_words=[],
         sentence="They showed resolve.",
         engine=engine,
     )
-    # Now interval = BASE*2 = 4
+    # Now level = LEVEL_MIN+1 = 2
     for _ in range(10):
         tick_cooldowns(engine)
     # Keep hitting until we reach max
@@ -90,11 +90,11 @@ def test_apply_feedback_caps_interval_at_boundaries() -> None:
             sentence="They showed resolve.",
             engine=engine,
         )
-        for _ in range(INTERVAL_MAX):
+        for _ in range(LEVEL_BASE**LEVEL_MAX):
             tick_cooldowns(engine)
 
     words = {r.lemma: r for r in list_all_words(engine)}
-    assert words["resolve"].interval == INTERVAL_MAX
+    assert words["resolve"].level == LEVEL_MAX
 
     # Decrease past minimum
     for _ in range(10):
@@ -105,7 +105,7 @@ def test_apply_feedback_caps_interval_at_boundaries() -> None:
             engine=engine,
         )
     words = {r.lemma: r for r in list_all_words(engine)}
-    assert words["resolve"].interval == INTERVAL_BASE
+    assert words["resolve"].level == LEVEL_MIN
 
 
 def test_apply_feedback_sets_first_seen_once() -> None:
@@ -121,7 +121,7 @@ def test_apply_feedback_sets_first_seen_once() -> None:
     original_first_seen = list_all_words(engine)[0].first_seen
 
     # Tick and apply again — first_seen must stay the same
-    for _ in range(INTERVAL_BASE * 2):
+    for _ in range(LEVEL_BASE ** (LEVEL_MIN + 1)):
         tick_cooldowns(engine)
     apply_feedback(
         target_words=[("harbor", "NOUN")],
@@ -146,7 +146,7 @@ def test_apply_feedback_increments_seen_count() -> None:
     )
     assert list_all_words(engine)[0].seen_count == 1
 
-    for _ in range(INTERVAL_BASE * 2):
+    for _ in range(LEVEL_BASE ** (LEVEL_MIN + 1)):
         tick_cooldowns(engine)
 
     apply_feedback(
@@ -159,10 +159,10 @@ def test_apply_feedback_increments_seen_count() -> None:
 
 
 def test_pick_target_words_returns_lowest_interval() -> None:
-    """pick_target_words should return words with lowest interval first."""
+    """pick_target_words should return words with lowest level first."""
     engine = _in_memory_engine()
 
-    # Create 4 words all as miss (interval=BASE, cooldown=BASE)
+    # Create 4 words all as miss (level=LEVEL_MIN, cooldown=LEVEL_BASE**LEVEL_MIN)
     apply_feedback(
         [("alpha", "NOUN"), ("beta", "NOUN"), ("gamma", "NOUN"), ("delta", "NOUN")],
         [("alpha", "NOUN"), ("beta", "NOUN"), ("gamma", "NOUN"), ("delta", "NOUN")],
@@ -170,17 +170,17 @@ def test_pick_target_words_returns_lowest_interval() -> None:
         engine=engine,
     )
     # Tick cooldowns so they become available
-    for _ in range(INTERVAL_BASE):
+    for _ in range(LEVEL_BASE**LEVEL_MIN):
         tick_cooldowns(engine)
 
-    # Now hit alpha 3 times to increase its interval
+    # Now hit alpha 3 times to increase its level
     for _ in range(3):
         apply_feedback([("alpha", "NOUN")], [], "sentence", engine=engine)
-        for _ in range(INTERVAL_MAX):
+        for _ in range(LEVEL_BASE**LEVEL_MAX):
             tick_cooldowns(engine)
 
     picked = pick_target_words(limit=3, engine=engine)
-    assert "alpha" not in picked  # alpha has high interval
+    assert "alpha" not in picked  # alpha has high level
     assert len(picked) == 3
 
 
@@ -223,10 +223,10 @@ def test_same_word_different_pos_stored_separately() -> None:
         engine=engine,
     )
 
-    records = {(r.lemma, r.pos): r.interval for r in list_all_words(engine)}
+    records = {(r.lemma, r.pos): r.level for r in list_all_words(engine)}
     # Second feedback finds the existing NOUN record by lemma fallback
-    # and updates it as a hit (interval doubles: 2 → 4)
-    assert records[("leaves", "NOUN")] == INTERVAL_BASE * 2
+    # and updates it as a hit (level increments: 1 → 2)
+    assert records[("leaves", "NOUN")] == LEVEL_MIN + 1
     assert len(records) == 1
 
 
@@ -250,10 +250,10 @@ def test_feedback_pos_mismatch_updates_existing_record() -> None:
     assert len(records) == 1
     assert records[0].lemma == "run"
     assert records[0].pos == "VERB"
-    assert records[0].interval == INTERVAL_BASE
+    assert records[0].level == LEVEL_MIN
 
     # Tick to make it available
-    for _ in range(INTERVAL_BASE):
+    for _ in range(LEVEL_BASE**LEVEL_MIN):
         tick_cooldowns(engine)
 
     # LLM uses "run" as NOUN, user doesn't mark it (hit)
@@ -269,21 +269,21 @@ def test_feedback_pos_mismatch_updates_existing_record() -> None:
     # Should update existing record, NOT create a second one
     assert len(records) == 1
     assert records[0].lemma == "run"
-    assert records[0].interval == INTERVAL_BASE * 2  # hit → doubled
+    assert records[0].level == LEVEL_MIN + 1  # hit → incremented
 
 
 def test_feedback_pos_mismatch_miss_updates_existing_record() -> None:
     """When user marks a word with a different POS than in DB, existing record updates."""
     engine = _in_memory_engine()
 
-    # "light" enters as ADJ hit → interval=4
+    # "light" enters as ADJ hit → level=2
     apply_feedback(
         target_words=[("light", "ADJ")],
         marked_words=[],
         sentence="A light breeze.",
         engine=engine,
     )
-    for _ in range(INTERVAL_BASE * 2):
+    for _ in range(LEVEL_BASE ** (LEVEL_MIN + 1)):
         tick_cooldowns(engine)
 
     # User marks "light" as NOUN (miss) — should update existing ADJ record
@@ -297,7 +297,7 @@ def test_feedback_pos_mismatch_miss_updates_existing_record() -> None:
     records = list_all_words(engine)
     assert len(records) == 1
     assert records[0].lemma == "light"
-    assert records[0].interval == max(INTERVAL_BASE, (INTERVAL_BASE * 2) // 2)
+    assert records[0].level == LEVEL_MIN
 
 
 # ---------------------------------------------------------------------------
@@ -315,13 +315,13 @@ def test_tick_cooldowns_decrements() -> None:
         sentence="An apple.",
         engine=engine,
     )
-    # apple: interval=BASE, cooldown=BASE
+    # apple: level=LEVEL_MIN, cooldown=LEVEL_BASE**LEVEL_MIN
     records = {r.lemma: r for r in list_all_words(engine)}
-    assert records["apple"].cooldown == INTERVAL_BASE
+    assert records["apple"].cooldown == LEVEL_BASE**LEVEL_MIN
 
     tick_cooldowns(engine)
     records = {r.lemma: r for r in list_all_words(engine)}
-    assert records["apple"].cooldown == INTERVAL_BASE - 1
+    assert records["apple"].cooldown == LEVEL_BASE**LEVEL_MIN - 1
 
 
 def test_tick_cooldowns_does_not_go_below_zero() -> None:
@@ -335,7 +335,7 @@ def test_tick_cooldowns_does_not_go_below_zero() -> None:
         engine=engine,
     )
     # Tick more times than cooldown value
-    for _ in range(INTERVAL_BASE + 5):
+    for _ in range(LEVEL_BASE**LEVEL_MIN + 5):
         tick_cooldowns(engine)
     records = {r.lemma: r for r in list_all_words(engine)}
     assert records["apple"].cooldown == 0
@@ -351,13 +351,13 @@ def test_cooldown_words_not_picked() -> None:
         sentence="An apple.",
         engine=engine,
     )
-    # apple has cooldown=BASE, should not be picked
+    # apple has cooldown=LEVEL_BASE**LEVEL_MIN, should not be picked
     picked = pick_target_words(limit=3, engine=engine)
     assert picked == []
 
 
 def test_graduated_words_not_picked() -> None:
-    """Words with interval >= INTERVAL_MAX should not be picked."""
+    """Words with level >= LEVEL_MAX should not be picked."""
     engine = _in_memory_engine()
 
     # Manually create a graduated word by repeated hits
@@ -369,7 +369,7 @@ def test_graduated_words_not_picked() -> None:
     )
     # Keep hitting until graduated
     for _ in range(20):
-        for _ in range(INTERVAL_MAX):
+        for _ in range(LEVEL_BASE**LEVEL_MAX):
             tick_cooldowns(engine)
         apply_feedback(
             target_words=[("apple", "NOUN")],
@@ -379,9 +379,9 @@ def test_graduated_words_not_picked() -> None:
         )
 
     records = {r.lemma: r for r in list_all_words(engine)}
-    assert records["apple"].interval == INTERVAL_MAX
+    assert records["apple"].level == LEVEL_MAX
 
-    for _ in range(INTERVAL_MAX):
+    for _ in range(LEVEL_BASE**LEVEL_MAX):
         tick_cooldowns(engine)
 
     picked = pick_target_words(limit=3, engine=engine)
@@ -399,7 +399,7 @@ def test_graduated_word_relapse_on_mark() -> None:
         engine=engine,
     )
     for _ in range(20):
-        for _ in range(INTERVAL_MAX):
+        for _ in range(LEVEL_BASE**LEVEL_MAX):
             tick_cooldowns(engine)
         apply_feedback(
             target_words=[("apple", "NOUN")],
@@ -409,9 +409,9 @@ def test_graduated_word_relapse_on_mark() -> None:
         )
 
     records = {r.lemma: r for r in list_all_words(engine)}
-    assert records["apple"].interval == INTERVAL_MAX
+    assert records["apple"].level == LEVEL_MAX
 
-    # Mark as unknown → interval halved, back in review pool
+    # Mark as unknown → level decremented, back in review pool
     apply_feedback(
         target_words=[],
         marked_words=[("apple", "NOUN")],
@@ -419,8 +419,8 @@ def test_graduated_word_relapse_on_mark() -> None:
         engine=engine,
     )
     records = {r.lemma: r for r in list_all_words(engine)}
-    assert records["apple"].interval == INTERVAL_MAX // 2
-    assert records["apple"].cooldown == INTERVAL_MAX // 2
+    assert records["apple"].level == LEVEL_MAX - 1
+    assert records["apple"].cooldown == LEVEL_BASE ** (LEVEL_MAX - 1)
 
 
 def test_non_target_word_marked_creates_record() -> None:
@@ -436,8 +436,8 @@ def test_non_target_word_marked_creates_record() -> None:
 
     records = {r.lemma: r for r in list_all_words(engine)}
     assert "flutter" in records
-    assert records["flutter"].interval == INTERVAL_BASE
-    assert records["flutter"].cooldown == INTERVAL_BASE
+    assert records["flutter"].level == LEVEL_MIN
+    assert records["flutter"].cooldown == LEVEL_BASE**LEVEL_MIN
 
 
 def test_last_context_stored() -> None:
@@ -467,13 +467,13 @@ def test_full_round_simulation() -> None:
         engine=engine,
     )
 
-    # All at interval=BASE, cooldown=BASE
+    # All at level=LEVEL_MIN, cooldown=LEVEL_BASE**LEVEL_MIN
     for r in list_all_words(engine):
-        assert r.interval == INTERVAL_BASE
-        assert r.cooldown == INTERVAL_BASE
+        assert r.level == LEVEL_MIN
+        assert r.cooldown == LEVEL_BASE**LEVEL_MIN
 
-    # Round 1: tick BASE times to make all available
-    for _ in range(INTERVAL_BASE):
+    # Round 1: tick LEVEL_BASE**LEVEL_MIN times to make all available
+    for _ in range(LEVEL_BASE**LEVEL_MIN):
         tick_cooldowns(engine)
 
     picked = pick_target_words(limit=3, engine=engine)
@@ -488,14 +488,15 @@ def test_full_round_simulation() -> None:
     )
 
     records = {r.lemma: r for r in list_all_words(engine)}
-    assert records["apple"].interval == INTERVAL_BASE  # miss: stays at BASE
-    assert records["apple"].cooldown == INTERVAL_BASE
-    assert records["harbor"].interval == INTERVAL_BASE * 2  # hit: doubled
-    assert records["harbor"].cooldown == INTERVAL_BASE * 2
-    assert records["lantern"].interval == INTERVAL_BASE * 2  # hit: doubled
+    assert records["apple"].level == LEVEL_MIN  # miss: stays at MIN
+    assert records["apple"].cooldown == LEVEL_BASE**LEVEL_MIN
+    assert records["harbor"].level == LEVEL_MIN + 1  # hit: incremented
+    assert records["harbor"].cooldown == LEVEL_BASE ** (LEVEL_MIN + 1)
+    assert records["lantern"].level == LEVEL_MIN + 1  # hit: incremented
 
-    # Round 2: tick BASE times — apple becomes available, harbor/lantern still cooling
-    for _ in range(INTERVAL_BASE):
+    # Round 2: tick LEVEL_BASE**LEVEL_MIN times — apple becomes available,
+    # harbor/lantern still cooling
+    for _ in range(LEVEL_BASE**LEVEL_MIN):
         tick_cooldowns(engine)
 
     picked = pick_target_words(limit=3, engine=engine)
@@ -510,7 +511,7 @@ def test_full_round_simulation() -> None:
 
 
 def test_update_word_record_interval() -> None:
-    """update_word_record should update interval within bounds."""
+    """update_word_record should update level within bounds."""
     engine = _in_memory_engine()
 
     apply_feedback(
@@ -520,19 +521,17 @@ def test_update_word_record_interval() -> None:
         engine=engine,
     )
 
-    record = update_word_record(
-        "apple", "NOUN", interval=INTERVAL_BASE * 2, engine=engine
-    )
+    record = update_word_record("apple", "NOUN", level=LEVEL_MIN + 1, engine=engine)
     assert record is not None
-    assert record.interval == INTERVAL_BASE * 2
+    assert record.level == LEVEL_MIN + 1
 
-    record = update_word_record("apple", "NOUN", interval=INTERVAL_BASE, engine=engine)
+    record = update_word_record("apple", "NOUN", level=LEVEL_MIN, engine=engine)
     assert record is not None
-    assert record.interval == INTERVAL_BASE
+    assert record.level == LEVEL_MIN
 
 
 def test_update_word_record_interval_clamped() -> None:
-    """Interval should be clamped to [INTERVAL_BASE, INTERVAL_MAX]."""
+    """Level should be clamped to [LEVEL_MIN, LEVEL_MAX]."""
     engine = _in_memory_engine()
 
     apply_feedback(
@@ -542,13 +541,13 @@ def test_update_word_record_interval_clamped() -> None:
         engine=engine,
     )
 
-    record = update_word_record("apple", "NOUN", interval=0, engine=engine)
+    record = update_word_record("apple", "NOUN", level=0, engine=engine)
     assert record is not None
-    assert record.interval == INTERVAL_BASE
+    assert record.level == LEVEL_MIN
 
-    record = update_word_record("apple", "NOUN", interval=999, engine=engine)
+    record = update_word_record("apple", "NOUN", level=999, engine=engine)
     assert record is not None
-    assert record.interval == INTERVAL_MAX
+    assert record.level == LEVEL_MAX
 
 
 def test_update_word_record_cooldown() -> None:
@@ -567,10 +566,10 @@ def test_update_word_record_cooldown() -> None:
     assert record.cooldown == 0
 
     record = update_word_record(
-        "apple", "NOUN", cooldown=INTERVAL_BASE * 2, engine=engine
+        "apple", "NOUN", cooldown=LEVEL_BASE ** (LEVEL_MIN + 1), engine=engine
     )
     assert record is not None
-    assert record.cooldown == INTERVAL_BASE * 2
+    assert record.cooldown == LEVEL_BASE ** (LEVEL_MIN + 1)
 
 
 def test_update_word_record_cooldown_clamped() -> None:
@@ -590,14 +589,14 @@ def test_update_word_record_cooldown_clamped() -> None:
 
     record = update_word_record("apple", "NOUN", cooldown=999, engine=engine)
     assert record is not None
-    assert record.cooldown == INTERVAL_BASE
+    assert record.cooldown == LEVEL_BASE**LEVEL_MIN
 
 
 def test_update_word_record_not_found() -> None:
     """update_word_record should return None for missing records."""
     engine = _in_memory_engine()
 
-    result = update_word_record("nonexistent", "NOUN", interval=4, engine=engine)
+    result = update_word_record("nonexistent", "NOUN", level=2, engine=engine)
     assert result is None
 
 
@@ -664,7 +663,7 @@ def test_update_stale_record() -> None:
     # Tab A deletes the record
     delete_word_record("apple", "NOUN", engine=engine)
     # Tab B tries to update — stale
-    result = update_word_record("apple", "NOUN", interval=8, engine=engine)
+    result = update_word_record("apple", "NOUN", level=3, engine=engine)
     assert result is None
 
 
@@ -696,17 +695,17 @@ def test_import_vocabulary_creates_new_records() -> None:
     engine = _in_memory_engine()
 
     rows = [
-        {"lemma": "harbor", "pos": "NOUN", "interval": "8", "cooldown": "3"},
-        {"lemma": "lantern", "pos": "NOUN", "interval": "4", "cooldown": "0"},
+        {"lemma": "harbor", "pos": "NOUN", "level": "3", "cooldown": "3"},
+        {"lemma": "lantern", "pos": "NOUN", "level": "2", "cooldown": "0"},
     ]
     result = import_vocabulary(rows, engine=engine)
 
     assert result.imported == 2
     assert result.skipped == 0
     records = {(r.lemma, r.pos): r for r in list_all_words(engine)}
-    assert records[("harbor", "NOUN")].interval == 8
+    assert records[("harbor", "NOUN")].level == 3
     assert records[("harbor", "NOUN")].cooldown == 3
-    assert records[("lantern", "NOUN")].interval == 4
+    assert records[("lantern", "NOUN")].level == 2
     assert records[("lantern", "NOUN")].cooldown == 0
 
 
@@ -722,13 +721,13 @@ def test_import_vocabulary_overwrite_existing_records() -> None:
     )
     # harbor now has interval=BASE*2, cooldown=BASE*2
 
-    rows = [{"lemma": "harbor", "pos": "NOUN", "interval": "16", "cooldown": "8"}]
+    rows = [{"lemma": "harbor", "pos": "NOUN", "level": "4", "cooldown": "8"}]
     result = import_vocabulary(rows, mode="overwrite", engine=engine)
 
     assert result.imported == 1
     assert result.skipped == 0
     records = {r.lemma: r for r in list_all_words(engine)}
-    assert records["harbor"].interval == 16
+    assert records["harbor"].level == 4
     assert records["harbor"].cooldown == 8
 
 
@@ -742,19 +741,19 @@ def test_import_vocabulary_skip_preserves_existing_records() -> None:
         sentence="The harbor.",
         engine=engine,
     )
-    original_interval = list_all_words(engine)[0].interval
+    original_level = list_all_words(engine)[0].level
 
     rows = [
-        {"lemma": "harbor", "pos": "NOUN", "interval": "32", "cooldown": "16"},
-        {"lemma": "lantern", "pos": "NOUN", "interval": "4", "cooldown": "0"},
+        {"lemma": "harbor", "pos": "NOUN", "level": "5", "cooldown": "16"},
+        {"lemma": "lantern", "pos": "NOUN", "level": "2", "cooldown": "0"},
     ]
     result = import_vocabulary(rows, mode="skip", engine=engine)
 
     assert result.imported == 1  # only lantern
     assert result.skipped == 1  # harbor skipped
     records = {r.lemma: r for r in list_all_words(engine)}
-    assert records["harbor"].interval == original_interval  # preserved
-    assert records["lantern"].interval == 4  # new
+    assert records["harbor"].level == original_level  # preserved
+    assert records["lantern"].level == 2  # new
 
 
 def test_import_vocabulary_default_mode_is_skip() -> None:
@@ -767,15 +766,15 @@ def test_import_vocabulary_default_mode_is_skip() -> None:
         sentence="The harbor.",
         engine=engine,
     )
-    original_interval = list_all_words(engine)[0].interval
+    original_level = list_all_words(engine)[0].level
 
-    rows = [{"lemma": "harbor", "pos": "NOUN", "interval": "32", "cooldown": "16"}]
+    rows = [{"lemma": "harbor", "pos": "NOUN", "level": "5", "cooldown": "16"}]
     result = import_vocabulary(rows, engine=engine)  # no mode= → default
 
     assert result.imported == 0
     assert result.skipped == 1
     records = {r.lemma: r for r in list_all_words(engine)}
-    assert records["harbor"].interval == original_interval
+    assert records["harbor"].level == original_level
 
 
 def test_import_vocabulary_skips_missing_columns() -> None:
@@ -783,8 +782,8 @@ def test_import_vocabulary_skips_missing_columns() -> None:
     engine = _in_memory_engine()
 
     rows = [
-        {"lemma": "apple", "pos": "NOUN", "interval": "4", "cooldown": "0"},
-        {"lemma": "banana", "interval": "4", "cooldown": "0"},  # missing pos
+        {"lemma": "apple", "pos": "NOUN", "level": "2", "cooldown": "0"},
+        {"lemma": "banana", "level": "2", "cooldown": "0"},  # missing pos
     ]
     result = import_vocabulary(rows, engine=engine)
 
@@ -798,8 +797,8 @@ def test_import_vocabulary_skips_empty_lemma_or_pos() -> None:
     engine = _in_memory_engine()
 
     rows = [
-        {"lemma": "", "pos": "NOUN", "interval": "4", "cooldown": "0"},
-        {"lemma": "apple", "pos": "", "interval": "4", "cooldown": "0"},
+        {"lemma": "", "pos": "NOUN", "level": "2", "cooldown": "0"},
+        {"lemma": "apple", "pos": "", "level": "2", "cooldown": "0"},
     ]
     result = import_vocabulary(rows, engine=engine)
 
@@ -812,8 +811,8 @@ def test_import_vocabulary_skips_non_integer_values() -> None:
     engine = _in_memory_engine()
 
     rows = [
-        {"lemma": "cherry", "pos": "NOUN", "interval": "abc", "cooldown": "0"},
-        {"lemma": "mango", "pos": "NOUN", "interval": "4", "cooldown": "xyz"},
+        {"lemma": "cherry", "pos": "NOUN", "level": "abc", "cooldown": "0"},
+        {"lemma": "mango", "pos": "NOUN", "level": "2", "cooldown": "xyz"},
     ]
     result = import_vocabulary(rows, engine=engine)
 
@@ -827,23 +826,23 @@ def test_import_vocabulary_clamps_out_of_range_values() -> None:
     engine = _in_memory_engine()
 
     rows = [
-        {"lemma": "alpha", "pos": "NOUN", "interval": "0", "cooldown": "0"},
-        {"lemma": "beta", "pos": "NOUN", "interval": "999", "cooldown": "500"},
+        {"lemma": "alpha", "pos": "NOUN", "level": "0", "cooldown": "0"},
+        {"lemma": "beta", "pos": "NOUN", "level": "999", "cooldown": "500"},
     ]
     result = import_vocabulary(rows, engine=engine)
 
     assert result.imported == 2
     records = {r.lemma: r for r in list_all_words(engine)}
-    assert records["alpha"].interval == INTERVAL_BASE
-    assert records["beta"].interval == INTERVAL_MAX
-    assert records["beta"].cooldown == INTERVAL_MAX  # clamped to interval
+    assert records["alpha"].level == LEVEL_MIN
+    assert records["beta"].level == LEVEL_MAX
+    assert records["beta"].cooldown == LEVEL_BASE**LEVEL_MAX  # clamped to interval
 
 
 def test_import_vocabulary_normalizes_case() -> None:
     """lemma should be lowercased and pos uppercased on import."""
     engine = _in_memory_engine()
 
-    rows = [{"lemma": "HARBOR", "pos": "noun", "interval": "4", "cooldown": "0"}]
+    rows = [{"lemma": "HARBOR", "pos": "noun", "level": "2", "cooldown": "0"}]
     import_vocabulary(rows, engine=engine)
 
     records = list_all_words(engine)
@@ -866,7 +865,7 @@ def test_import_vocabulary_too_many_rows() -> None:
     engine = _in_memory_engine()
 
     overflow = [
-        {"lemma": f"word{i}", "pos": "NOUN", "interval": "2", "cooldown": "0"}
+        {"lemma": f"word{i}", "pos": "NOUN", "level": "1", "cooldown": "0"}
         for i in range(MAX_IMPORT_ROWS + 1)
     ]
     result = import_vocabulary(overflow, engine=engine)
@@ -897,10 +896,10 @@ def test_import_vocabulary_minimal_columns() -> None:
     assert result.imported == 2
     assert result.skipped == 0
     records = {r.lemma: r for r in list_all_words(engine)}
-    assert records["harbor"].interval == INTERVAL_BASE
+    assert records["harbor"].level == LEVEL_MIN
     assert records["harbor"].cooldown == 0
     assert records["harbor"].last_context is None
-    assert records["glow"].interval == INTERVAL_BASE
+    assert records["glow"].level == LEVEL_MIN
 
 
 def test_import_vocabulary_with_last_seen_and_context() -> None:
@@ -911,7 +910,7 @@ def test_import_vocabulary_with_last_seen_and_context() -> None:
         {
             "lemma": "harbor",
             "pos": "NOUN",
-            "interval": "8",
+            "level": "3",
             "cooldown": "3",
             "last_seen": "2026-01-15T10:30:00+00:00",
             "last_context": "The harbor was calm.",
@@ -934,7 +933,7 @@ def test_import_vocabulary_bad_last_seen_skips_row() -> None:
         {
             "lemma": "harbor",
             "pos": "NOUN",
-            "interval": "8",
+            "level": "3",
             "cooldown": "3",
             "last_seen": "not-a-date",
         },
@@ -961,7 +960,7 @@ def test_import_vocabulary_overwrite_preserves_csv_context() -> None:
         {
             "lemma": "harbor",
             "pos": "NOUN",
-            "interval": "16",
+            "level": "4",
             "cooldown": "8",
             "last_seen": "2025-06-01T00:00:00+00:00",
             "last_context": "A quiet harbor.",
