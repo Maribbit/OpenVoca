@@ -1,10 +1,27 @@
-[English](./README.md) | **中文**
+<p align="right">
+  <a href="./README.md">English</a> | 中文
+</p>
 
-# OpenVoca
+<br />
 
-**在阅读中自然积累词汇。**
+<p align="center">
+  <img src="./logo.svg" width="140" height="140" alt="OpenVoca" />
+</p>
 
-一个极简的、基于 LLM 的英语词汇工具——通过阅读 AI 生成的上下文例句来学习新单词。
+<h1 align="center">OpenVoca</h1>
+
+<p align="center">
+  <em>在阅读中自然积累词汇。</em>
+</p>
+
+<p align="center">
+  一个极简的、基于 LLM 的英语词汇工具——<br />
+  通过阅读 AI 生成的上下文例句来学习新单词。
+</p>
+
+<br />
+
+![演示](./demo.gif)
 
 ## OpenVoca 是什么？
 

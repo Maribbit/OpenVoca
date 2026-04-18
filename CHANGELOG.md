@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.9.4
+
+Date: 2026-04-18
+
+### New Features
+- **OV monogram logo** -- New brand identity: a warm cream rounded-square containing a dark ink circle with the letter V cut through as negative space. Added as `logo.svg` and replaced the Vite-template favicon.
+- **Bundle README files** -- Every distributable archive now ships a platform-specific `README.txt` and `README.zh-CN.txt` generated from templates in `scripts/templates/`. Covers quick start, first-time LLM setup, usage, data location, and support links.
+
+### Changed
+- **DefinitionToast repositioned** -- The word-definition panel now slides up from the bottom of the screen (`bottom-4`) instead of dropping from the top, reducing overlap with reading text.
+- **About modal: How It Works section** -- The About modal (click "OpenVoca" in the header) now includes a "How It Works" walkthrough. The separate first-run onboarding modal idea was merged here so users can revisit the guide at any time.
+- **README headers** -- Both `README.md` and `README.zh-CN.md` redesigned: centred logo (140 px), centred title and tagline, Download section with a platform table (Windows/macOS ARM/macOS Intel/Linux), and "Building from Source" section.
+- **CI: macOS Intel runner** -- Added `macos-13` to the bundle matrix so `macos-x64` artifacts are produced alongside the existing `macos-arm64` and `linux-x64` builds.
+- **Bundle script improvements** -- `edge_tts` added to the import-verification list so a missing TTS dependency is caught at package time.
+
+### Changed Files
+- `logo.svg` -- New OV monogram logo (new file).
+- `demo.gif` -- Demo recording for README (new file).
+- `frontend/public/favicon.svg` -- Replaced with OV monogram.
+- `frontend/src/components/DefinitionToast.vue` -- `top-4` → `bottom-4`; transition direction reversed.
+- `frontend/src/views/HomeView.vue` -- About modal expanded with How It Works steps; OnboardingModal removed.
+- `frontend/src/composables/useI18n.ts` -- Added `howItWorks` and `onboardingStep*` keys (EN + ZH).
+- `README.md`, `README.zh-CN.md` -- New centred header; Download and Building from Source sections.
+- `scripts/bundle.py` -- README template loading; `edge_tts` added to import check.
+- `scripts/templates/` -- Four new README template files (EN + ZH × Windows + Unix).
+- `.github/workflows/ci.yml` -- `macos-13` runner for Intel Mac builds.
+
+---
+
 ## v0.9.3
 
 Date: 2026-04-15

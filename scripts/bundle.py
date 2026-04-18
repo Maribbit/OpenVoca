@@ -71,7 +71,7 @@ DIST_DIR = REPO_ROOT / "dist"
 ARCHIVE_STEM = f"openvoca-{VERSION}-{PLATFORM_TAG}"
 
 # Runtime packages that must be importable via the bundled Python + site-packages
-_REQUIRED_IMPORTS = ["fastapi", "uvicorn", "spacy", "sqlmodel", "httpx"]
+_REQUIRED_IMPORTS = ["fastapi", "uvicorn", "spacy", "sqlmodel", "httpx", "edge_tts"]
 
 
 # ---------------------------------------------------------------------------
@@ -104,10 +104,15 @@ def _build_prod_venv(work_dir: Path) -> Path:
 
 def _find_python_root() -> Path:
     """Return the root dir of the UV-managed Python 3.12 installation."""
-    raw = subprocess.check_output(
-        ["uv", "python", "find", "3.12"],
-        shell=IS_WINDOWS,
-    ).decode().strip().strip('"')
+    raw = (
+        subprocess.check_output(
+            ["uv", "python", "find", "3.12"],
+            shell=IS_WINDOWS,
+        )
+        .decode()
+        .strip()
+        .strip('"')
+    )
     exe = Path(raw)
     # Windows: <root>/python.exe  --  Unix: <root>/bin/python3
     return exe.parent if IS_WINDOWS else exe.parent.parent
@@ -311,6 +316,21 @@ exec "$DIR/python/bin/python3" "$DIR/start.py"
 
 
 # ---------------------------------------------------------------------------
+# User-facing README written into the bundle (loaded from scripts/templates/)
+# ---------------------------------------------------------------------------
+
+_TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
+
+
+def _load_readme(is_windows: bool, locale: str = "en") -> str:
+    """Read a README template and substitute the {version} placeholder."""
+    platform_name = "Windows" if is_windows else "Unix"
+    suffix = ".zh-CN.txt" if locale == "zh-CN" else ".txt"
+    path = _TEMPLATES_DIR / f"README.{platform_name}{suffix}"
+    return path.read_text(encoding="utf-8").replace("{version}", VERSION)
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -422,6 +442,14 @@ def main() -> None:
         run_sh_path.write_text(_RUN_SH, encoding="utf-8")
         run_sh_path.chmod(0o755)
         print("  Wrote run.sh")
+
+    readme_txt = _load_readme(IS_WINDOWS, "en")
+    (BUILD_DIR / "README.txt").write_text(readme_txt, encoding="utf-8")
+    print("  Wrote README.txt")
+
+    readme_zh = _load_readme(IS_WINDOWS, "zh-CN")
+    (BUILD_DIR / "README.zh-CN.txt").write_text(readme_zh, encoding="utf-8")
+    print("  Wrote README.zh-CN.txt")
 
     # Verify bundled imports (fail-fast before archive)
     print()

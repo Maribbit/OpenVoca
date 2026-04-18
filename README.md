@@ -1,10 +1,27 @@
-**English** | [中文](./README.zh-CN.md)
+<p align="right">
+  English | <a href="./README.zh-CN.md">中文</a>
+</p>
 
-# OpenVoca
+<br />
 
-**Build Vocabulary Naturally.**
+<p align="center">
+  <img src="./logo.svg" width="140" height="140" alt="OpenVoca" />
+</p>
 
-A minimalistic, LLM-powered English vocabulary tool — learn new words by reading AI-generated sentences in context.
+<h1 align="center">OpenVoca</h1>
+
+<p align="center">
+  <em>Build vocabulary naturally through reading.</em>
+</p>
+
+<p align="center">
+  A minimalistic, LLM-powered English vocabulary tool —<br />
+  learn new words by reading AI-generated sentences in context.
+</p>
+
+<br />
+
+![OpenVoca demo](./demo.gif)
 
 ## What is OpenVoca?
 

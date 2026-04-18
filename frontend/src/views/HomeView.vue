@@ -282,19 +282,58 @@
         @click.self="showAbout = false"
       >
         <div
-          class="mx-4 w-full max-w-xs rounded-2xl border border-black/5 bg-surface p-6 text-center shadow-lg dark:border-white/5"
+          class="mx-4 w-full max-w-sm rounded-2xl border border-black/5 bg-surface p-6 shadow-lg dark:border-white/5"
         >
-          <h2 class="font-serif text-xl tracking-wide text-ink">OpenVoca</h2>
-          <p class="mt-1 text-xs text-inkLight">
-            {{ i18nMessages.aboutTagline }}
+          <div class="text-center">
+            <h2 class="font-serif text-xl tracking-wide text-ink">OpenVoca</h2>
+            <p class="mt-1 text-xs text-inkLight">
+              {{ i18nMessages.aboutTagline }}
+            </p>
+            <p class="mt-3 text-xs leading-relaxed text-inkLight/70">
+              {{ i18nMessages.aboutDescription }}
+            </p>
+          </div>
+          <hr class="my-4 border-ink/5 dark:border-white/5" />
+          <p
+            class="mb-3 text-[10px] font-semibold uppercase tracking-wider text-inkLight/40"
+          >
+            {{ i18nMessages.howItWorks }}
           </p>
-          <p class="mt-3 text-xs leading-relaxed text-inkLight/70">
-            {{ i18nMessages.aboutDescription }}
-          </p>
-          <p class="mt-4 font-mono text-[10px] text-inkLight/40">
-            v{{ appVersion }}
-          </p>
-          <div class="mt-4 flex items-center justify-center gap-3">
+          <div class="flex flex-col gap-3">
+            <div
+              v-for="(step, i) in [
+                {
+                  title: i18nMessages.onboardingStep1Title,
+                  desc: i18nMessages.onboardingStep1Desc,
+                },
+                {
+                  title: i18nMessages.onboardingStep2Title,
+                  desc: i18nMessages.onboardingStep2Desc,
+                },
+                {
+                  title: i18nMessages.onboardingStep3Title,
+                  desc: i18nMessages.onboardingStep3Desc,
+                },
+              ]"
+              :key="i"
+              class="flex gap-3"
+            >
+              <span
+                class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ink/[0.08] font-mono text-[10px] font-semibold text-ink dark:bg-white/10"
+                >{{ i + 1 }}</span
+              >
+              <div class="min-w-0">
+                <p class="text-xs font-semibold text-ink">{{ step.title }}</p>
+                <p class="mt-0.5 text-[11px] leading-relaxed text-inkLight/60">
+                  {{ step.desc }}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="mt-5 flex items-center justify-center gap-3">
+            <span class="font-mono text-[10px] text-inkLight/40"
+              >v{{ appVersion }}</span
+            >
             <a
               href="https://github.com/Maribbit/OpenVoca"
               target="_blank"

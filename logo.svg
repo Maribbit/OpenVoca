@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Wide V (10-o'clock and 2-o'clock arm tips) sitting slightly below
+         the O's equator.  stroke-width=42, vertex at (256,245).          -->
+    <mask id="v-cutout">
+      <rect width="512" height="512" fill="white"/>
+      <polyline
+        points="139,130 256,269 373,130"
+        stroke="black"
+        stroke-width="52"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        fill="none"
+      />
+    </mask>
+  </defs>
+
+  <!-- Warm paper background -->
+  <rect width="512" height="512" rx="108" fill="#f0e8d8"/>
+
+  <!-- Dark ink circle; V punched through as cream negative space -->
+  <circle cx="256" cy="256" r="172" fill="#1c1a14" mask="url(#v-cutout)"/>
+</svg>

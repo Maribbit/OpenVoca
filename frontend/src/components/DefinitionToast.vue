@@ -1,6 +1,6 @@
 <template>
   <div
-    class="pointer-events-none fixed inset-x-0 top-4 z-50 flex justify-center"
+    class="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center"
   >
     <Transition name="def-toast">
       <div v-if="entry || notFoundWord" class="pointer-events-auto" @click.stop>
@@ -282,7 +282,7 @@
   }
   .def-toast-enter-from,
   .def-toast-leave-to {
-    transform: translateY(-120%);
+    transform: translateY(120%);
     opacity: 0;
   }
 </style>

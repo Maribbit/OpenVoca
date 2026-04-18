@@ -138,6 +138,13 @@ interface LocaleMessages {
   updateDismiss: string;
   wordSingular: string;
   wordPlural: string;
+  onboardingStep1Title: string;
+  onboardingStep1Desc: string;
+  onboardingStep2Title: string;
+  onboardingStep2Desc: string;
+  onboardingStep3Title: string;
+  onboardingStep3Desc: string;
+  howItWorks: string;
 }
 
 export const MESSAGES: Record<Locale, LocaleMessages> = {
@@ -292,6 +299,16 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     updateDismiss: "Dismiss",
     wordSingular: "word",
     wordPlural: "words",
+    onboardingStep1Title: "Generate a sentence",
+    onboardingStep1Desc:
+      "Choose a topic and let the AI write a sentence packed with your target words.",
+    onboardingStep2Title: "Tap any word",
+    onboardingStep2Desc:
+      "Tap an unfamiliar word to see its definition and hear it pronounced.",
+    onboardingStep3Title: "Know or Don't Know",
+    onboardingStep3Desc:
+      "Rate each word to schedule spaced-repetition reviews at the right intervals.",
+    howItWorks: "How It Works",
   },
   zh: {
     menu: "菜单",
@@ -438,6 +455,13 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     updateDismiss: "关闭",
     wordSingular: "词",
     wordPlural: "词",
+    onboardingStep1Title: "生成例句",
+    onboardingStep1Desc: "选择主题，让 AI 生成一句包含你目标词汇的英文句子。",
+    onboardingStep2Title: "点击生词",
+    onboardingStep2Desc: "点击不认识的单词，即可查看释义并听到标准发音。",
+    onboardingStep3Title: "认识 / 不认识",
+    onboardingStep3Desc: "为每个单词打分，系统将按照遗忘曲线为你安排复习。",
+    howItWorks: "使用说明",
   },
 };
 
