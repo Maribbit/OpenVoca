@@ -13,8 +13,7 @@ Date: 2026-04-18
 ### Changed
 - **DefinitionToast repositioned** -- The word-definition panel now slides up from the bottom of the screen (`bottom-4`) instead of dropping from the top, reducing overlap with reading text.
 - **About modal: How It Works section** -- The About modal (click "OpenVoca" in the header) now includes a "How It Works" walkthrough. The separate first-run onboarding modal idea was merged here so users can revisit the guide at any time.
-- **README headers** -- Both `README.md` and `README.zh-CN.md` redesigned: centred logo (140 px), centred title and tagline, Download section with a platform table (Windows/macOS ARM/macOS Intel/Linux), and "Building from Source" section.
-- **CI: macOS Intel runner** -- Added `macos-13` to the bundle matrix so `macos-x64` artifacts are produced alongside the existing `macos-arm64` and `linux-x64` builds.
+- **README headers** -- Both `README.md` and `README.zh-CN.md` redesigned: centred logo (140 px), centred title and tagline.
 - **Bundle script improvements** -- `edge_tts` added to the import-verification list so a missing TTS dependency is caught at package time.
 
 ### Changed Files
@@ -27,7 +26,6 @@ Date: 2026-04-18
 - `README.md`, `README.zh-CN.md` -- New centred header; Download and Building from Source sections.
 - `scripts/bundle.py` -- README template loading; `edge_tts` added to import check.
 - `scripts/templates/` -- Four new README template files (EN + ZH × Windows + Unix).
-- `.github/workflows/ci.yml` -- `macos-13` runner for Intel Mac builds.
 
 ---
 
