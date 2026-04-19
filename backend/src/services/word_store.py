@@ -70,6 +70,7 @@ def apply_feedback(
     target_words: list[tuple[str, str]],
     marked_words: list[tuple[str, str]],
     sentence: str,
+    original_targets: list[str] | None = None,
     engine=None,
 ) -> None:
     """Update level/cooldown based on user feedback.
@@ -77,11 +78,19 @@ def apply_feedback(
     Each word is a (lemma, pos) tuple.
     - Marked words (user flagged as unknown): decrement level (min LEVEL_MIN).
     - Unmarked target words (user already knows): increment level (max LEVEL_MAX).
+
+    ``original_targets`` are the raw lemmas that were originally picked by
+    ``pick_target_words``.  When the LLM uses a derived form whose spaCy
+    lemma differs from the DB lemma (e.g. "analysis" vs "analyze"), the
+    tokenizer cannot match it back, so the word would never advance.  By
+    including the original lemmas we guarantee every picked word gets its
+    level incremented unless the user explicitly marked it unknown.
     """
     target = engine or _engine
     now = datetime.now(timezone.utc)
 
     marked_set = {(w.lower(), p) for w, p in marked_words}
+    marked_lemmas = {w.lower() for w, _ in marked_words}
     target_set = {(w.lower(), p) for w, p in target_words}
     unmarked_targets = target_set - marked_set
 
@@ -110,6 +119,7 @@ def apply_feedback(
                 record.seen_count += 1
 
         # Hit: increment level for unmarked target words
+        processed_lemmas: set[str] = set()
         for lemma, pos in unmarked_targets:
             record = _find_record(session, lemma, pos)
             if record is None:
@@ -131,6 +141,26 @@ def apply_feedback(
                 record.last_seen = now
                 record.last_context = sentence
                 record.seen_count += 1
+            processed_lemmas.add(lemma)
+
+        # Safety net: ensure every originally-picked lemma advances
+        # even if the tokenizer could not match it back to the sentence.
+        if original_targets:
+            for orig in original_targets:
+                low = orig.lower()
+                if low in marked_lemmas or low in processed_lemmas:
+                    continue
+                record = session.exec(
+                    select(WordRecord)
+                    .where(WordRecord.lemma == low)
+                    .order_by(WordRecord.level)
+                ).first()
+                if record is not None:
+                    record.level = min(record.level + 1, LEVEL_MAX)
+                    record.cooldown = LEVEL_BASE**record.level
+                    record.last_seen = now
+                    record.last_context = sentence
+                    record.seen_count += 1
 
         session.commit()
 

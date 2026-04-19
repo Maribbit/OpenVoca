@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.9.5
+
+Date: 2026-04-19
+
+### Bug Fixes
+- **Lazy-load spaCy model** -- The spaCy NLP model (`en_core_web_sm`) is now loaded on first sentence generation instead of at module import time. This allows the `/api/health` endpoint to respond immediately on startup, preventing the bundled launcher from timing out on cold first launches.
+- **Favicon served in bundled mode** -- The SPA catch-all route now checks whether a requested file exists in the frontend dist directory before falling back to `index.html`. Fixes the missing favicon in bundled browser tabs.
+- **Target words lemma mismatch safety net** -- When the LLM uses a derived form (e.g. "analysis" instead of the target "analyze"), the tokenizer may not match it back to the original DB record, causing the word to never advance and be picked indefinitely. Feedback now includes `originalTargets` (the raw lemmas from `pick_target_words`), and `apply_feedback` ensures every originally-picked word advances unless the user explicitly marked it unknown.
+
+### Changed
+- **Test file split** -- Extracted SRS algorithm tests (level progression, cooldown queue, POS matching, pick logic, full simulation, and original_targets safety net) from `test_word_store.py` into a dedicated `test_algorithm.py`.
+
+### Changed Files
+- `backend/src/services/tokenizer.py` -- `spacy.load()` moved from module scope to lazy `_get_nlp()` helper.
+- `backend/src/main.py` -- SPA fallback checks for real files before serving `index.html`; `FeedbackRequest` model gains optional `originalTargets` field; `submit_feedback` passes it through.
+- `backend/src/services/word_store.py` -- `apply_feedback()` accepts `original_targets: list[str]`; safety-net loop ensures unmatched picked words still advance.
+- `frontend/src/api/reading.ts` -- `FeedbackRequest` interface gains optional `originalTargets` field.
+- `frontend/src/views/HomeView.vue` -- Stores `response.words` and sends them as `originalTargets` in feedback.
+- `backend/tests/test_algorithm.py` -- New file: 15 algorithm-focused tests extracted from `test_word_store.py` plus 3 new `original_targets` tests.
+- `backend/tests/test_word_store.py` -- Trimmed to 33 CRUD / metadata / import tests.
+
+---
+
 ## v0.9.4
 
 Date: 2026-04-18

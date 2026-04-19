@@ -27,6 +27,7 @@ export interface FeedbackRequest {
   targetWords: WordPosEntry[];
   markedWords: WordPosEntry[];
   sentence: string;
+  originalTargets?: string[];
 }
 
 export interface WordRecordOut {

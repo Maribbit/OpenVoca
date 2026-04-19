@@ -150,6 +150,7 @@ class FeedbackRequest(BaseModel):
     target_words: list[WordPosEntry] = Field(alias="targetWords")
     marked_words: list[WordPosEntry] = Field(alias="markedWords")
     sentence: str
+    original_targets: list[str] = Field(default_factory=list, alias="originalTargets")
 
 
 class WordRecordOut(BaseModel):
@@ -369,6 +370,7 @@ def submit_feedback(request: FeedbackRequest) -> dict[str, str]:
         target_words=[(e.lemma, e.pos) for e in request.target_words],
         marked_words=[(e.lemma, e.pos) for e in request.marked_words],
         sentence=request.sentence,
+        original_targets=request.original_targets or None,
     )
     return {"status": "ok"}
 
@@ -645,5 +647,9 @@ if _frontend_dist.exists():
         return FileResponse(_frontend_dist / "index.html")
 
     @app.get("/{path:path}", include_in_schema=False)
-    async def spa_fallback(path: str) -> FileResponse:  # noqa: ARG001
+    async def spa_fallback(path: str) -> FileResponse:
+        # Serve real files (e.g. favicon.svg) from dist root before SPA fallback
+        candidate = _frontend_dist / path
+        if candidate.is_file() and _frontend_dist in candidate.resolve().parents:
+            return FileResponse(candidate)
         return FileResponse(_frontend_dist / "index.html")

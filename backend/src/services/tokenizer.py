@@ -5,7 +5,20 @@ import spacy
 
 from src.services.stopwords import FUNCTION_POS
 
-_nlp = spacy.load("en_core_web_sm")
+_nlp: spacy.language.Language | None = None
+
+
+def _get_nlp() -> spacy.language.Language:
+    """Lazy-load the spaCy model on first use.
+
+    This avoids blocking uvicorn startup so the /api/health endpoint
+    can respond immediately — preventing timeout in bundled launchers.
+    """
+    global _nlp
+    if _nlp is None:
+        _nlp = spacy.load("en_core_web_sm")
+    return _nlp
+
 
 # Regex to find *word*, **word**, or *hyphen-compound* target markers.
 _TARGET_PATTERN = re.compile(r"\*+([A-Za-z]+(?:[-'\'\u2019][A-Za-z]+)*)\*+")
@@ -111,7 +124,7 @@ def tokenize_sentence(sentence: str) -> list[SentenceToken]:
     clean = sentence.replace("*", "")
 
     # Step 3: run spaCy.
-    doc = _nlp(clean)
+    doc = _get_nlp()(clean)
 
     # Step 3.5: build raw token list, then merge hyphenated compounds.
     raw_tokens: list[SentenceToken] = []

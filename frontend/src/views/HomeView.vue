@@ -397,6 +397,7 @@
   const appVersion = __APP_VERSION__;
   const sentence = ref("");
   const tokens = ref<ReadingSentenceToken[]>([]);
+  const originalTargets = ref<string[]>([]);
   const errorMessage = ref("");
   const composerError = ref("");
   const feedbackError = ref("");
@@ -691,6 +692,7 @@
           onComplete(response) {
             sentence.value = response.sentence;
             tokens.value = response.tokens;
+            originalTargets.value = response.words ?? [];
             markedWords.value = new Set();
             dismissDefinition();
           },
@@ -732,6 +734,7 @@
           targetWords: targetEntries,
           markedWords: markedEntries,
           sentence: sentence.value,
+          originalTargets: originalTargets.value,
         });
       } catch {
         feedbackError.value = i18nMessages.value.feedbackError;
