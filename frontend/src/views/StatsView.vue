@@ -190,7 +190,6 @@
               <th class="px-6 py-4 font-medium">
                 {{ i18nMessages.statsLemma }}
               </th>
-              <th class="px-6 py-4 font-medium">{{ i18nMessages.pos }}</th>
               <th class="px-6 py-4 font-medium">
                 {{ i18nMessages.statsInterval }}
               </th>
@@ -201,7 +200,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-black/3 text-sm">
-            <template v-for="word in words" :key="`${word.lemma}-${word.pos}`">
+            <template v-for="word in words" :key="word.lemma">
               <tr
                 class="cursor-pointer transition-colors hover:bg-black/2"
                 @click="toggleExpand(word)"
@@ -210,13 +209,6 @@
                   <span class="font-serif text-lg text-ink">{{
                     word.lemma
                   }}</span>
-                </td>
-                <td class="px-6 py-4">
-                  <span
-                    class="inline-block rounded-full bg-black/5 px-2.5 py-0.5 font-mono text-xs text-inkLight"
-                  >
-                    {{ word.pos }}
-                  </span>
                 </td>
                 <td class="px-6 py-4">
                   <input
@@ -270,8 +262,8 @@
                 </td>
               </tr>
               <!-- Expanded detail row -->
-              <tr v-if="expandedKey === wordKey(word)">
-                <td colspan="5" class="bg-black/2 px-6 py-3">
+              <tr v-if="expandedKey === word.lemma">
+                <td colspan="4" class="bg-black/2 px-6 py-3">
                   <div class="flex flex-col gap-1 text-xs text-inkLight">
                     <div>
                       <span class="font-medium"
@@ -341,12 +333,8 @@
   const lastImportedFile = ref<File | null>(null);
   const importSkippedExisting = ref(false);
 
-  function wordKey(word: WordRecordOut): string {
-    return `${word.lemma}-${word.pos}`;
-  }
-
   function toggleExpand(word: WordRecordOut): void {
-    const key = wordKey(word);
+    const key = word.lemma;
     expandedKey.value = expandedKey.value === key ? null : key;
   }
 
@@ -440,7 +428,7 @@
     newLevel: number,
   ): Promise<void> {
     try {
-      const updated = await updateWordRecord(word.lemma, word.pos, {
+      const updated = await updateWordRecord(word.lemma, {
         level: Math.round(newLevel),
       });
       word.level = updated.level;
@@ -455,7 +443,7 @@
     newCooldown: number,
   ): Promise<void> {
     try {
-      const updated = await updateWordRecord(word.lemma, word.pos, {
+      const updated = await updateWordRecord(word.lemma, {
         cooldown: newCooldown,
       });
       word.cooldown = updated.cooldown;
@@ -486,10 +474,8 @@
 
   async function handleDeleteWord(word: WordRecordOut): Promise<void> {
     try {
-      await deleteWordRecord(word.lemma, word.pos);
-      words.value = words.value.filter(
-        (w) => !(w.lemma === word.lemma && w.pos === word.pos),
-      );
+      await deleteWordRecord(word.lemma);
+      words.value = words.value.filter((w) => w.lemma !== word.lemma);
     } catch {
       /* silently ignore — record may already be deleted */
     }

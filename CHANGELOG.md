@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.9.6
+
+Date: 2026-04-19
+
+### Breaking Changes
+- **POS removed from word store** -- The `pos` field has been completely removed from `WordRecord`. The primary key is now the lemma alone. All API routes, request/response models, CSV export/import, and the frontend have been updated accordingly. Legacy CSV files with a `pos` column are still accepted on import (the column is silently ignored).
+
+### Changed
+- **API routes simplified** -- `PATCH /api/vocabulary/{lemma}/{pos}` → `PATCH /api/vocabulary/{lemma}`; `DELETE /api/vocabulary/{lemma}/{pos}` → `DELETE /api/vocabulary/{lemma}`.
+- **Feedback payload simplified** -- `FeedbackRequest.targetWords` and `markedWords` changed from `WordPosEntry[]` objects (lemma + pos) to plain `string[]` of lemmas.
+- **CSV export** -- The `pos` column is no longer exported. New column order: `lemma,level,cooldown,first_seen,last_seen,last_context,seen_count`.
+- **CSV import** -- Only `lemma` is required. The `pos` column is accepted but ignored for backward compatibility with v0.9.5 exports.
+- **Stats view** -- POS column removed from vocabulary table.
+- **pick_target_words** -- With lemma as the sole PK, the deduplication loop is replaced by a direct `.limit()` query.
+
+### Changed Files
+- `backend/src/services/word_store.py` -- `WordRecord.pos` removed; `_find_record()` removed; `apply_feedback()`, `update_word_record()`, `delete_word_record()`, `import_vocabulary()` simplified to lemma-only.
+- `backend/src/main.py` -- `WordPosEntry` model removed; `FeedbackRequest` uses `list[str]`; `WordRecordOut` drops `pos`; routes use `/{lemma}` instead of `/{lemma}/{pos}`; CSV export drops `pos` column.
+- `frontend/src/api/reading.ts` -- `WordPosEntry` removed; `FeedbackRequest` and `WordRecordOut` simplified.
+- `frontend/src/views/HomeView.vue` -- Feedback construction simplified to lemma strings.
+- `frontend/src/views/StatsView.vue` -- POS column and `wordKey()` helper removed.
+- `frontend/src/composables/useI18n.ts` -- `pos` removed from i18n type and all translation maps.
+- `backend/tests/test_algorithm.py` -- All tests updated to use lemma strings instead of `(lemma, pos)` tuples. POS-specific tests removed.
+- `backend/tests/test_word_store.py` -- All tests updated: `apply_feedback` calls use `list[str]`; `update_word_record`/`delete_word_record` drop `pos`; import tests use lemma-only rows with legacy pos backward-compat test.
+- `backend/tests/test_main.py` -- API tests updated: feedback payloads use `string[]`; routes use `/{lemma}`; CSV assertions match new column layout; legacy pos CSV import test added.
+
+---
+
 ## v0.9.5
 
 Date: 2026-04-19

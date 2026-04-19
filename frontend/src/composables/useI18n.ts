@@ -43,7 +43,6 @@ interface LocaleMessages {
   showingWords: string;
   emptyVocabulary: string;
   stats: string;
-  pos: string;
   settings: string;
   settingsSubtitle: string;
   interfaceSection: string;
@@ -190,7 +189,6 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     showingWords: "words total",
     emptyVocabulary: "No words yet. Start reading to build your vocabulary.",
     stats: "Stats",
-    pos: "POS",
     settings: "Settings",
     settingsSubtitle: "Application configuration and preferences.",
     interfaceSection: "Interface",
@@ -351,7 +349,6 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     showingWords: "个单词",
     emptyVocabulary: "暂无单词，开始阅读以积累你的词库。",
     stats: "统计",
-    pos: "词性",
     settings: "设置",
     settingsSubtitle: "应用配置与偏好。",
     interfaceSection: "界面",

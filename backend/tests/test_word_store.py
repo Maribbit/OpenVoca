@@ -28,38 +28,27 @@ def test_apply_feedback_creates_new_records() -> None:
     engine = _in_memory_engine()
 
     apply_feedback(
-        target_words=[("lantern", "NOUN"), ("meadow", "NOUN")],
-        marked_words=[("meadow", "NOUN")],
-        sentence="A lantern glowed beside the meadow.",
+        ["lantern", "meadow"],
+        ["meadow"],
+        "A lantern glowed beside the meadow.",
         engine=engine,
     )
 
-    words = {(r.lemma, r.pos): r for r in list_all_words(engine)}
-    assert words[("lantern", "NOUN")].level == LEVEL_MIN + 1  # hit → MIN+1
-    assert words[("meadow", "NOUN")].level == LEVEL_MIN  # miss → MIN
+    words = {r.lemma: r for r in list_all_words(engine)}
+    assert words["lantern"].level == LEVEL_MIN + 1  # hit
+    assert words["meadow"].level == LEVEL_MIN  # miss
 
 
 def test_apply_feedback_sets_first_seen_once() -> None:
     """first_seen should be set on creation and not modified on updates."""
     engine = _in_memory_engine()
 
-    apply_feedback(
-        target_words=[("harbor", "NOUN")],
-        marked_words=[],
-        sentence="The harbor.",
-        engine=engine,
-    )
+    apply_feedback(["harbor"], [], "The harbor.", engine=engine)
     original_first_seen = list_all_words(engine)[0].first_seen
 
-    # Tick and apply again — first_seen must stay the same
     for _ in range(LEVEL_BASE ** (LEVEL_MIN + 1)):
         tick_cooldowns(engine)
-    apply_feedback(
-        target_words=[("harbor", "NOUN")],
-        marked_words=[("harbor", "NOUN")],
-        sentence="Ships lined the harbor.",
-        engine=engine,
-    )
+    apply_feedback(["harbor"], ["harbor"], "Ships lined the harbor.", engine=engine)
 
     words = list_all_words(engine)
     assert words[0].first_seen == original_first_seen
@@ -69,23 +58,13 @@ def test_apply_feedback_increments_seen_count() -> None:
     """seen_count should increment each time a word is a target word."""
     engine = _in_memory_engine()
 
-    apply_feedback(
-        target_words=[("harbor", "NOUN")],
-        marked_words=[],
-        sentence="The harbor.",
-        engine=engine,
-    )
+    apply_feedback(["harbor"], [], "The harbor.", engine=engine)
     assert list_all_words(engine)[0].seen_count == 1
 
     for _ in range(LEVEL_BASE ** (LEVEL_MIN + 1)):
         tick_cooldowns(engine)
 
-    apply_feedback(
-        target_words=[("harbor", "NOUN")],
-        marked_words=[("harbor", "NOUN")],
-        sentence="Ships lined the harbor.",
-        engine=engine,
-    )
+    apply_feedback(["harbor"], ["harbor"], "Ships lined the harbor.", engine=engine)
     assert list_all_words(engine)[0].seen_count == 2
 
 
@@ -93,12 +72,7 @@ def test_non_target_word_marked_creates_record() -> None:
     """Marking a non-target word should create it with miss rules."""
     engine = _in_memory_engine()
 
-    apply_feedback(
-        target_words=[],
-        marked_words=[("flutter", "VERB")],
-        sentence="The flag fluttered.",
-        engine=engine,
-    )
+    apply_feedback([], ["flutter"], "The flag fluttered.", engine=engine)
 
     records = {r.lemma: r for r in list_all_words(engine)}
     assert "flutter" in records
@@ -111,12 +85,7 @@ def test_last_context_stored() -> None:
     engine = _in_memory_engine()
 
     sentence = "The harbor was calm."
-    apply_feedback(
-        target_words=[("harbor", "NOUN")],
-        marked_words=[],
-        sentence=sentence,
-        engine=engine,
-    )
+    apply_feedback(["harbor"], [], sentence, engine=engine)
     records = {r.lemma: r for r in list_all_words(engine)}
     assert records["harbor"].last_context == sentence
 
@@ -125,12 +94,7 @@ def test_clear_all_words_empties_database() -> None:
     """clear_all_words should delete every record."""
     engine = _in_memory_engine()
 
-    apply_feedback(
-        [("a", "NOUN"), ("b", "NOUN"), ("c", "NOUN")],
-        [],
-        "sentence",
-        engine=engine,
-    )
+    apply_feedback(["a", "b", "c"], [], "sentence", engine=engine)
     assert len(list_all_words(engine)) == 3
 
     deleted = clear_all_words(engine)
@@ -139,46 +103,36 @@ def test_clear_all_words_empties_database() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Manual word record update (v0.6.7)
+# Manual word record update
 # ---------------------------------------------------------------------------
 
 
-def test_update_word_record_interval() -> None:
+def test_update_word_record_level() -> None:
     """update_word_record should update level within bounds."""
     engine = _in_memory_engine()
 
-    apply_feedback(
-        target_words=[("apple", "NOUN")],
-        marked_words=[("apple", "NOUN")],
-        sentence="An apple.",
-        engine=engine,
-    )
+    apply_feedback(["apple"], ["apple"], "An apple.", engine=engine)
 
-    record = update_word_record("apple", "NOUN", level=LEVEL_MIN + 1, engine=engine)
+    record = update_word_record("apple", level=LEVEL_MIN + 1, engine=engine)
     assert record is not None
     assert record.level == LEVEL_MIN + 1
 
-    record = update_word_record("apple", "NOUN", level=LEVEL_MIN, engine=engine)
+    record = update_word_record("apple", level=LEVEL_MIN, engine=engine)
     assert record is not None
     assert record.level == LEVEL_MIN
 
 
-def test_update_word_record_interval_clamped() -> None:
+def test_update_word_record_level_clamped() -> None:
     """Level should be clamped to [LEVEL_MIN, LEVEL_MAX]."""
     engine = _in_memory_engine()
 
-    apply_feedback(
-        target_words=[("apple", "NOUN")],
-        marked_words=[("apple", "NOUN")],
-        sentence="An apple.",
-        engine=engine,
-    )
+    apply_feedback(["apple"], ["apple"], "An apple.", engine=engine)
 
-    record = update_word_record("apple", "NOUN", level=0, engine=engine)
+    record = update_word_record("apple", level=0, engine=engine)
     assert record is not None
     assert record.level == LEVEL_MIN
 
-    record = update_word_record("apple", "NOUN", level=999, engine=engine)
+    record = update_word_record("apple", level=999, engine=engine)
     assert record is not None
     assert record.level == LEVEL_MAX
 
@@ -187,19 +141,14 @@ def test_update_word_record_cooldown() -> None:
     """update_word_record should update cooldown within [0, interval]."""
     engine = _in_memory_engine()
 
-    apply_feedback(
-        target_words=[("apple", "NOUN")],
-        marked_words=[],
-        sentence="An apple.",
-        engine=engine,
-    )
+    apply_feedback(["apple"], [], "An apple.", engine=engine)
 
-    record = update_word_record("apple", "NOUN", cooldown=0, engine=engine)
+    record = update_word_record("apple", cooldown=0, engine=engine)
     assert record is not None
     assert record.cooldown == 0
 
     record = update_word_record(
-        "apple", "NOUN", cooldown=LEVEL_BASE ** (LEVEL_MIN + 1), engine=engine
+        "apple", cooldown=LEVEL_BASE ** (LEVEL_MIN + 1), engine=engine
     )
     assert record is not None
     assert record.cooldown == LEVEL_BASE ** (LEVEL_MIN + 1)
@@ -209,18 +158,13 @@ def test_update_word_record_cooldown_clamped() -> None:
     """Cooldown should be clamped to [0, interval]."""
     engine = _in_memory_engine()
 
-    apply_feedback(
-        target_words=[("apple", "NOUN")],
-        marked_words=[("apple", "NOUN")],
-        sentence="An apple.",
-        engine=engine,
-    )
+    apply_feedback(["apple"], ["apple"], "An apple.", engine=engine)
 
-    record = update_word_record("apple", "NOUN", cooldown=-5, engine=engine)
+    record = update_word_record("apple", cooldown=-5, engine=engine)
     assert record is not None
     assert record.cooldown == 0
 
-    record = update_word_record("apple", "NOUN", cooldown=999, engine=engine)
+    record = update_word_record("apple", cooldown=999, engine=engine)
     assert record is not None
     assert record.cooldown == LEVEL_BASE**LEVEL_MIN
 
@@ -229,7 +173,7 @@ def test_update_word_record_not_found() -> None:
     """update_word_record should return None for missing records."""
     engine = _in_memory_engine()
 
-    result = update_word_record("nonexistent", "NOUN", level=2, engine=engine)
+    result = update_word_record("nonexistent", level=2, engine=engine)
     assert result is None
 
 
@@ -243,14 +187,11 @@ def test_delete_word_record() -> None:
     engine = _in_memory_engine()
 
     apply_feedback(
-        target_words=[("apple", "NOUN"), ("banana", "NOUN")],
-        marked_words=[("apple", "NOUN")],
-        sentence="An apple and a banana.",
-        engine=engine,
+        ["apple", "banana"], ["apple"], "An apple and a banana.", engine=engine
     )
     assert len(list_all_words(engine)) == 2
 
-    deleted = delete_word_record("apple", "NOUN", engine=engine)
+    deleted = delete_word_record("apple", engine=engine)
     assert deleted is True
     remaining = list_all_words(engine)
     assert len(remaining) == 1
@@ -261,7 +202,7 @@ def test_delete_word_record_not_found() -> None:
     """delete_word_record should return False for missing records."""
     engine = _in_memory_engine()
 
-    deleted = delete_word_record("nonexistent", "NOUN", engine=engine)
+    deleted = delete_word_record("nonexistent", engine=engine)
     assert deleted is False
 
 
@@ -269,34 +210,20 @@ def test_delete_stale_record() -> None:
     """Deleting an already-deleted record (stale tab) should return False."""
     engine = _in_memory_engine()
 
-    apply_feedback(
-        target_words=[("apple", "NOUN")],
-        marked_words=[("apple", "NOUN")],
-        sentence="An apple.",
-        engine=engine,
-    )
+    apply_feedback(["apple"], ["apple"], "An apple.", engine=engine)
 
-    # Tab A deletes the record
-    assert delete_word_record("apple", "NOUN", engine=engine) is True
-    # Tab B tries to delete the same record — stale
-    assert delete_word_record("apple", "NOUN", engine=engine) is False
+    assert delete_word_record("apple", engine=engine) is True
+    assert delete_word_record("apple", engine=engine) is False
 
 
 def test_update_stale_record() -> None:
     """Updating a record that was deleted in another tab should return None."""
     engine = _in_memory_engine()
 
-    apply_feedback(
-        target_words=[("apple", "NOUN")],
-        marked_words=[("apple", "NOUN")],
-        sentence="An apple.",
-        engine=engine,
-    )
+    apply_feedback(["apple"], ["apple"], "An apple.", engine=engine)
 
-    # Tab A deletes the record
-    delete_word_record("apple", "NOUN", engine=engine)
-    # Tab B tries to update — stale
-    result = update_word_record("apple", "NOUN", level=3, engine=engine)
+    delete_word_record("apple", engine=engine)
+    result = update_word_record("apple", level=3, engine=engine)
     assert result is None
 
 
@@ -319,7 +246,7 @@ def test_make_engine_respects_data_dir(
 
 
 # ---------------------------------------------------------------------------
-# Vocabulary import (v0.7.3)
+# Vocabulary import
 # ---------------------------------------------------------------------------
 
 
@@ -328,33 +255,27 @@ def test_import_vocabulary_creates_new_records() -> None:
     engine = _in_memory_engine()
 
     rows = [
-        {"lemma": "harbor", "pos": "NOUN", "level": "3", "cooldown": "3"},
-        {"lemma": "lantern", "pos": "NOUN", "level": "2", "cooldown": "0"},
+        {"lemma": "harbor", "level": "3", "cooldown": "3"},
+        {"lemma": "lantern", "level": "2", "cooldown": "0"},
     ]
     result = import_vocabulary(rows, engine=engine)
 
     assert result.imported == 2
     assert result.skipped == 0
-    records = {(r.lemma, r.pos): r for r in list_all_words(engine)}
-    assert records[("harbor", "NOUN")].level == 3
-    assert records[("harbor", "NOUN")].cooldown == 3
-    assert records[("lantern", "NOUN")].level == 2
-    assert records[("lantern", "NOUN")].cooldown == 0
+    records = {r.lemma: r for r in list_all_words(engine)}
+    assert records["harbor"].level == 3
+    assert records["harbor"].cooldown == 3
+    assert records["lantern"].level == 2
+    assert records["lantern"].cooldown == 0
 
 
 def test_import_vocabulary_overwrite_existing_records() -> None:
     """import_vocabulary(mode='overwrite') should overwrite existing records."""
     engine = _in_memory_engine()
 
-    apply_feedback(
-        target_words=[("harbor", "NOUN")],
-        marked_words=[],
-        sentence="The harbor.",
-        engine=engine,
-    )
-    # harbor now has interval=BASE*2, cooldown=BASE*2
+    apply_feedback(["harbor"], [], "The harbor.", engine=engine)
 
-    rows = [{"lemma": "harbor", "pos": "NOUN", "level": "4", "cooldown": "8"}]
+    rows = [{"lemma": "harbor", "level": "4", "cooldown": "8"}]
     result = import_vocabulary(rows, mode="overwrite", engine=engine)
 
     assert result.imported == 1
@@ -368,17 +289,12 @@ def test_import_vocabulary_skip_preserves_existing_records() -> None:
     """import_vocabulary(mode='skip') should keep existing records untouched."""
     engine = _in_memory_engine()
 
-    apply_feedback(
-        target_words=[("harbor", "NOUN")],
-        marked_words=[],
-        sentence="The harbor.",
-        engine=engine,
-    )
+    apply_feedback(["harbor"], [], "The harbor.", engine=engine)
     original_level = list_all_words(engine)[0].level
 
     rows = [
-        {"lemma": "harbor", "pos": "NOUN", "level": "5", "cooldown": "16"},
-        {"lemma": "lantern", "pos": "NOUN", "level": "2", "cooldown": "0"},
+        {"lemma": "harbor", "level": "5", "cooldown": "16"},
+        {"lemma": "lantern", "level": "2", "cooldown": "0"},
     ]
     result = import_vocabulary(rows, mode="skip", engine=engine)
 
@@ -393,16 +309,11 @@ def test_import_vocabulary_default_mode_is_skip() -> None:
     """The default import mode should be 'skip' (safe default)."""
     engine = _in_memory_engine()
 
-    apply_feedback(
-        target_words=[("harbor", "NOUN")],
-        marked_words=[],
-        sentence="The harbor.",
-        engine=engine,
-    )
+    apply_feedback(["harbor"], [], "The harbor.", engine=engine)
     original_level = list_all_words(engine)[0].level
 
-    rows = [{"lemma": "harbor", "pos": "NOUN", "level": "5", "cooldown": "16"}]
-    result = import_vocabulary(rows, engine=engine)  # no mode= → default
+    rows = [{"lemma": "harbor", "level": "5", "cooldown": "16"}]
+    result = import_vocabulary(rows, engine=engine)
 
     assert result.imported == 0
     assert result.skipped == 1
@@ -415,8 +326,8 @@ def test_import_vocabulary_skips_missing_columns() -> None:
     engine = _in_memory_engine()
 
     rows = [
-        {"lemma": "apple", "pos": "NOUN", "level": "2", "cooldown": "0"},
-        {"lemma": "banana", "level": "2", "cooldown": "0"},  # missing pos
+        {"lemma": "apple", "level": "2", "cooldown": "0"},
+        {"level": "2", "cooldown": "0"},  # missing lemma
     ]
     result = import_vocabulary(rows, engine=engine)
 
@@ -425,27 +336,26 @@ def test_import_vocabulary_skips_missing_columns() -> None:
     assert len(result.errors) == 1
 
 
-def test_import_vocabulary_skips_empty_lemma_or_pos() -> None:
-    """Rows with empty lemma or pos should be skipped."""
+def test_import_vocabulary_skips_empty_lemma() -> None:
+    """Rows with empty lemma should be skipped."""
     engine = _in_memory_engine()
 
     rows = [
-        {"lemma": "", "pos": "NOUN", "level": "2", "cooldown": "0"},
-        {"lemma": "apple", "pos": "", "level": "2", "cooldown": "0"},
+        {"lemma": "", "level": "2", "cooldown": "0"},
     ]
     result = import_vocabulary(rows, engine=engine)
 
     assert result.imported == 0
-    assert result.skipped == 2
+    assert result.skipped == 1
 
 
 def test_import_vocabulary_skips_non_integer_values() -> None:
-    """Rows with non-integer interval or cooldown should be skipped."""
+    """Rows with non-integer level or cooldown should be skipped."""
     engine = _in_memory_engine()
 
     rows = [
-        {"lemma": "cherry", "pos": "NOUN", "level": "abc", "cooldown": "0"},
-        {"lemma": "mango", "pos": "NOUN", "level": "2", "cooldown": "xyz"},
+        {"lemma": "cherry", "level": "abc", "cooldown": "0"},
+        {"lemma": "mango", "level": "2", "cooldown": "xyz"},
     ]
     result = import_vocabulary(rows, engine=engine)
 
@@ -455,12 +365,12 @@ def test_import_vocabulary_skips_non_integer_values() -> None:
 
 
 def test_import_vocabulary_clamps_out_of_range_values() -> None:
-    """Interval and cooldown outside valid ranges should be clamped, not rejected."""
+    """Level and cooldown outside valid ranges should be clamped, not rejected."""
     engine = _in_memory_engine()
 
     rows = [
-        {"lemma": "alpha", "pos": "NOUN", "level": "0", "cooldown": "0"},
-        {"lemma": "beta", "pos": "NOUN", "level": "999", "cooldown": "500"},
+        {"lemma": "alpha", "level": "0", "cooldown": "0"},
+        {"lemma": "beta", "level": "999", "cooldown": "500"},
     ]
     result = import_vocabulary(rows, engine=engine)
 
@@ -468,19 +378,33 @@ def test_import_vocabulary_clamps_out_of_range_values() -> None:
     records = {r.lemma: r for r in list_all_words(engine)}
     assert records["alpha"].level == LEVEL_MIN
     assert records["beta"].level == LEVEL_MAX
-    assert records["beta"].cooldown == LEVEL_BASE**LEVEL_MAX  # clamped to interval
+    assert records["beta"].cooldown == LEVEL_BASE**LEVEL_MAX
 
 
 def test_import_vocabulary_normalizes_case() -> None:
-    """lemma should be lowercased and pos uppercased on import."""
+    """lemma should be lowercased on import."""
     engine = _in_memory_engine()
 
-    rows = [{"lemma": "HARBOR", "pos": "noun", "level": "2", "cooldown": "0"}]
+    rows = [{"lemma": "HARBOR", "level": "2", "cooldown": "0"}]
     import_vocabulary(rows, engine=engine)
 
     records = list_all_words(engine)
     assert records[0].lemma == "harbor"
-    assert records[0].pos == "NOUN"
+
+
+def test_import_vocabulary_legacy_pos_column_ignored() -> None:
+    """Legacy CSV files with a 'pos' column should still import successfully."""
+    engine = _in_memory_engine()
+
+    rows = [
+        {"lemma": "harbor", "pos": "NOUN", "level": "3", "cooldown": "3"},
+    ]
+    result = import_vocabulary(rows, engine=engine)
+
+    assert result.imported == 1
+    records = list_all_words(engine)
+    assert records[0].lemma == "harbor"
+    assert records[0].level == 3
 
 
 def test_import_vocabulary_empty_rows() -> None:
@@ -498,7 +422,7 @@ def test_import_vocabulary_too_many_rows() -> None:
     engine = _in_memory_engine()
 
     overflow = [
-        {"lemma": f"word{i}", "pos": "NOUN", "level": "1", "cooldown": "0"}
+        {"lemma": f"word{i}", "level": "1", "cooldown": "0"}
         for i in range(MAX_IMPORT_ROWS + 1)
     ]
     result = import_vocabulary(overflow, engine=engine)
@@ -517,12 +441,12 @@ def test_import_result_is_dataclass() -> None:
 
 
 def test_import_vocabulary_minimal_columns() -> None:
-    """Rows with only lemma and pos should import with default values."""
+    """Rows with only lemma should import with default values."""
     engine = _in_memory_engine()
 
     rows = [
-        {"lemma": "harbor", "pos": "NOUN"},
-        {"lemma": "glow", "pos": "VERB"},
+        {"lemma": "harbor"},
+        {"lemma": "glow"},
     ]
     result = import_vocabulary(rows, engine=engine)
 
@@ -542,7 +466,6 @@ def test_import_vocabulary_with_last_seen_and_context() -> None:
     rows = [
         {
             "lemma": "harbor",
-            "pos": "NOUN",
             "level": "3",
             "cooldown": "3",
             "last_seen": "2026-01-15T10:30:00+00:00",
@@ -565,7 +488,6 @@ def test_import_vocabulary_bad_last_seen_skips_row() -> None:
     rows = [
         {
             "lemma": "harbor",
-            "pos": "NOUN",
             "level": "3",
             "cooldown": "3",
             "last_seen": "not-a-date",
@@ -576,32 +498,3 @@ def test_import_vocabulary_bad_last_seen_skips_row() -> None:
     assert result.imported == 0
     assert result.skipped == 1
     assert "ISO 8601" in result.errors[0]
-
-
-def test_import_vocabulary_overwrite_preserves_csv_context() -> None:
-    """Overwrite mode should replace last_seen and last_context from CSV."""
-    engine = _in_memory_engine()
-
-    apply_feedback(
-        target_words=[("harbor", "NOUN")],
-        marked_words=[],
-        sentence="The harbor.",
-        engine=engine,
-    )
-
-    rows = [
-        {
-            "lemma": "harbor",
-            "pos": "NOUN",
-            "level": "4",
-            "cooldown": "8",
-            "last_seen": "2025-06-01T00:00:00+00:00",
-            "last_context": "A quiet harbor.",
-        },
-    ]
-    result = import_vocabulary(rows, mode="overwrite", engine=engine)
-
-    assert result.imported == 1
-    records = list_all_words(engine)
-    assert records[0].last_context == "A quiet harbor."
-    assert records[0].last_seen.year == 2025

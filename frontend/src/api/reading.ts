@@ -18,21 +18,15 @@ export interface GenerateReadingSentenceRequest {
   targetWords: string[];
 }
 
-export interface WordPosEntry {
-  lemma: string;
-  pos: string;
-}
-
 export interface FeedbackRequest {
-  targetWords: WordPosEntry[];
-  markedWords: WordPosEntry[];
+  targetWords: string[];
+  markedWords: string[];
   sentence: string;
   originalTargets?: string[];
 }
 
 export interface WordRecordOut {
   lemma: string;
-  pos: string;
   level: number;
   cooldown: number;
   firstSeen?: string | null;
@@ -234,17 +228,13 @@ export async function fetchDefinition(
 
 export async function updateWordRecord(
   lemma: string,
-  pos: string,
   update: { level?: number; cooldown?: number },
 ): Promise<WordRecordOut> {
-  const response = await fetch(
-    `/api/vocabulary/${encodeURIComponent(lemma)}/${encodeURIComponent(pos)}`,
-    {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(update),
-    },
-  );
+  const response = await fetch(`/api/vocabulary/${encodeURIComponent(lemma)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(update),
+  });
   if (!response.ok) throw new Error("Failed to update word record.");
   return (await response.json()) as WordRecordOut;
 }
@@ -260,14 +250,10 @@ export async function fetchTtsAudio(
   return await response.blob();
 }
 
-export async function deleteWordRecord(
-  lemma: string,
-  pos: string,
-): Promise<void> {
-  const response = await fetch(
-    `/api/vocabulary/${encodeURIComponent(lemma)}/${encodeURIComponent(pos)}`,
-    { method: "DELETE" },
-  );
+export async function deleteWordRecord(lemma: string): Promise<void> {
+  const response = await fetch(`/api/vocabulary/${encodeURIComponent(lemma)}`, {
+    method: "DELETE",
+  });
   if (!response.ok) throw new Error("Failed to delete word record.");
 }
 

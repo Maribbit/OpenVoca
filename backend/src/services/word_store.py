@@ -14,7 +14,6 @@ LEVEL_BASE = 2  # actual interval = LEVEL_BASE ** level
 
 class WordRecord(SQLModel, table=True):
     lemma: str = Field(primary_key=True)
-    pos: str = Field(primary_key=True)
     level: int = Field(default=LEVEL_MIN, ge=LEVEL_MIN)
     cooldown: int = Field(default=0, ge=0)
     first_seen: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -47,62 +46,41 @@ def init_db(engine=None) -> None:
     SQLModel.metadata.create_all(target)
 
 
-def _find_record(session: Session, lemma: str, pos: str) -> WordRecord | None:
-    """Find a WordRecord by (lemma, pos), falling back to lemma-only match.
-
-    The LLM may use a word with a different POS than stored in the DB
-    (e.g., "run" as NOUN when the DB has it as VERB). Without this fallback,
-    feedback would create a duplicate record and the original would never
-    have its interval updated — causing words to be stuck in "learning" state.
-    """
-    record = session.exec(
-        select(WordRecord).where(WordRecord.lemma == lemma, WordRecord.pos == pos)
-    ).first()
-    if record is not None:
-        return record
-    # Fallback: match by lemma alone, prefer lowest level (most likely picked)
-    return session.exec(
-        select(WordRecord).where(WordRecord.lemma == lemma).order_by(WordRecord.level)
-    ).first()
-
-
 def apply_feedback(
-    target_words: list[tuple[str, str]],
-    marked_words: list[tuple[str, str]],
+    target_words: list[str],
+    marked_words: list[str],
     sentence: str,
     original_targets: list[str] | None = None,
     engine=None,
 ) -> None:
     """Update level/cooldown based on user feedback.
 
-    Each word is a (lemma, pos) tuple.
+    Each word is a lemma string.
     - Marked words (user flagged as unknown): decrement level (min LEVEL_MIN).
     - Unmarked target words (user already knows): increment level (max LEVEL_MAX).
 
-    ``original_targets`` are the raw lemmas that were originally picked by
+    ``original_targets`` are the raw lemmas originally picked by
     ``pick_target_words``.  When the LLM uses a derived form whose spaCy
     lemma differs from the DB lemma (e.g. "analysis" vs "analyze"), the
-    tokenizer cannot match it back, so the word would never advance.  By
-    including the original lemmas we guarantee every picked word gets its
-    level incremented unless the user explicitly marked it unknown.
+    tokenizer cannot match it back.  By including the original lemmas we
+    guarantee every picked word advances unless the user explicitly marked
+    it unknown.
     """
     target = engine or _engine
     now = datetime.now(timezone.utc)
 
-    marked_set = {(w.lower(), p) for w, p in marked_words}
-    marked_lemmas = {w.lower() for w, _ in marked_words}
-    target_set = {(w.lower(), p) for w, p in target_words}
+    marked_set = {w.lower() for w in marked_words}
+    target_set = {w.lower() for w in target_words}
     unmarked_targets = target_set - marked_set
 
     with Session(target) as session:
         # Miss: decrement level for marked (unknown) words
-        for lemma, pos in marked_set:
-            record = _find_record(session, lemma, pos)
+        for lemma in marked_set:
+            record = session.get(WordRecord, lemma)
             if record is None:
                 new_level = LEVEL_MIN
                 record = WordRecord(
                     lemma=lemma,
-                    pos=pos,
                     level=new_level,
                     cooldown=LEVEL_BASE**new_level,
                     first_seen=now,
@@ -120,13 +98,12 @@ def apply_feedback(
 
         # Hit: increment level for unmarked target words
         processed_lemmas: set[str] = set()
-        for lemma, pos in unmarked_targets:
-            record = _find_record(session, lemma, pos)
+        for lemma in unmarked_targets:
+            record = session.get(WordRecord, lemma)
             if record is None:
                 new_level = LEVEL_MIN + 1
                 record = WordRecord(
                     lemma=lemma,
-                    pos=pos,
                     level=new_level,
                     cooldown=LEVEL_BASE**new_level,
                     first_seen=now,
@@ -148,13 +125,9 @@ def apply_feedback(
         if original_targets:
             for orig in original_targets:
                 low = orig.lower()
-                if low in marked_lemmas or low in processed_lemmas:
+                if low in marked_set or low in processed_lemmas:
                     continue
-                record = session.exec(
-                    select(WordRecord)
-                    .where(WordRecord.lemma == low)
-                    .order_by(WordRecord.level)
-                ).first()
+                record = session.get(WordRecord, low)
                 if record is not None:
                     record.level = min(record.level + 1, LEVEL_MAX)
                     record.cooldown = LEVEL_BASE**record.level
@@ -176,7 +149,7 @@ def tick_cooldowns(engine=None) -> None:
 
 
 def pick_target_words(limit: int = 3, engine=None) -> list[str]:
-    """Return up to `limit` unique lemmas that are due for review.
+    """Return up to `limit` lemmas that are due for review.
 
     Only words with cooldown == 0 and level < LEVEL_MAX are eligible.
     Sorted by level ASC (least familiar first), then last_seen ASC (oldest first).
@@ -187,17 +160,10 @@ def pick_target_words(limit: int = 3, engine=None) -> list[str]:
             select(WordRecord)
             .where(WordRecord.cooldown == 0, WordRecord.level < LEVEL_MAX)
             .order_by(WordRecord.level, WordRecord.last_seen)
+            .limit(limit)
         )
         results = session.exec(statement).all()
-        seen: set[str] = set()
-        words: list[str] = []
-        for r in results:
-            if r.lemma not in seen:
-                seen.add(r.lemma)
-                words.append(r.lemma)
-                if len(words) >= limit:
-                    break
-        return words
+        return [r.lemma for r in results]
 
 
 def list_all_words(engine=None, *, sort: str = "due") -> list[WordRecord]:
@@ -237,7 +203,6 @@ def clear_all_words(engine=None) -> int:
 
 def update_word_record(
     lemma: str,
-    pos: str,
     *,
     level: int | None = None,
     cooldown: int | None = None,
@@ -251,9 +216,7 @@ def update_word_record(
     """
     target = engine or _engine
     with Session(target) as session:
-        record = session.exec(
-            select(WordRecord).where(WordRecord.lemma == lemma, WordRecord.pos == pos)
-        ).first()
+        record = session.get(WordRecord, lemma)
         if record is None:
             return None
 
@@ -267,13 +230,11 @@ def update_word_record(
         return record
 
 
-def delete_word_record(lemma: str, pos: str, engine=None) -> bool:
+def delete_word_record(lemma: str, engine=None) -> bool:
     """Delete a specific word record. Returns True if deleted, False if not found."""
     target = engine or _engine
     with Session(target) as session:
-        record = session.exec(
-            select(WordRecord).where(WordRecord.lemma == lemma, WordRecord.pos == pos)
-        ).first()
+        record = session.get(WordRecord, lemma)
         if record is None:
             return False
         session.delete(record)
@@ -286,7 +247,7 @@ def delete_word_record(lemma: str, pos: str, engine=None) -> bool:
 # ---------------------------------------------------------------------------
 
 MAX_IMPORT_ROWS = 5_000
-_REQUIRED_IMPORT_COLS = {"lemma", "pos"}
+_REQUIRED_IMPORT_COLS = {"lemma"}
 
 
 @dataclass
@@ -304,15 +265,16 @@ def import_vocabulary(
 ) -> ImportResult:
     """Import vocabulary from parsed CSV rows.
 
-    Required columns: lemma, pos.
-    Optional columns: level, cooldown, last_seen, last_context.
+    Required columns: lemma.
+    Optional columns: level, cooldown, last_seen, first_seen, last_context,
+    seen_count.  The legacy ``pos`` column is accepted but ignored.
     - level defaults to LEVEL_MIN, clamped to [LEVEL_MIN, LEVEL_MAX].
     - cooldown defaults to 0, clamped to [0, LEVEL_BASE ** level].
     - last_seen defaults to now (UTC); parsed as ISO 8601 if provided.
     - first_seen defaults to now; parsed as ISO 8601 if provided.
     - last_context defaults to None.
     - seen_count defaults to 0.
-    - lemma is lowercased; pos is uppercased for normalization.
+    - lemma is lowercased for normalization.
     - mode="skip" (default): existing records are kept, only new words imported.
     - mode="overwrite": existing records are overwritten with imported values.
     - Invalid rows are skipped and counted in result.skipped.
@@ -335,11 +297,10 @@ def import_vocabulary(
                 continue
 
             lemma = row["lemma"].strip().lower()
-            pos = row["pos"].strip().upper()
 
-            if not lemma or not pos:
+            if not lemma:
                 result.skipped += 1
-                result.errors.append(f"Row {i}: lemma and pos must not be empty")
+                result.errors.append(f"Row {i}: lemma must not be empty")
                 continue
 
             # --- level (optional, default LEVEL_MIN) ---
@@ -408,11 +369,7 @@ def import_vocabulary(
             else:
                 seen_count = 0
 
-            existing = session.exec(
-                select(WordRecord).where(
-                    WordRecord.lemma == lemma, WordRecord.pos == pos
-                )
-            ).first()
+            existing = session.get(WordRecord, lemma)
 
             if existing is not None:
                 if mode == "skip":
@@ -428,7 +385,6 @@ def import_vocabulary(
                 session.add(
                     WordRecord(
                         lemma=lemma,
-                        pos=pos,
                         level=level,
                         cooldown=cooldown,
                         first_seen=first_seen,

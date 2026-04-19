@@ -139,16 +139,11 @@ class ReadingSentenceToken(BaseModel):
     trailing_space: bool = Field(default=True, alias="trailingSpace")
 
 
-class WordPosEntry(BaseModel):
-    lemma: str
-    pos: str
-
-
 class FeedbackRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    target_words: list[WordPosEntry] = Field(alias="targetWords")
-    marked_words: list[WordPosEntry] = Field(alias="markedWords")
+    target_words: list[str] = Field(alias="targetWords")
+    marked_words: list[str] = Field(alias="markedWords")
     sentence: str
     original_targets: list[str] = Field(default_factory=list, alias="originalTargets")
 
@@ -157,7 +152,6 @@ class WordRecordOut(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     lemma: str
-    pos: str
     level: int
     cooldown: int
     first_seen: str = Field(alias="firstSeen")
@@ -367,8 +361,8 @@ async def stream_next_reading_sentence(
 @app.post("/api/feedback")
 def submit_feedback(request: FeedbackRequest) -> dict[str, str]:
     apply_feedback(
-        target_words=[(e.lemma, e.pos) for e in request.target_words],
-        marked_words=[(e.lemma, e.pos) for e in request.marked_words],
+        target_words=request.target_words,
+        marked_words=request.marked_words,
         sentence=request.sentence,
         original_targets=request.original_targets or None,
     )
@@ -384,7 +378,6 @@ def get_vocabulary(
         words=[
             WordRecordOut(
                 lemma=r.lemma,
-                pos=r.pos,
                 level=r.level,
                 cooldown=r.cooldown,
                 first_seen=_utc_iso(r.first_seen),
@@ -411,16 +404,13 @@ class WordRecordUpdate(BaseModel):
     cooldown: int | None = None
 
 
-@app.patch("/api/vocabulary/{lemma}/{pos}", response_model=WordRecordOut)
-def patch_vocabulary_word(
-    lemma: str, pos: str, body: WordRecordUpdate
-) -> WordRecordOut:
-    record = update_word_record(lemma, pos, level=body.level, cooldown=body.cooldown)
+@app.patch("/api/vocabulary/{lemma}", response_model=WordRecordOut)
+def patch_vocabulary_word(lemma: str, body: WordRecordUpdate) -> WordRecordOut:
+    record = update_word_record(lemma, level=body.level, cooldown=body.cooldown)
     if record is None:
         raise HTTPException(status_code=404, detail="Word not found")
     return WordRecordOut(
         lemma=record.lemma,
-        pos=record.pos,
         level=record.level,
         cooldown=record.cooldown,
         firstSeen=_utc_iso(record.first_seen),
@@ -430,9 +420,9 @@ def patch_vocabulary_word(
     )
 
 
-@app.delete("/api/vocabulary/{lemma}/{pos}")
-def delete_vocabulary_word(lemma: str, pos: str) -> dict[str, bool]:
-    deleted = delete_word_record(lemma, pos)
+@app.delete("/api/vocabulary/{lemma}")
+def delete_vocabulary_word(lemma: str) -> dict[str, bool]:
+    deleted = delete_word_record(lemma)
     if not deleted:
         raise HTTPException(status_code=404, detail="Word not found")
     return {"deleted": True}
@@ -447,7 +437,6 @@ def export_vocabulary() -> StreamingResponse:
     writer.writerow(
         [
             "lemma",
-            "pos",
             "level",
             "cooldown",
             "first_seen",
@@ -460,7 +449,6 @@ def export_vocabulary() -> StreamingResponse:
         writer.writerow(
             [
                 r.lemma,
-                r.pos,
                 r.level,
                 r.cooldown,
                 r.first_seen.isoformat() if r.first_seen else "",
