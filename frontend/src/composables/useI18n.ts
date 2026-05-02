@@ -4,7 +4,7 @@ import { useSettings } from "./useSettings";
 
 export type Locale = "en" | "zh";
 
-interface LocaleMessages {
+export interface LocaleMessages {
   menu: string;
   readingDisplaySettings: string;
   loadingSentence: string;
@@ -29,8 +29,7 @@ interface LocaleMessages {
   colorTheme_slate: string;
   uiSize: string;
   uiSizeHint: string;
-  nextSentenceHint: string;
-  releaseHint: string;
+  reviewProgressBtn: string;
   vocabulary: string;
   backToReading: string;
   clearVocabulary: string;
@@ -137,6 +136,16 @@ interface LocaleMessages {
   updateDismiss: string;
   wordSingular: string;
   wordPlural: string;
+
+  progressSummaryTitle: string;
+  progressSummaryDesc: string;
+  progressRecognized: string;
+  progressUnknown: string;
+  progressNew: string;
+  progressBack: string;
+  progressSubmit: string;
+  progressEmpty: string;
+
   onboardingStep1Title: string;
   onboardingStep1Desc: string;
   onboardingStep2Title: string;
@@ -175,8 +184,7 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     uiSize: "Zoom",
     uiSizeHint:
       "Uses CSS zoom. Requires a modern browser (Chrome 1+, Firefox 126+, Safari 3.1+).",
-    nextSentenceHint: "Hold to continue",
-    releaseHint: "Release!",
+    reviewProgressBtn: "Review Progress",
     vocabulary: "Your Vocabulary",
     backToReading: "Back to Reading",
     clearVocabulary: "Clear All",
@@ -297,6 +305,16 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     updateDismiss: "Dismiss",
     wordSingular: "word",
     wordPlural: "words",
+
+    progressSummaryTitle: "Progress Summary",
+    progressSummaryDesc: "Here is how your vocabulary will be updated.",
+    progressRecognized: "Recognized",
+    progressUnknown: "Marked as Unknown",
+    progressNew: "First time seen",
+    progressBack: "Back to Reading",
+    progressSubmit: "Submit",
+    progressEmpty: "No vocabulary updates for this sentence.",
+
     onboardingStep1Title: "Generate a sentence",
     onboardingStep1Desc:
       "Choose a topic and let the AI write a sentence packed with your target words.",
@@ -335,8 +353,7 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     uiSize: "缩放",
     uiSizeHint:
       "使用 CSS 缩放。需要现代浏览器（Chrome 1+、Firefox 126+、Safari 3.1+）。",
-    nextSentenceHint: "长按进入下一句",
-    releaseHint: "松手！",
+    reviewProgressBtn: "结算",
     vocabulary: "你的词库",
     backToReading: "返回阅读",
     clearVocabulary: "清空词库",
@@ -452,6 +469,16 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     updateDismiss: "关闭",
     wordSingular: "词",
     wordPlural: "词",
+
+    progressSummaryTitle: "进度结算",
+    progressSummaryDesc: "以下词汇的掌握程度将会更新。",
+    progressRecognized: "已认识",
+    progressUnknown: "不认识",
+    progressNew: "初次遇到",
+    progressBack: "返回阅读",
+    progressSubmit: "提交",
+    progressEmpty: "当前句子没有词汇进度更新。",
+
     onboardingStep1Title: "生成例句",
     onboardingStep1Desc: "选择主题，让 AI 生成一句包含你目标词汇的英文句子。",
     onboardingStep2Title: "点击生词",

@@ -21,6 +21,8 @@ from src.services.prompt_builder import (
 from src.services.tokenizer import tokenize_sentence
 from src.services.word_store import (
     apply_feedback,
+    draft_feedback,
+    LevelDelta,
     clear_all_words,
     delete_word_record,
     import_vocabulary,
@@ -355,6 +357,16 @@ async def stream_next_reading_sentence(
         event_stream(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.post("/api/feedback/draft", response_model=list[LevelDelta])
+def submit_feedback_draft(request: FeedbackRequest) -> list[LevelDelta]:
+    """Calculate how vocabulary levels would change without actually updating them."""
+    return draft_feedback(
+        target_words=request.target_words,
+        marked_words=request.marked_words,
+        original_targets=request.original_targets,
     )
 
 

@@ -173,15 +173,63 @@ describe("HomeView.vue", () => {
       "meadow",
     ]);
     expect(wrapper.text()).toContain("meadow.");
-    expect(wrapper.text()).toContain("Hold to continue");
+    expect(wrapper.text()).toContain("Review Progress");
   });
 
-  it("advances only after releasing Space when hold is complete", async () => {
+  it("opens progress summary on continue and advances on submit", async () => {
     window.localStorage.setItem("openvoca.ui.locale", "en");
-    vi.useFakeTimers();
 
-    const fetchMock = mockFetch();
-    vi.stubGlobal("fetch", fetchMock);
+    let overrideFetchMock = vi
+      .fn()
+      .mockImplementation((url: string, init?: RequestInit) => {
+        // Mock streams and feedback same as mockFetch
+        if (url.startsWith("/api/reading-sentence/next/stream")) {
+          const mockResponse = {
+            sentence: "Cats are great.",
+            tokens: [
+              {
+                word: "Cats",
+                isTarget: true,
+                isWord: true,
+                lemma: "cat",
+                pos: "NOUN",
+              },
+            ],
+            words: ["cat"],
+          };
+          const stream = new ReadableStream({
+            start(controller) {
+              controller.enqueue(
+                new TextEncoder().encode(
+                  `data: ${JSON.stringify(mockResponse)}\n\n`,
+                ),
+              );
+              controller.close();
+            },
+          });
+          return Promise.resolve(
+            new Response(stream, {
+              headers: { "Content-Type": "text/event-stream" },
+            }),
+          );
+        }
+        if (url.startsWith("/api/feedback/draft")) {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve([
+                {
+                  lemma: "lantern",
+                  old_level: 1,
+                  new_level: 2,
+                  is_new: false,
+                },
+              ]),
+          });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      });
+    vi.stubGlobal("fetch", overrideFetchMock);
 
     const wrapper = mount(HomeView, {
       global: { plugins: [makeRouter()] },
@@ -191,27 +239,32 @@ describe("HomeView.vue", () => {
     // Generate from composer to enter reading view
     await generateFromComposer(wrapper);
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/reading-sentence/next/stream",
-      expect.objectContaining({
-        method: "POST",
-      }),
-    );
-    const initialCallCount = fetchMock.mock.calls.length;
+    const initialCallCount = overrideFetchMock.mock.calls.length;
 
-    window.dispatchEvent(new KeyboardEvent("keydown", { code: "Space" }));
-    vi.advanceTimersByTime(650);
+    // Set proper tokens to bypass early return
+    (wrapper.vm as any).tokens = [
+      {
+        text: "Cats",
+        word: "Cats",
+        isTarget: true,
+        isWord: true,
+        lemma: "cat",
+        pos: "NOUN",
+      },
+    ];
+    (wrapper.vm as any).currentResponse = { words: ["cat"] };
+
+    await (wrapper.vm as any).openProgressSummary();
     await flushPromises();
 
-    // Hold complete but not released — should NOT have advanced yet
-    expect(fetchMock).toHaveBeenCalledTimes(initialCallCount);
+    // Now modal should be open (so it will fetch vocabulary)
+    expect((wrapper.vm as any).isSummaryModalOpen).toBe(true);
 
-    window.dispatchEvent(new KeyboardEvent("keyup", { code: "Space" }));
+    // Call internal submit
+    (wrapper.vm as any).goToNextSentence();
     await flushPromises();
 
-    // After release, should show composer (not call fetch directly)
     expect(wrapper.text()).toContain("Generate");
-    vi.useRealTimers();
   });
 
   it("switches UI language to Chinese and persists locale", async () => {

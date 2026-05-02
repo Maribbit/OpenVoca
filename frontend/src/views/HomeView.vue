@@ -242,14 +242,21 @@
           </button>
         </div>
 
-        <HoldButton
-          ref="holdButtonRef"
-          :disabled="isLoading || isUiPanelOpen"
-          :hold-text="i18nMessages.nextSentenceHint"
-          :release-text="i18nMessages.releaseHint"
-          :header-size-class="uiHeaderSizeClass"
-          @advance="goToNextSentence"
-        />
+        <div class="mt-20 flex flex-col items-center">
+          <button
+            @click="openProgressSummary"
+            :disabled="isLoading || isUiPanelOpen"
+            class="group relative flex items-center justify-center gap-2 rounded-full border border-black/10 dark:border-white/10 bg-surface px-8 py-3 shadow-md hover:bg-black/5 dark:hover:bg-white/5 transition-all text-ink tracking-wide font-medium text-[15px] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <span>{{
+              i18nMessages.reviewProgressBtn || "Review Progress"
+            }}</span>
+            <kbd
+              class="rounded border border-black/20 dark:border-gray-600 bg-black/10 dark:bg-gray-800 px-2 py-0.5 font-mono text-xs text-inkLight transition-colors font-semibold"
+              >Space</kbd
+            >
+          </button>
+        </div>
       </template>
     </main>
 
@@ -273,6 +280,14 @@
         {{ feedbackError }}
       </p>
     </Transition>
+
+    <ProgressSummaryModal
+      v-if="isSummaryModalOpen"
+      :words="wordStatusList"
+      :messages="i18nMessages"
+      @submit="goToNextSentence"
+      @cancel="isSummaryModalOpen = false"
+    />
 
     <!-- About modal -->
     <Transition name="fade">
@@ -361,6 +376,7 @@
     fetchNextReadingSentenceStream,
     fetchDefinition,
     submitFeedback,
+    submitFeedbackDraft,
     tokensToPlainText,
     type DictionaryEntry,
     type ReadingSentenceToken,
@@ -370,7 +386,9 @@
   import ComposerCard from "../components/ComposerCard.vue";
   import DefinitionToast from "../components/DefinitionToast.vue";
   import type { DictionaryDisplayMode } from "../components/DefinitionToast.vue";
-  import HoldButton from "../components/HoldButton.vue";
+  import ProgressSummaryModal, {
+    type WordProgress,
+  } from "../components/ProgressSummaryModal.vue";
   import ReadingSettingsBar from "../components/ReadingSettingsBar.vue";
   import type {
     ReadingUiSettings,
@@ -412,7 +430,8 @@
   const ttsLoading = ref(false);
   let ttsAudio: HTMLAudioElement | null = null;
 
-  const holdButtonRef = ref<InstanceType<typeof HoldButton> | null>(null);
+  const isSummaryModalOpen = ref(false);
+  const wordStatusList = ref<WordProgress[]>([]);
 
   const definitionEntry = ref<DictionaryEntry | null>(null);
   const definitionWord = ref<string | null>(null);
@@ -715,7 +734,67 @@
     }
   }
 
+  async function openProgressSummary(): Promise<void> {
+    if (isLoading.value) return;
+
+    if (tokens.value.length === 0) return;
+
+    const targetEntries = tokens.value
+      .filter((t) => t.isTarget && t.lemma)
+      .map((t) => t.lemma!);
+    const markedEntries = tokens.value
+      .filter((t) => t.isWord && t.lemma && markedWords.value.has(tokenKey(t)))
+      .map((t) => t.lemma!);
+
+    const originalTargetsRef = originalTargets.value;
+    const allRelevantLemmas = Array.from(
+      new Set([...targetEntries, ...markedEntries, ...originalTargetsRef]),
+    );
+
+    try {
+      let statuses: WordProgress[] = [];
+
+      if (allRelevantLemmas.length > 0) {
+        const deltas = await submitFeedbackDraft({
+          targetWords: targetEntries,
+          markedWords: markedEntries,
+          sentence: tokensToPlainText(tokens.value),
+          originalTargets: originalTargetsRef,
+        });
+
+        statuses = deltas.map((d) => {
+          let type: "recognized" | "unknown" | "new" = "recognized";
+          if (d.is_new) {
+            type = "new";
+          } else if (d.new_level < d.old_level) {
+            type = "unknown";
+          } else if (d.new_level > d.old_level) {
+            type = "recognized";
+          } else {
+            // If level unchanged, usually means it maxed out or bottomed out
+            type = markedEntries.includes(d.lemma) ? "unknown" : "recognized";
+          }
+
+          return {
+            lemma: d.lemma,
+            currentLevel: d.is_new ? undefined : d.old_level,
+            newLevel: d.new_level,
+            type,
+          };
+        });
+      }
+
+      wordStatusList.value = statuses;
+      isSummaryModalOpen.value = true;
+    } catch (e) {
+      console.error("Failed to fetch vocabulary for summary modal:", e);
+      // Fallback
+      await goToNextSentence();
+    }
+  }
+
   async function goToNextSentence(): Promise<void> {
+    isSummaryModalOpen.value = false;
     if (isLoading.value) return;
 
     if (sentence.value) {
@@ -765,16 +844,18 @@
       const target = event.target as HTMLElement;
       if (target.tagName === "TEXTAREA" || target.tagName === "INPUT") return;
       event.preventDefault();
-      if (!event.repeat) {
-        holdButtonRef.value?.startHold();
+      if (
+        !event.repeat &&
+        !isSummaryModalOpen.value &&
+        tokens.value.length > 0
+      ) {
+        openProgressSummary();
       }
     }
   }
 
-  function handleKeyup(event: KeyboardEvent): void {
-    if (event.code === "Space") {
-      holdButtonRef.value?.releaseHold();
-    }
+  function handleKeyup(): void {
+    // Space handled in keydown for opening, modal handles inside for submission
   }
 
   // --- Lifecycle ---
@@ -788,7 +869,6 @@
 
   onUnmounted(() => {
     stopElapsedTimer();
-    holdButtonRef.value?.abortHold();
     window.removeEventListener("keydown", handleKeydown);
     window.removeEventListener("keyup", handleKeyup);
     document.removeEventListener("click", onDocumentClick);

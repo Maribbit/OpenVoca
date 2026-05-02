@@ -7,6 +7,7 @@ from src.services.word_store import (
     MAX_IMPORT_ROWS,
     _make_engine,
     apply_feedback,
+    draft_feedback,
     clear_all_words,
     delete_word_record,
     import_vocabulary,
@@ -498,3 +499,37 @@ def test_import_vocabulary_bad_last_seen_skips_row() -> None:
     assert result.imported == 0
     assert result.skipped == 1
     assert "ISO 8601" in result.errors[0]
+
+
+def test_draft_feedback() -> None:
+    engine = _in_memory_engine()
+
+    apply_feedback(
+        ["apple", "banana", "elephant", "dog"], [], "sentence", engine=engine
+    )
+
+    deltas = draft_feedback(
+        target_words=["apple", "carrot"],
+        marked_words=["carrot", "dog"],
+        original_targets=["elephant"],
+        engine=engine,
+    )
+
+    deltas = sorted(deltas, key=lambda d: d.lemma)
+    assert len(deltas) == 4
+
+    assert deltas[0].lemma == "apple"
+    assert deltas[0].new_level == 3
+    assert deltas[0].is_new is False
+
+    assert deltas[1].lemma == "carrot"
+    assert deltas[1].new_level == 1
+    assert deltas[1].is_new is True
+
+    assert deltas[2].lemma == "dog"
+    assert deltas[2].new_level == 1
+    assert deltas[2].is_new is False
+
+    assert deltas[3].lemma == "elephant"
+    assert deltas[3].new_level == 3
+    assert deltas[3].is_new is False

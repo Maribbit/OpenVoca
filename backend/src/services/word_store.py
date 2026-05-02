@@ -1,3 +1,4 @@
+from pydantic import BaseModel
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -46,82 +47,67 @@ def init_db(engine=None) -> None:
     SQLModel.metadata.create_all(target)
 
 
-def apply_feedback(
+class LevelDelta(BaseModel):
+    lemma: str
+    old_level: int
+    new_level: int
+    is_new: bool
+
+
+def draft_feedback(
     target_words: list[str],
     marked_words: list[str],
-    sentence: str,
     original_targets: list[str] | None = None,
     engine=None,
-) -> None:
-    """Update level/cooldown based on user feedback.
-
-    Each word is a lemma string.
-    - Marked words (user flagged as unknown): decrement level (min LEVEL_MIN).
-    - Unmarked target words (user already knows): increment level (max LEVEL_MAX).
-
-    ``original_targets`` are the raw lemmas originally picked by
-    ``pick_target_words``.  When the LLM uses a derived form whose spaCy
-    lemma differs from the DB lemma (e.g. "analysis" vs "analyze"), the
-    tokenizer cannot match it back.  By including the original lemmas we
-    guarantee every picked word advances unless the user explicitly marked
-    it unknown.
-    """
+) -> list[LevelDelta]:
     target = engine or _engine
-    now = datetime.now(timezone.utc)
-
     marked_set = {w.lower() for w in marked_words}
     target_set = {w.lower() for w in target_words}
     unmarked_targets = target_set - marked_set
 
+    deltas = []
+    processed_lemmas = set()
+
     with Session(target) as session:
-        # Miss: decrement level for marked (unknown) words
         for lemma in marked_set:
             record = session.get(WordRecord, lemma)
             if record is None:
-                new_level = LEVEL_MIN
-                record = WordRecord(
-                    lemma=lemma,
-                    level=new_level,
-                    cooldown=LEVEL_BASE**new_level,
-                    first_seen=now,
-                    last_seen=now,
-                    last_context=sentence,
-                    seen_count=1,
+                deltas.append(
+                    LevelDelta(
+                        lemma=lemma, old_level=0, new_level=LEVEL_MIN, is_new=True
+                    )
                 )
-                session.add(record)
             else:
-                record.level = max(LEVEL_MIN, record.level - 1)
-                record.cooldown = LEVEL_BASE**record.level
-                record.last_seen = now
-                record.last_context = sentence
-                record.seen_count += 1
+                new_level = max(LEVEL_MIN, record.level - 1)
+                deltas.append(
+                    LevelDelta(
+                        lemma=lemma,
+                        old_level=record.level,
+                        new_level=new_level,
+                        is_new=False,
+                    )
+                )
 
-        # Hit: increment level for unmarked target words
-        processed_lemmas: set[str] = set()
         for lemma in unmarked_targets:
             record = session.get(WordRecord, lemma)
             if record is None:
-                new_level = LEVEL_MIN + 1
-                record = WordRecord(
-                    lemma=lemma,
-                    level=new_level,
-                    cooldown=LEVEL_BASE**new_level,
-                    first_seen=now,
-                    last_seen=now,
-                    last_context=sentence,
-                    seen_count=1,
+                deltas.append(
+                    LevelDelta(
+                        lemma=lemma, old_level=0, new_level=LEVEL_MIN + 1, is_new=True
+                    )
                 )
-                session.add(record)
             else:
-                record.level = min(record.level + 1, LEVEL_MAX)
-                record.cooldown = LEVEL_BASE**record.level
-                record.last_seen = now
-                record.last_context = sentence
-                record.seen_count += 1
+                new_level = min(record.level + 1, LEVEL_MAX)
+                deltas.append(
+                    LevelDelta(
+                        lemma=lemma,
+                        old_level=record.level,
+                        new_level=new_level,
+                        is_new=False,
+                    )
+                )
             processed_lemmas.add(lemma)
 
-        # Safety net: ensure every originally-picked lemma advances
-        # even if the tokenizer could not match it back to the sentence.
         if original_targets:
             for orig in original_targets:
                 low = orig.lower()
@@ -129,12 +115,52 @@ def apply_feedback(
                     continue
                 record = session.get(WordRecord, low)
                 if record is not None:
-                    record.level = min(record.level + 1, LEVEL_MAX)
-                    record.cooldown = LEVEL_BASE**record.level
+                    new_level = min(record.level + 1, LEVEL_MAX)
+                    deltas.append(
+                        LevelDelta(
+                            lemma=low,
+                            old_level=record.level,
+                            new_level=new_level,
+                            is_new=False,
+                        )
+                    )
+
+    return deltas
+
+
+def apply_feedback(
+    target_words: list[str],
+    marked_words: list[str],
+    sentence: str,
+    original_targets: list[str] | None = None,
+    engine=None,
+) -> None:
+    target = engine or _engine
+    now = datetime.now(timezone.utc)
+
+    deltas = draft_feedback(target_words, marked_words, original_targets, engine=target)
+
+    with Session(target) as session:
+        for d in deltas:
+            if d.is_new:
+                record = WordRecord(
+                    lemma=d.lemma,
+                    level=d.new_level,
+                    cooldown=LEVEL_BASE**d.new_level,
+                    first_seen=now,
+                    last_seen=now,
+                    last_context=sentence,
+                    seen_count=1,
+                )
+                session.add(record)
+            else:
+                record = session.get(WordRecord, d.lemma)
+                if record is not None:
+                    record.level = d.new_level
+                    record.cooldown = LEVEL_BASE**d.new_level
                     record.last_seen = now
                     record.last_context = sentence
                     record.seen_count += 1
-
         session.commit()
 
 

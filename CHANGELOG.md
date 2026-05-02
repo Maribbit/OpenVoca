@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.9.7
+
+Date: 2026-05-02
+
+### Added
+- **`POST /api/feedback/draft` endpoint** -- Simulates user feedback to calculate accurate vocabulary level changes without mutating the database.
+~~~~
+### Changed
+- **Replaced Hold-to-Submit with Progress Summary Modal** -- Reading interaction has been simplified. Instead of holding the "Continue" button, tapping "Continue" (or Spacebar) now opens a modal showing precise vocabulary transitions.
+- **Feedback processing refactored** -- The backend `apply_feedback` logic now completely wraps around the simulation output of `draft_feedback`, ensuring mathematical consistency.
+- **Empty state improved** -- If a sentence has no vocabulary updates during the feedback draft, the Progress Summary modal cleanly handles the empty state and asks for user confirmation.
+- **Legacy copy removed** -- Renamed `nextSentenceHint` to `reviewProgressBtn` and updated translations for "Review Progress". Fixed 'new' word UI display state.
+
+### Changed Files
+- `backend/src/services/word_store.py` -- `draft_feedback` added; `apply_feedback` refactored to reuse it.
+- `backend/src/main.py` -- Added `submit_feedback_draft` route.
+- `backend/tests/test_word_store.py` -- Added explicit tests for untouched and manipulated word targets.
+- `frontend/src/api/reading.ts` -- Upgraded to support `LevelDelta` payload fetching.
+- `frontend/src/views/HomeView.vue` -- Refactored manual level-up prediction into strict backend draft mapping. Remove manual logic skip filters.
+- `frontend/src/components/ProgressSummaryModal.vue` -- Exact transitions, robust `NEW` state, and added empty state.
+- `frontend/src/composables/useI18n.ts` -- Added `progressEmpty` translation. Removed legacy `releaseHint`.
+- `frontend/src/components/HoldButton.vue` -- Removed.
+
 ## v0.9.6
 
 Date: 2026-04-19

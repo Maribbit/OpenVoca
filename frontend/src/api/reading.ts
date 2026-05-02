@@ -121,6 +121,36 @@ export async function fetchNextReadingSentenceStream(
   }
 }
 
+export interface LevelDelta {
+  lemma: string;
+  old_level: number;
+  new_level: number;
+  is_new: boolean;
+}
+
+export async function submitFeedbackDraft(
+  request: FeedbackRequest,
+): Promise<LevelDelta[]> {
+  const response = await fetch("/api/feedback/draft", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      target_words: request.targetWords,
+      marked_words: request.markedWords,
+      sentence: request.sentence,
+      original_targets: request.originalTargets,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to get feedback draft.");
+  }
+  return await response.json();
+}
+
 export async function submitFeedback(request: FeedbackRequest): Promise<void> {
   const response = await fetch("/api/feedback", {
     method: "POST",
