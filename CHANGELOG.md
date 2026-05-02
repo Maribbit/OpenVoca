@@ -13,6 +13,9 @@ Date: 2026-05-02
 - **Replaced Hold-to-Submit with Progress Summary Modal** -- Reading interaction has been simplified. Instead of holding the "Continue" button, tapping "Continue" (or Spacebar) now opens a modal showing precise vocabulary transitions.
 - **Feedback processing refactored** -- The backend `apply_feedback` logic now completely wraps around the simulation output of `draft_feedback`, ensuring mathematical consistency.
 - **Empty state improved** -- If a sentence has no vocabulary updates during the feedback draft, the Progress Summary modal cleanly handles the empty state and asks for user confirmation.
+- **Loading UI for Async Events** -- Every single asynchronous interaction on the frontend (Sentence generating, Target Word suggestion loading, definition fetching, Progress Summary calculating, and File parsing on the Stats View) now comes with responsive `animate-spin` Tailwind loaders to significantly improve perceived usability overhead during delays.
+- **Stats View Edit Workflow Overhaul** -- Eliminated chaotic direct-input lists making numbers too easy to misclick. Added row-level specific toggle workflows with precise "Edit Row/Done Editing" and better icon layouts.
+- **Deleted Icon overhaul** -- Replaced vague "X" interface delete marker across Stats View with a standard clear trash-can icon specifically bound to active edit rows. Visibiliy on dark mode updated to pass contrast limits.
 - **Legacy copy removed** -- Renamed `nextSentenceHint` to `reviewProgressBtn` and updated translations for "Review Progress". Fixed 'new' word UI display state.
 
 ### Changed Files
