@@ -8,7 +8,7 @@ Date: 2026-05-02
 
 ### Added
 - **`POST /api/feedback/draft` endpoint** -- Simulates user feedback to calculate accurate vocabulary level changes without mutating the database.
-~~~~
+
 ### Changed
 - **Replaced Hold-to-Submit with Progress Summary Modal** -- Reading interaction has been simplified. Instead of holding the "Continue" button, tapping "Continue" (or Spacebar) now opens a modal showing precise vocabulary transitions.
 - **Feedback processing refactored** -- The backend `apply_feedback` logic now completely wraps around the simulation output of `draft_feedback`, ensuring mathematical consistency.
