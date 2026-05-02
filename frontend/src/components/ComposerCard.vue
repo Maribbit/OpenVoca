@@ -13,12 +13,16 @@
           >
           <button
             type="button"
-            class="text-inkLight/40 hover:text-inkLight transition-colors cursor-pointer"
+            class="text-inkLight/40 hover:text-inkLight transition-colors cursor-pointer disabled:opacity-50"
             :title="t.composerRefreshSuggestions"
             @click="loadTargetWords"
+            :disabled="isLoadingWords"
           >
             <svg
               class="w-3.5 h-3.5"
+              :class="{
+                'animate-spin text-inkLight opacity-70': isLoadingWords,
+              }"
               fill="none"
               stroke="currentColor"
               stroke-width="1.5"
@@ -291,6 +295,7 @@
   const addingWord = ref(false);
   const newWordText = ref("");
   const addWordInputRef = ref<HTMLInputElement | null>(null);
+  const isLoadingWords = ref(false);
 
   const effectiveTargetWords = computed<string[]>(() => [
     ...suggestedWords.value.filter((w) => activeSuggestions.value.has(w)),
@@ -298,6 +303,8 @@
   ]);
 
   async function loadTargetWords(): Promise<void> {
+    if (isLoadingWords.value) return;
+    isLoadingWords.value = true;
     const poolSize = Number(get("generation", "suggestionPoolSize", "3"));
     const autoSelect = Number(get("generation", "targetWordCount", "1"));
     try {
@@ -307,6 +314,8 @@
     } catch {
       suggestedWords.value = [];
       activeSuggestions.value = new Set();
+    } finally {
+      isLoadingWords.value = false;
     }
   }
 

@@ -20,10 +20,33 @@
           />
           <button
             type="button"
-            class="flex items-center gap-2 rounded-full border border-black/8 bg-surface px-5 py-2.5 text-sm font-medium text-ink transition-all hover:border-black/15 hover:shadow-sm"
+            class="flex items-center gap-2 rounded-full border border-black/8 bg-surface px-5 py-2.5 text-sm font-medium text-ink transition-all hover:border-black/15 hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             @click="importFileInput?.click()"
+            :disabled="isImporting || isLoading"
           >
             <svg
+              v-if="isImporting"
+              class="h-4 w-4 animate-spin text-ink"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              ></circle>
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+            <svg
+              v-else
               class="h-4 w-4"
               fill="none"
               stroke="currentColor"
@@ -40,10 +63,33 @@
           </button>
           <button
             type="button"
-            class="flex items-center gap-2 rounded-full border border-black/8 bg-surface px-5 py-2.5 text-sm font-medium text-ink transition-all hover:border-black/15 hover:shadow-sm"
+            class="flex items-center gap-2 rounded-full border border-black/8 bg-surface px-5 py-2.5 text-sm font-medium text-ink transition-all hover:border-black/15 hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             @click="handleExport"
+            :disabled="isExporting || isLoading"
           >
             <svg
+              v-if="isExporting"
+              class="h-4 w-4 animate-spin text-ink"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              ></circle>
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+            <svg
+              v-else
               class="h-4 w-4"
               fill="none"
               stroke="currentColor"
@@ -125,7 +171,34 @@
       </Transition>
 
       <div
-        v-if="words.length === 0"
+        v-if="isLoading"
+        class="flex flex-col items-center justify-center rounded-2xl border border-black/5 bg-surface p-12 text-center"
+      >
+        <svg
+          class="h-8 w-8 animate-spin text-inkLight/40 mb-4"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            class="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            stroke-width="4"
+          ></circle>
+          <path
+            class="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          ></path>
+        </svg>
+        <p class="text-sm text-inkLight">{{ i18nMessages.statsLoading }}</p>
+      </div>
+
+      <div
+        v-else-if="words.length === 0"
         class="rounded-2xl border border-black/5 bg-surface p-12 text-center"
       >
         <p class="text-inkLight">{{ i18nMessages.emptyVocabulary }}</p>
@@ -211,54 +284,128 @@
                   }}</span>
                 </td>
                 <td class="px-6 py-4">
+                  <span
+                    v-if="editingKey !== word.lemma"
+                    class="inline-block w-14 text-center font-mono text-xs"
+                    :class="
+                      word.level >= 6
+                        ? 'text-emerald-500 font-semibold'
+                        : 'text-inkLight'
+                    "
+                  >
+                    {{ word.level }}
+                  </span>
                   <input
+                    v-else
                     type="number"
                     :value="word.level"
                     :min="1"
                     :max="6"
                     class="w-14 rounded border border-transparent bg-transparent px-1 py-0.5 text-center font-mono text-xs outline-none transition-colors focus:border-black/15 focus:bg-surface"
                     :class="
-                      word.level >= 6 ? 'text-emerald-500' : 'text-inkLight'
+                      word.level >= 6
+                        ? 'text-emerald-500 font-semibold'
+                        : 'text-inkLight'
                     "
                     @change="onLevelInput(word, $event)"
                     @click.stop
                   />
                 </td>
                 <td class="px-6 py-4">
+                  <span
+                    v-if="editingKey !== word.lemma"
+                    class="inline-block w-14 text-center font-mono text-xs"
+                    :class="
+                      word.cooldown > 0
+                        ? 'text-inkLight'
+                        : 'text-green-500 font-semibold'
+                    "
+                  >
+                    {{ word.cooldown }}
+                  </span>
                   <input
+                    v-else
                     type="number"
                     :value="word.cooldown"
                     :min="0"
                     :max="2 ** word.level"
                     class="w-14 rounded border border-transparent bg-transparent px-1 py-0.5 text-center font-mono text-xs outline-none transition-colors focus:border-black/15 focus:bg-surface"
                     :class="
-                      word.cooldown > 0 ? 'text-inkLight' : 'text-green-500'
+                      word.cooldown > 0
+                        ? 'text-inkLight'
+                        : 'text-green-500 font-semibold'
                     "
                     @change="onCooldownInput(word, $event)"
                     @click.stop
                   />
                 </td>
                 <td class="px-2 py-4">
-                  <button
-                    type="button"
-                    class="cursor-pointer rounded p-1 text-inkLight/30 transition-colors hover:bg-red-50 hover:text-red-400"
-                    :title="i18nMessages.deleteWord"
-                    @click.stop="handleDeleteWord(word)"
-                  >
-                    <svg
-                      class="h-3.5 w-3.5"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.5"
-                      viewBox="0 0 24 24"
+                  <div class="flex items-center justify-end gap-1">
+                    <button
+                      v-if="editingKey === word.lemma"
+                      type="button"
+                      class="cursor-pointer rounded p-1 text-inkLight/40 transition-colors hover:bg-red-50 hover:text-red-500 dark:text-white/40 dark:hover:bg-red-500/20 dark:hover:text-red-400"
+                      :title="i18nMessages.deleteWord"
+                      @click.stop="handleDeleteWord(word)"
                     >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        d="M6 18 18 6M6 6l12 12"
-                      />
-                    </svg>
-                  </button>
+                      <svg
+                        class="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      class="cursor-pointer rounded p-1 text-inkLight/40 transition-colors hover:bg-black/5 hover:text-ink dark:text-white/40 dark:hover:bg-white/10 dark:hover:text-white"
+                      :class="{
+                        'bg-black/8 text-ink dark:bg-white/15 dark:text-white':
+                          editingKey === word.lemma,
+                      }"
+                      :title="
+                        editingKey === word.lemma
+                          ? i18nMessages.doneEditingRow || 'Done'
+                          : i18nMessages.editRow || 'Edit'
+                      "
+                      @click.stop="toggleEdit(word)"
+                    >
+                      <svg
+                        v-if="editingKey === word.lemma"
+                        class="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="m4.5 12.75 6 6 9-13.5"
+                        />
+                      </svg>
+                      <svg
+                        v-else
+                        class="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"
+                        />
+                      </svg>
+                    </button>
+                  </div>
                 </td>
               </tr>
               <!-- Expanded detail row -->
@@ -332,10 +479,18 @@
   const importError = ref(false);
   const lastImportedFile = ref<File | null>(null);
   const importSkippedExisting = ref(false);
+  const isLoading = ref(true);
+  const isImporting = ref(false);
+  const isExporting = ref(false);
+  const editingKey = ref<string | null>(null);
 
   function toggleExpand(word: WordRecordOut): void {
     const key = word.lemma;
     expandedKey.value = expandedKey.value === key ? null : key;
+  }
+
+  function toggleEdit(word: WordRecordOut): void {
+    editingKey.value = editingKey.value === word.lemma ? null : word.lemma;
   }
 
   function formatLastSeen(iso: string | null | undefined): string {
@@ -344,28 +499,38 @@
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMin = Math.floor(diffMs / 60000);
-    if (diffMin < 1) return "just now";
-    if (diffMin < 60) return `${diffMin}m ago`;
+    if (diffMin < 1) return i18nMessages.value.timeJustNow;
+    if (diffMin < 60) return i18nMessages.value.timeMinutesAgo(diffMin);
     const diffH = Math.floor(diffMin / 60);
-    if (diffH < 24) return `${diffH}h ago`;
+    if (diffH < 24) return i18nMessages.value.timeHoursAgo(diffH);
     const diffD = Math.floor(diffH / 24);
-    return `${diffD}d ago`;
+    return i18nMessages.value.timeDaysAgo(diffD);
   }
 
   async function loadWords(): Promise<void> {
+    isLoading.value = true;
     try {
       const response = await fetchVocabulary(sortMode.value);
       words.value = response.words;
     } catch {
       words.value = [];
+    } finally {
+      isLoading.value = false;
     }
   }
 
   async function handleExport(): Promise<void> {
-    await exportVocabulary();
+    if (isExporting.value) return;
+    isExporting.value = true;
+    try {
+      await exportVocabulary();
+    } finally {
+      isExporting.value = false;
+    }
   }
 
   async function onFileSelected(event: Event): Promise<void> {
+    if (isImporting.value) return;
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
@@ -374,6 +539,7 @@
     importError.value = false;
     importSkippedExisting.value = false;
     lastImportedFile.value = file;
+    isImporting.value = true;
     try {
       const result = await importVocabulary(file, "skip");
       importSkippedExisting.value = result.skipped > 0;
@@ -393,15 +559,19 @@
       lastImportedFile.value = null;
       importStatus.value =
         err instanceof Error ? err.message : i18nMessages.value.importFailed;
+    } finally {
+      isImporting.value = false;
     }
   }
 
   async function reimportOverwrite(): Promise<void> {
+    if (isImporting.value) return;
     const file = lastImportedFile.value;
     if (!file) return;
     importStatus.value = "";
     importError.value = false;
     importSkippedExisting.value = false;
+    isImporting.value = true;
     try {
       const result = await importVocabulary(file, "overwrite");
       lastImportedFile.value = null;
@@ -420,6 +590,8 @@
       importError.value = true;
       importStatus.value =
         err instanceof Error ? err.message : i18nMessages.value.importFailed;
+    } finally {
+      isImporting.value = false;
     }
   }
 

@@ -11,6 +11,7 @@
 
   const props = defineProps<{
     words: Omit<WordProgress, "dummy">[]; // Omit trick to avoid typing issues if any
+    isSubmitting?: boolean;
     messages: Pick<
       LocaleMessages,
       | "progressSummaryTitle"
@@ -264,16 +265,40 @@
       >
         <button
           @click="emit('cancel')"
-          class="px-5 py-2.5 text-inkLight hover:text-ink hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-colors text-sm font-medium order-2 sm:order-1 text-center sm:text-left"
+          :disabled="isSubmitting"
+          class="px-5 py-2.5 text-inkLight hover:text-ink hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-colors text-sm font-medium order-2 sm:order-1 text-center sm:text-left disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {{ messages.progressBack }}
         </button>
         <button
           @click="emit('submit')"
-          class="px-8 py-2.5 bg-ink text-paper font-semibold rounded-xl shadow-lg hover:bg-inkLight transition-colors flex justify-center items-center gap-2 order-1 sm:order-2"
+          :disabled="isSubmitting"
+          class="px-8 py-2.5 bg-ink text-paper font-semibold rounded-xl shadow-lg hover:bg-inkLight transition-all flex justify-center items-center gap-2 order-1 sm:order-2 disabled:opacity-75 disabled:cursor-not-allowed"
         >
+          <svg
+            v-if="isSubmitting"
+            class="animate-spin -ml-1 mr-2 h-4 w-4 text-paper"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            ></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
           {{ messages.progressSubmit }}
           <kbd
+            v-if="!isSubmitting"
             class="ml-1 rounded border border-paper/30 bg-inkLight/20 px-1.5 py-0.5 font-mono text-[10px] text-paper"
             >Enter</kbd
           >

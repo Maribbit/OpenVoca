@@ -109,6 +109,13 @@ export interface LocaleMessages {
   statsInterval: string;
   statsIntervalTip: string;
   statsCooldown: string;
+  statsLoading: string;
+  timeJustNow: string;
+  timeMinutesAgo: (m: number) => string;
+  timeHoursAgo: (h: number) => string;
+  timeDaysAgo: (d: number) => string;
+  editRow: string;
+  doneEditingRow: string;
   definitionKnow: string;
   definitionDontKnow: string;
   definitionNotFound: string;
@@ -277,6 +284,13 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     statsInterval: "Familiarity",
     statsIntervalTip: "Each level doubles the cooldown: 2, 4, 8, 16, 32, 64",
     statsCooldown: "Cooldown",
+    statsLoading: "Loading vocabulary...",
+    timeJustNow: "just now",
+    timeMinutesAgo: (m) => `${m}m ago`,
+    timeHoursAgo: (h) => `${h}h ago`,
+    timeDaysAgo: (d) => `${d}d ago`,
+    editRow: "Edit Row",
+    doneEditingRow: "Done Editing",
     definitionKnow: "Know",
     definitionDontKnow: "Don't know",
     definitionNotFound: "No definition found",
@@ -441,6 +455,13 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     statsInterval: "熟悉度",
     statsIntervalTip: "每升一级，冷却翻倍：2, 4, 8, 16, 32, 64",
     statsCooldown: "冷却剩余",
+    statsLoading: "词汇加载中...",
+    timeJustNow: "刚刚",
+    timeMinutesAgo: (m) => `${m} 分钟前`,
+    timeHoursAgo: (h) => `${h} 小时前`,
+    timeDaysAgo: (d) => `${d} 天前`,
+    editRow: "编辑",
+    doneEditingRow: "完成",
     definitionKnow: "认识",
     definitionDontKnow: "不认识",
     definitionNotFound: "未找到释义",

@@ -245,13 +245,35 @@
         <div class="mt-20 flex flex-col items-center">
           <button
             @click="openProgressSummary"
-            :disabled="isLoading || isUiPanelOpen"
-            class="group relative flex items-center justify-center gap-2 rounded-full border border-black/10 dark:border-white/10 bg-surface px-8 py-3 shadow-md hover:bg-black/5 dark:hover:bg-white/5 transition-all text-ink tracking-wide font-medium text-[15px] disabled:opacity-50 disabled:cursor-not-allowed"
+            :disabled="isLoading || isDrafting || isUiPanelOpen"
+            class="group relative flex items-center justify-center gap-2 rounded-full border border-black/10 dark:border-white/10 bg-surface px-8 py-3 shadow-md hover:bg-black/5 dark:hover:bg-white/5 transition-all text-ink tracking-wide font-medium text-[15px] disabled:opacity-75 disabled:cursor-not-allowed"
           >
+            <svg
+              v-if="isDrafting"
+              class="animate-spin -ml-1 mr-2 h-4 w-4 text-ink"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              ></circle>
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
             <span>{{
               i18nMessages.reviewProgressBtn || "Review Progress"
             }}</span>
             <kbd
+              v-if="!isDrafting"
               class="rounded border border-black/20 dark:border-gray-600 bg-black/10 dark:bg-gray-800 px-2 py-0.5 font-mono text-xs text-inkLight transition-colors font-semibold"
               >Space</kbd
             >
@@ -263,6 +285,7 @@
     <DefinitionToast
       :entry="definitionEntry"
       :not-found-word="definitionNotFound"
+      :loading-word="definitionWord"
       :not-found-text="i18nMessages.definitionNotFound"
       :know-text="i18nMessages.definitionKnow"
       :dont-know-text="i18nMessages.definitionDontKnow"
@@ -284,6 +307,7 @@
     <ProgressSummaryModal
       v-if="isSummaryModalOpen"
       :words="wordStatusList"
+      :is-submitting="isSubmittingFeedback"
       :messages="i18nMessages"
       @submit="goToNextSentence"
       @cancel="isSummaryModalOpen = false"
@@ -420,6 +444,8 @@
   const composerError = ref("");
   const feedbackError = ref("");
   const isLoading = ref(false);
+  const isDrafting = ref(false);
+  const isSubmittingFeedback = ref(false);
   const loadingProgress = ref<string | null>(null);
   const isUiPanelOpen = ref(false);
   const markedWords = ref<Set<string>>(new Set());
@@ -638,6 +664,7 @@
     definitionWord.value = word;
     definitionToken.value = token;
     definitionNotFound.value = null;
+    definitionEntry.value = null;
     try {
       const entry = await fetchDefinition(word);
       if (definitionWord.value === word) {
@@ -669,7 +696,11 @@
       wordClickedThisFrame = false;
       return;
     }
-    if (definitionEntry.value || definitionNotFound.value) {
+    if (
+      definitionEntry.value ||
+      definitionNotFound.value ||
+      definitionWord.value
+    ) {
       dismissDefinition();
     }
   }
@@ -735,7 +766,8 @@
   }
 
   async function openProgressSummary(): Promise<void> {
-    if (isLoading.value) return;
+    if (isLoading.value || isDrafting.value || isSubmittingFeedback.value)
+      return;
 
     if (tokens.value.length === 0) return;
 
@@ -751,6 +783,7 @@
       new Set([...targetEntries, ...markedEntries, ...originalTargetsRef]),
     );
 
+    isDrafting.value = true;
     try {
       let statuses: WordProgress[] = [];
 
@@ -790,36 +823,43 @@
       console.error("Failed to fetch vocabulary for summary modal:", e);
       // Fallback
       await goToNextSentence();
+    } finally {
+      isDrafting.value = false;
     }
   }
 
   async function goToNextSentence(): Promise<void> {
-    isSummaryModalOpen.value = false;
-    if (isLoading.value) return;
+    if (isLoading.value || isSubmittingFeedback.value) return;
 
-    if (sentence.value) {
-      const targetEntries = tokens.value
-        .filter((t) => t.isTarget && t.lemma)
-        .map((t) => t.lemma!);
-      const markedEntries = tokens.value
-        .filter(
-          (t) => t.isWord && t.lemma && markedWords.value.has(tokenKey(t)),
-        )
-        .map((t) => t.lemma!);
+    isSubmittingFeedback.value = true;
+    try {
+      if (sentence.value) {
+        const targetEntries = tokens.value
+          .filter((t) => t.isTarget && t.lemma)
+          .map((t) => t.lemma!);
+        const markedEntries = tokens.value
+          .filter(
+            (t) => t.isWord && t.lemma && markedWords.value.has(tokenKey(t)),
+          )
+          .map((t) => t.lemma!);
 
-      try {
-        await submitFeedback({
-          targetWords: targetEntries,
-          markedWords: markedEntries,
-          sentence: sentence.value,
-          originalTargets: originalTargets.value,
-        });
-      } catch {
-        feedbackError.value = i18nMessages.value.feedbackError;
-        setTimeout(() => {
-          feedbackError.value = "";
-        }, 4000);
+        try {
+          await submitFeedback({
+            targetWords: targetEntries,
+            markedWords: markedEntries,
+            sentence: sentence.value,
+            originalTargets: originalTargets.value,
+          });
+        } catch {
+          feedbackError.value = i18nMessages.value.feedbackError;
+          setTimeout(() => {
+            feedbackError.value = "";
+          }, 4000);
+        }
       }
+    } finally {
+      isSubmittingFeedback.value = false;
+      isSummaryModalOpen.value = false;
     }
 
     showComposer.value = true;
