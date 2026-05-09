@@ -11,14 +11,21 @@
         target="_blank"
         rel="noopener noreferrer"
         class="underline underline-offset-2 opacity-80 hover:opacity-100"
-      >{{ messages.updateDownload }}</a>
+        >{{ messages.updateDownload }}</a
+      >
       <button
         class="opacity-60 hover:opacity-100"
         @click="update.dismissed = true"
-      >{{ messages.updateDismiss }}</button>
+      >
+        {{ messages.updateDismiss }}
+      </button>
     </div>
   </div>
-  <router-view />
+  <router-view v-slot="{ Component }">
+    <KeepAlive include="HomeView">
+      <component :is="Component" />
+    </KeepAlive>
+  </router-view>
 </template>
 
 <script setup lang="ts">

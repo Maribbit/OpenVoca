@@ -400,7 +400,15 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+  import {
+    computed,
+    onActivated,
+    onDeactivated,
+    onMounted,
+    onUnmounted,
+    ref,
+    watch,
+  } from "vue";
 
   import {
     fetchNextReadingSentenceStream,
@@ -427,6 +435,8 @@
     ThemeOption,
   } from "../components/ReadingSettingsBar.vue";
   import SentenceDisplay from "../components/SentenceDisplay.vue";
+
+  defineOptions({ name: "HomeView" });
 
   type FontSizeOption = "sm" | "md" | "lg";
   type SpacingOption = "tight" | "normal" | "loose";
@@ -949,18 +959,49 @@
 
   // --- Lifecycle ---
 
-  onMounted(() => {
+  let routeListenersAttached = false;
+
+  function syncReadingUiSettingsFromStore(): void {
+    readingUiSettings.value = loadReadingUiSettings();
+    uiFontSize.value = loadUiFontSize();
     applyTheme(readingUiSettings.value.theme);
+  }
+
+  function attachRouteListeners(): void {
+    if (routeListenersAttached) return;
     window.addEventListener("keydown", handleKeydown);
     window.addEventListener("keyup", handleKeyup);
     document.addEventListener("click", onDocumentClick);
+    routeListenersAttached = true;
+  }
+
+  function detachRouteListeners(): void {
+    if (!routeListenersAttached) return;
+    window.removeEventListener("keydown", handleKeydown);
+    window.removeEventListener("keyup", handleKeyup);
+    document.removeEventListener("click", onDocumentClick);
+    routeListenersAttached = false;
+  }
+
+  onMounted(() => {
+    syncReadingUiSettingsFromStore();
+    attachRouteListeners();
+  });
+
+  onActivated(() => {
+    syncReadingUiSettingsFromStore();
+    attachRouteListeners();
+  });
+
+  onDeactivated(() => {
+    closeUiPanel();
+    dismissDefinition();
+    detachRouteListeners();
   });
 
   onUnmounted(() => {
     stopElapsedTimer();
-    window.removeEventListener("keydown", handleKeydown);
-    window.removeEventListener("keyup", handleKeyup);
-    document.removeEventListener("click", onDocumentClick);
+    detachRouteListeners();
   });
 
   watch(

@@ -1,4 +1,4 @@
-import { computed, ref } from "vue";
+import { computed } from "vue";
 
 import { useSettings } from "./useSettings";
 
@@ -516,11 +516,25 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
   },
 };
 
-function detectInitialLocale(): Locale {
-  const { get } = useSettings();
-  const stored = get("interface", "locale", "");
-  if (stored === "en" || stored === "zh") return stored;
+const SETTINGS_CACHE_KEY = "openvoca.settings.cache";
 
+function normalizeLocale(value: unknown): Locale | null {
+  return value === "en" || value === "zh" ? value : null;
+}
+
+function detectCachedLocale(): Locale | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(SETTINGS_CACHE_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as { interface?: { locale?: unknown } };
+    return normalizeLocale(parsed.interface?.locale);
+  } catch {
+    return null;
+  }
+}
+
+function detectBrowserLocale(): Locale {
   if (typeof window !== "undefined") {
     return window.navigator.language.toLowerCase().startsWith("zh")
       ? "zh"
@@ -531,12 +545,20 @@ function detectInitialLocale(): Locale {
 }
 
 export function useI18n() {
-  const locale = ref<Locale>(detectInitialLocale());
+  const { get, set } = useSettings();
+
+  const locale = computed<Locale>(() => {
+    return (
+      normalizeLocale(get("interface", "locale", "")) ??
+      detectCachedLocale() ??
+      detectBrowserLocale()
+    );
+  });
 
   const messages = computed(() => MESSAGES[locale.value]);
 
   function setLocale(nextLocale: Locale): void {
-    locale.value = nextLocale;
+    set("interface", { locale: nextLocale });
   }
 
   return {

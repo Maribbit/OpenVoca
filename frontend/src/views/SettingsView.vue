@@ -677,7 +677,6 @@
 
   function switchLanguage(nextLocale: Locale): void {
     setLocale(nextLocale);
-    set("interface", { locale: nextLocale });
   }
 
   function toggleClass(isActive: boolean): string {
