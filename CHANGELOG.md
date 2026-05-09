@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.9.9
+
+Date: 2026-05-09
+
+### Fixed
+- **Reading route persistence** -- Navigating from Reading to Settings or Stats and back now preserves the current generated sentence instead of resetting to the Composer.
+- **Live language/settings refresh** -- Cached Reading state now refreshes visible copy and reading display settings when returning from Settings, without accidentally saving route-activation defaults.
+- **Stats editing clarity** -- The destructive delete action has moved out of the active edit action cluster and into the expanded row details as a labeled danger action.
+- **Stats numeric alignment** -- Familiarity and cooldown columns now use fixed centered columns and text-mode numeric inputs so values stay aligned with headers and do not shift during editing.
+
+### Changed
+- **Settings and Stats navigation** -- The top headers are now sticky, slimmer, and separated from scrolled content with a subtle divider so Back to Reading remains available on long pages.
+
+### Changed Files
+- `frontend/src/App.vue` -- Cached `HomeView` with Vue `KeepAlive`.
+- `frontend/src/views/HomeView.vue` -- Paused route-specific global listeners while cached/inactive and refreshed reading UI state on activation.
+- `frontend/src/composables/useI18n.ts` -- Made locale resolution reactive to the shared settings store.
+- `frontend/src/composables/useSettings.ts` -- Preloaded the local settings cache before first render so cached views initialize from persisted settings.
+- `frontend/src/views/SettingsView.vue` -- Added the compact sticky header treatment.
+- `frontend/src/views/StatsView.vue` -- Added the compact sticky header, moved delete into expanded details, and aligned numeric columns/inputs.
+- `frontend/tests/App.spec.ts` -- Added route persistence and language refresh coverage.
+- `frontend/tests/StatsView.spec.ts` -- Added Stats editing and numeric alignment coverage.
+
 ## v0.9.8
 
 Date: 2026-05-09
