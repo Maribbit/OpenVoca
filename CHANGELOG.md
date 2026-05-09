@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.9.8
+
+Date: 2026-05-09
+
+### Added
+- **Current-sentence lemma correction fallback** -- Users can correct the lemma used for dictionary lookup and feedback before submitting progress. The correction is available from the Definition Toast and Progress Summary Modal, applies only to the current sentence, and is not persisted as a global alias.
+- **Color system guidance** -- Added frontend color-token guidance to reduce light/dark and palette regressions.
+
+### Changed
+- **Definition Toast lemma display polished** -- The lemma label is localized (`lemma` / `词元`), hyphenated lemmas such as `state-of-the-art` are accepted, and duplicate word/lemma rows are avoided when both values match.
+- **Progress Summary Modal theme colors fixed** -- Level-delta badges and modal borders now use theme-aware ink/surface tokens instead of hard-coded dark gray colors.
+- **Review Progress button refined** -- The reading-page summary button now sits closer to the sentence, uses a subtler theme-tinted neutral fill, and only shows shadow on hover.
+
+### Changed Files
+- `frontend/src/composables/useLemmaOverrides.ts` -- Added the current-sentence lemma override mechanism.
+- `frontend/src/views/HomeView.vue` -- Routed dictionary lookup, draft feedback, and final submit through corrected lemmas; refined Review Progress spacing and button styling.
+- `frontend/src/components/DefinitionToast.vue` -- Added lemma editing, localized lemma display, and duplicate display suppression.
+- `frontend/src/components/ProgressSummaryModal.vue` -- Added lemma editing and theme-aware level-delta styling.
+- `frontend/src/composables/useI18n.ts` -- Added lemma correction labels in English and Chinese.
+- `frontend/tests/` -- Added and expanded coverage for lemma overrides, toast editing, modal editing, and corrected feedback submission.
+- `frontend/README.md` -- Documented frontend color-system usage rules.
+- `design/Implementation.md`, `design/UI_Design.md`, `design/Algorithm.md` -- Documented the simplified non-persistent lemma correction fallback design.
+
 ## v0.9.7
 
 Date: 2026-05-02
