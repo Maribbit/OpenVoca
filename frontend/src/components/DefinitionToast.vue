@@ -59,6 +59,34 @@
                 class="rounded bg-ink/5 px-1 py-px font-mono text-[10px] leading-none text-inkLight/60 dark:bg-white/10"
                 >{{ entry.pos.toUpperCase() }}</span
               >
+              <span
+                v-if="showLemmaLabel"
+                class="rounded bg-ink/5 px-1.5 py-px font-sans text-[10px] leading-none text-inkLight/70 dark:bg-white/10"
+              >
+                {{ lemmaLabel ?? "lemma" }}: {{ lemma }}
+              </span>
+              <button
+                v-if="lemma && !isEditingLemma"
+                type="button"
+                data-testid="lemma-edit-trigger"
+                class="shrink-0 rounded p-0.5 text-inkLight/40 transition-colors hover:text-ink"
+                :title="editLemmaLabel ?? 'Edit lemma'"
+                @click="startLemmaEdit"
+              >
+                <svg
+                  class="h-3 w-3"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L7.5 19.152 3.75 20.25l1.098-3.75 13.701-13.701Z"
+                  />
+                </svg>
+              </button>
               <button
                 type="button"
                 data-testid="speak-word"
@@ -88,6 +116,86 @@
                 </svg>
               </button>
             </span>
+            <span
+              v-if="lemma && isEditingLemma"
+              class="flex items-center gap-1 font-sans text-[11px] text-inkLight/55"
+            >
+              <template v-if="isEditingLemma">
+                <span>{{ lemmaLabel ?? "lemma" }}:</span>
+                <input
+                  v-model="draftLemma"
+                  data-testid="lemma-edit-input"
+                  class="w-24 rounded border border-ink/10 bg-paper px-1.5 py-0.5 text-[11px] text-ink outline-none focus:border-ink/25 dark:border-white/10"
+                  :class="{ 'border-red-400': lemmaEditInvalid }"
+                  @keydown.enter.prevent="commitLemmaEdit"
+                  @keydown.escape.prevent="cancelLemmaEdit"
+                />
+                <button
+                  type="button"
+                  data-testid="lemma-edit-save"
+                  class="rounded px-1 text-inkLight transition-colors hover:text-ink disabled:opacity-40"
+                  :disabled="lemmaEditInvalid"
+                  @click="commitLemmaEdit"
+                >
+                  <svg
+                    class="h-3 w-3"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="m4.5 12.75 6 6 9-13.5"
+                    />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="rounded px-1 text-inkLight/60 transition-colors hover:text-ink"
+                  @click="cancelLemmaEdit"
+                >
+                  <svg
+                    class="h-3 w-3"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M6 18 18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </template>
+              <template v-else>
+                <span>{{ lemmaLabel ?? "lemma" }}: {{ lemma }}</span>
+                <button
+                  type="button"
+                  data-testid="lemma-edit-trigger"
+                  class="rounded p-0.5 text-inkLight/40 transition-colors hover:text-ink"
+                  :title="editLemmaLabel ?? 'Edit lemma'"
+                  @click="startLemmaEdit"
+                >
+                  <svg
+                    class="h-3 w-3"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L7.5 19.152 3.75 20.25l1.098-3.75 13.701-13.701Z"
+                    />
+                  </svg>
+                </button>
+              </template>
+            </span>
             <template v-if="displayMode !== 'en' && entry.translation">
               <span
                 v-for="(line, i) in splitLines(entry.translation)"
@@ -110,6 +218,34 @@
               <span class="font-sans text-sm font-semibold text-ink">{{
                 notFoundWord
               }}</span>
+              <span
+                v-if="showLemmaLabel"
+                class="rounded bg-ink/5 px-1.5 py-px font-sans text-[10px] leading-none text-inkLight/70 dark:bg-white/10"
+              >
+                {{ lemmaLabel ?? "lemma" }}: {{ lemma }}
+              </span>
+              <button
+                v-if="lemma && !isEditingLemma"
+                type="button"
+                data-testid="lemma-edit-trigger"
+                class="shrink-0 rounded p-0.5 text-inkLight/40 transition-colors hover:text-ink"
+                :title="editLemmaLabel ?? 'Edit lemma'"
+                @click="startLemmaEdit"
+              >
+                <svg
+                  class="h-3 w-3"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L7.5 19.152 3.75 20.25l1.098-3.75 13.701-13.701Z"
+                  />
+                </svg>
+              </button>
               <button
                 type="button"
                 data-testid="speak-word"
@@ -138,6 +274,86 @@
                   />
                 </svg>
               </button>
+            </span>
+            <span
+              v-if="lemma && isEditingLemma"
+              class="flex items-center gap-1 font-sans text-[11px] text-inkLight/55"
+            >
+              <template v-if="isEditingLemma">
+                <span>{{ lemmaLabel ?? "lemma" }}:</span>
+                <input
+                  v-model="draftLemma"
+                  data-testid="lemma-edit-input"
+                  class="w-24 rounded border border-ink/10 bg-paper px-1.5 py-0.5 text-[11px] text-ink outline-none focus:border-ink/25 dark:border-white/10"
+                  :class="{ 'border-red-400': lemmaEditInvalid }"
+                  @keydown.enter.prevent="commitLemmaEdit"
+                  @keydown.escape.prevent="cancelLemmaEdit"
+                />
+                <button
+                  type="button"
+                  data-testid="lemma-edit-save"
+                  class="rounded px-1 text-inkLight transition-colors hover:text-ink disabled:opacity-40"
+                  :disabled="lemmaEditInvalid"
+                  @click="commitLemmaEdit"
+                >
+                  <svg
+                    class="h-3 w-3"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="m4.5 12.75 6 6 9-13.5"
+                    />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="rounded px-1 text-inkLight/60 transition-colors hover:text-ink"
+                  @click="cancelLemmaEdit"
+                >
+                  <svg
+                    class="h-3 w-3"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M6 18 18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </template>
+              <template v-else>
+                <span>{{ lemmaLabel ?? "lemma" }}: {{ lemma }}</span>
+                <button
+                  type="button"
+                  data-testid="lemma-edit-trigger"
+                  class="rounded p-0.5 text-inkLight/40 transition-colors hover:text-ink"
+                  :title="editLemmaLabel ?? 'Edit lemma'"
+                  @click="startLemmaEdit"
+                >
+                  <svg
+                    class="h-3 w-3"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L7.5 19.152 3.75 20.25l1.098-3.75 13.701-13.701Z"
+                    />
+                  </svg>
+                </button>
+              </template>
             </span>
             <span class="font-sans text-sm leading-snug text-inkLight/60">{{
               notFoundText
@@ -211,6 +427,10 @@
 <script setup lang="ts">
   import { computed, ref, onBeforeUnmount } from "vue";
   import type { DictionaryEntry } from "../api/reading";
+  import {
+    isValidLemmaInput,
+    normalizeLemmaInput,
+  } from "../composables/useLemmaOverrides";
 
   export type DictionaryDisplayMode = "zh" | "en" | "both";
 
@@ -218,8 +438,11 @@
     entry: DictionaryEntry | null;
     notFoundWord: string | null;
     loadingWord?: string | null;
+    lemma?: string | null;
+    lemmaLabel?: string;
     notFoundText: string;
     loadingText?: string;
+    editLemmaLabel?: string;
     knowText: string;
     dontKnowText: string;
     isMarked: boolean;
@@ -228,12 +451,46 @@
   }>();
 
   const lookupWord = computed(
-    () => props.entry?.word ?? props.notFoundWord ?? "",
+    () =>
+      props.entry?.word ??
+      props.notFoundWord ??
+      props.loadingWord ??
+      props.lemma ??
+      "",
   );
 
-  defineEmits<{
+  const showLemmaLabel = computed(
+    () =>
+      Boolean(props.lemma) &&
+      normalizeLemmaInput(props.lemma ?? "") !==
+        normalizeLemmaInput(lookupWord.value),
+  );
+
+  const emit = defineEmits<{
     mark: [marked: boolean];
+    "lemma-change": [lemma: string];
   }>();
+
+  const isEditingLemma = ref(false);
+  const draftLemma = ref("");
+
+  const lemmaEditInvalid = computed(() => !isValidLemmaInput(draftLemma.value));
+
+  function startLemmaEdit(): void {
+    draftLemma.value = props.lemma ?? lookupWord.value;
+    isEditingLemma.value = true;
+  }
+
+  function cancelLemmaEdit(): void {
+    isEditingLemma.value = false;
+    draftLemma.value = "";
+  }
+
+  function commitLemmaEdit(): void {
+    if (lemmaEditInvalid.value) return;
+    emit("lemma-change", normalizeLemmaInput(draftLemma.value));
+    cancelLemmaEdit();
+  }
 
   const MAX_LINES = 4;
 

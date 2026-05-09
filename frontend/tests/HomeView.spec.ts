@@ -467,4 +467,88 @@ describe("HomeView.vue", () => {
     expect(playWasCalled).toBe(true);
     expect(audioSrc).toContain("/api/tts?text=");
   });
+
+  it("uses corrected lemmas for draft and submit", async () => {
+    window.localStorage.setItem("openvoca.ui.locale", "en");
+
+    const draftBodies: unknown[] = [];
+    const submitBodies: unknown[] = [];
+
+    const correctionSentence = {
+      sentence: "The analyses were careful.",
+      words: ["analysis"],
+      tokens: [
+        {
+          text: "analyses",
+          isWord: true,
+          isTarget: true,
+          lemma: "analysis",
+          pos: "NOUN",
+        },
+      ],
+    };
+
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url.startsWith("/api/target-words")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => targetWordsResponse,
+        });
+      }
+      if (url.startsWith("/api/reading-sentence/next/stream")) {
+        return Promise.resolve({
+          ok: true,
+          body: makeSseStream(correctionSentence),
+        });
+      }
+      if (url.startsWith("/api/feedback/draft")) {
+        const body = JSON.parse(String(init?.body));
+        draftBodies.push(body);
+        const lemma = body.target_words[0] ?? body.original_targets[0];
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            { lemma, old_level: 1, new_level: 2, is_new: false },
+          ],
+        });
+      }
+      if (url.startsWith("/api/feedback")) {
+        submitBodies.push(JSON.parse(String(init?.body)));
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = mount(HomeView, {
+      global: { plugins: [makeRouter()] },
+    });
+    await flushPromises();
+    await generateFromComposer(wrapper);
+
+    await (wrapper.vm as any).openProgressSummary();
+    await flushPromises();
+
+    await wrapper.find('[data-testid="lemma-edit-trigger"]').trigger("click");
+    await wrapper.find('[data-testid="lemma-edit-input"]').setValue("analyze");
+    await wrapper.find('[data-testid="lemma-edit-save"]').trigger("click");
+    await flushPromises();
+
+    await (wrapper.vm as any).goToNextSentence();
+    await flushPromises();
+
+    expect(draftBodies).toHaveLength(2);
+    expect(draftBodies[0]).toMatchObject({
+      target_words: ["analysis"],
+      original_targets: ["analysis"],
+    });
+    expect(draftBodies[1]).toMatchObject({
+      target_words: ["analyze"],
+      original_targets: ["analyze"],
+    });
+    expect(submitBodies[0]).toMatchObject({
+      targetWords: ["analyze"],
+      originalTargets: ["analyze"],
+    });
+  });
 });

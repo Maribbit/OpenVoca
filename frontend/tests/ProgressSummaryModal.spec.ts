@@ -14,6 +14,7 @@ const messages = {
   progressBack: "Back",
   progressSubmit: "Submit",
   progressEmpty: "No vocabulary updates.",
+  editLemma: "Edit lemma",
 };
 
 const words: WordProgress[] = [
@@ -50,5 +51,23 @@ describe("ProgressSummaryModal.vue", () => {
       .classes();
     expect(newBadgeClasses).toContain("border-ink/15");
     expect(newBadgeClasses).toContain("dark:border-white/15");
+  });
+
+  it("emits normalized lemma edits", async () => {
+    const wrapper = mount(ProgressSummaryModal, {
+      props: {
+        words,
+        messages,
+      },
+    });
+
+    await wrapper.find('[data-testid="lemma-edit-trigger"]').trigger("click");
+    await wrapper.find('[data-testid="lemma-edit-input"]').setValue(" Vapor ");
+    await wrapper.find('[data-testid="lemma-edit-save"]').trigger("click");
+
+    expect(wrapper.emitted("lemma-change")?.[0]).toEqual([
+      "evaporate",
+      "vapor",
+    ]);
   });
 });

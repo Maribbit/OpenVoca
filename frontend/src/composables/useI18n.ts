@@ -119,6 +119,8 @@ export interface LocaleMessages {
   definitionKnow: string;
   definitionDontKnow: string;
   definitionNotFound: string;
+  lemmaLabel: string;
+  editLemma: string;
   copySentence: string;
   readAloud: string;
   pronounceWord: string;
@@ -294,6 +296,8 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     definitionKnow: "Know",
     definitionDontKnow: "Don't know",
     definitionNotFound: "No definition found",
+    lemmaLabel: "lemma",
+    editLemma: "Edit lemma",
     copySentence: "Copy sentence",
     readAloud: "Read aloud",
     pronounceWord: "Pronounce",
@@ -465,6 +469,8 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     definitionKnow: "认识",
     definitionDontKnow: "不认识",
     definitionNotFound: "未找到释义",
+    lemmaLabel: "词元",
+    editLemma: "编辑词元",
     copySentence: "复制句子",
     readAloud: "朗读",
     pronounceWord: "发音",

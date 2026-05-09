@@ -162,4 +162,50 @@ describe("DefinitionToast.vue", () => {
     expect(audio).not.toBeNull();
     expect(audio!.src).toContain("/api/tts?text=xyzzy");
   });
+
+  it("emits normalized lemma edits", async () => {
+    const wrapper = mount(DefinitionToast, {
+      props: {
+        entry: sampleEntry,
+        notFoundWord: null,
+        lemma: "lantern-root",
+        lemmaLabel: "词元",
+        notFoundText: "No definition found",
+        knowText: "Know",
+        dontKnowText: "Don't know",
+        isMarked: false,
+        displayMode: "both",
+        pronounceLabel: "Pronounce",
+      },
+    });
+
+    expect(wrapper.text()).toContain("词元: lantern-root");
+    await wrapper.find('[data-testid="lemma-edit-trigger"]').trigger("click");
+    await wrapper.find('[data-testid="lemma-edit-input"]').setValue(" Lamp ");
+    await wrapper.find('[data-testid="lemma-edit-save"]').trigger("click");
+
+    expect(wrapper.emitted("lemma-change")?.[0]).toEqual(["lamp"]);
+  });
+
+  it("does not repeat the lemma label when it matches the lookup word", () => {
+    const wrapper = mount(DefinitionToast, {
+      props: {
+        entry: sampleEntry,
+        notFoundWord: null,
+        lemma: "lantern",
+        lemmaLabel: "词元",
+        notFoundText: "No definition found",
+        knowText: "Know",
+        dontKnowText: "Don't know",
+        isMarked: false,
+        displayMode: "both",
+        pronounceLabel: "Pronounce",
+      },
+    });
+
+    expect(wrapper.text()).not.toContain("词元: lantern");
+    expect(wrapper.find('[data-testid="lemma-edit-trigger"]').exists()).toBe(
+      true,
+    );
+  });
 });

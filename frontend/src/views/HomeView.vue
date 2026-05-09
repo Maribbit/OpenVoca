@@ -287,13 +287,17 @@
       :entry="definitionEntry"
       :not-found-word="definitionNotFound"
       :loading-word="definitionWord"
+      :lemma="currentDefinitionLemma"
+      :lemma-label="i18nMessages.lemmaLabel"
       :not-found-text="i18nMessages.definitionNotFound"
+      :edit-lemma-label="i18nMessages.editLemma"
       :know-text="i18nMessages.definitionKnow"
       :dont-know-text="i18nMessages.definitionDontKnow"
       :is-marked="isCurrentWordMarked"
       :display-mode="dictionaryDisplayMode"
       :pronounce-label="i18nMessages.pronounceWord"
       @mark="onDefinitionMark"
+      @lemma-change="onDefinitionLemmaChange"
     />
 
     <Transition name="fade">
@@ -308,10 +312,11 @@
     <ProgressSummaryModal
       v-if="isSummaryModalOpen"
       :words="wordStatusList"
-      :is-submitting="isSubmittingFeedback"
+      :is-submitting="isSubmittingFeedback || isDrafting"
       :messages="i18nMessages"
       @submit="goToNextSentence"
       @cancel="isSummaryModalOpen = false"
+      @lemma-change="onProgressLemmaChange"
     />
 
     <!-- About modal -->
@@ -359,7 +364,7 @@
               class="flex gap-3"
             >
               <span
-                class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ink/[0.08] font-mono text-[10px] font-semibold text-ink dark:bg-white/10"
+                class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ink/8 font-mono text-[10px] font-semibold text-ink dark:bg-white/10"
                 >{{ i + 1 }}</span
               >
               <div class="min-w-0">
@@ -404,8 +409,10 @@
     submitFeedbackDraft,
     tokensToPlainText,
     type DictionaryEntry,
+    type FeedbackRequest,
     type ReadingSentenceToken,
   } from "../api/reading";
+  import { useLemmaOverrides } from "../composables/useLemmaOverrides";
   import { useI18n } from "../composables/useI18n";
   import { useSettings } from "../composables/useSettings";
   import ComposerCard from "../components/ComposerCard.vue";
@@ -436,6 +443,7 @@
   };
 
   const { get, set } = useSettings();
+  const lemmaOverrides = useLemmaOverrides();
 
   const appVersion = __APP_VERSION__;
   const sentence = ref("");
@@ -469,6 +477,13 @@
   const isCurrentWordMarked = computed(() => {
     if (!definitionToken.value) return false;
     return markedWords.value.has(tokenKey(definitionToken.value));
+  });
+
+  const currentDefinitionLemma = computed(() => {
+    if (definitionToken.value) {
+      return lemmaOverrides.effectiveLemma(definitionToken.value);
+    }
+    return definitionWord.value;
   });
 
   const readingUiSettings = ref<ReadingUiSettings>(loadReadingUiSettings());
@@ -648,20 +663,10 @@
     definitionToken.value = null;
   }
 
-  async function onWordClick(token: ReadingSentenceToken): Promise<void> {
-    wordClickedThisFrame = true;
-    const word = (token.lemma ?? token.text).toLowerCase();
-
-    // If the same word is already showing, toggle know/don't-know
-    if (
-      definitionToken.value &&
-      tokenKey(definitionToken.value) === tokenKey(token)
-    ) {
-      onDefinitionMark(!isCurrentWordMarked.value);
-      return;
-    }
-
-    // Show definition for clicked word
+  async function showDefinitionForToken(
+    token: ReadingSentenceToken,
+  ): Promise<void> {
+    const word = lemmaOverrides.effectiveLemma(token);
     definitionWord.value = word;
     definitionToken.value = token;
     definitionNotFound.value = null;
@@ -678,6 +683,28 @@
         definitionNotFound.value = word;
       }
     }
+  }
+
+  async function onWordClick(token: ReadingSentenceToken): Promise<void> {
+    wordClickedThisFrame = true;
+
+    // If the same word is already showing, toggle know/don't-know
+    if (
+      definitionToken.value &&
+      tokenKey(definitionToken.value) === tokenKey(token)
+    ) {
+      onDefinitionMark(!isCurrentWordMarked.value);
+      return;
+    }
+
+    await showDefinitionForToken(token);
+  }
+
+  async function onDefinitionLemmaChange(newLemma: string): Promise<void> {
+    if (!definitionToken.value || !currentDefinitionLemma.value) return;
+    const oldLemma = currentDefinitionLemma.value;
+    if (!lemmaOverrides.setOverride(oldLemma, newLemma, "dictionary")) return;
+    await showDefinitionForToken(definitionToken.value);
   }
 
   function onDefinitionMark(marked: boolean): void {
@@ -745,6 +772,7 @@
             tokens.value = response.tokens;
             originalTargets.value = response.words ?? [];
             markedWords.value = new Set();
+            lemmaOverrides.clearOverrides();
             dismissDefinition();
           },
           onError(detail: string) {
@@ -759,11 +787,70 @@
       showComposer.value = true;
       composerError.value = i18nMessages.value.connectionError;
       tokens.value = [];
+      lemmaOverrides.clearOverrides();
     } finally {
       stopElapsedTimer();
       isLoading.value = false;
       loadingProgress.value = null;
     }
+  }
+
+  function buildFeedbackRequest(): FeedbackRequest {
+    const targetEntries = lemmaOverrides.uniqueEffectiveLemmas(
+      tokens.value.filter((token) => token.isTarget && token.isWord),
+    );
+    const markedEntries = lemmaOverrides.uniqueEffectiveLemmas(
+      tokens.value.filter(
+        (token) => token.isWord && markedWords.value.has(tokenKey(token)),
+      ),
+    );
+    const originalTargetsRef = lemmaOverrides.uniqueEffectiveLemmas(
+      originalTargets.value,
+    );
+
+    return {
+      targetWords: targetEntries,
+      markedWords: markedEntries,
+      sentence: tokensToPlainText(tokens.value),
+      originalTargets: originalTargetsRef,
+    };
+  }
+
+  function progressTypeForDelta(
+    delta: {
+      lemma: string;
+      old_level: number;
+      new_level: number;
+      is_new: boolean;
+    },
+    markedEntries: string[],
+  ): "recognized" | "unknown" | "new" {
+    if (delta.is_new) return "new";
+    if (delta.new_level < delta.old_level) return "unknown";
+    if (delta.new_level > delta.old_level) return "recognized";
+    return markedEntries.includes(delta.lemma) ? "unknown" : "recognized";
+  }
+
+  async function fetchWordProgressDraft(): Promise<WordProgress[]> {
+    const request = buildFeedbackRequest();
+    const allRelevantLemmas = Array.from(
+      new Set([
+        ...request.targetWords,
+        ...request.markedWords,
+        ...(request.originalTargets ?? []),
+      ]),
+    );
+
+    if (allRelevantLemmas.length === 0) return [];
+
+    const deltas = await submitFeedbackDraft(request);
+
+    return deltas.map((delta) => ({
+      lemma: delta.lemma,
+      currentLevel: delta.is_new ? undefined : delta.old_level,
+      newLevel: delta.new_level,
+      type: progressTypeForDelta(delta, request.markedWords),
+    }));
   }
 
   async function openProgressSummary(): Promise<void> {
@@ -772,58 +859,32 @@
 
     if (tokens.value.length === 0) return;
 
-    const targetEntries = tokens.value
-      .filter((t) => t.isTarget && t.lemma)
-      .map((t) => t.lemma!);
-    const markedEntries = tokens.value
-      .filter((t) => t.isWord && t.lemma && markedWords.value.has(tokenKey(t)))
-      .map((t) => t.lemma!);
-
-    const originalTargetsRef = originalTargets.value;
-    const allRelevantLemmas = Array.from(
-      new Set([...targetEntries, ...markedEntries, ...originalTargetsRef]),
-    );
-
     isDrafting.value = true;
     try {
-      let statuses: WordProgress[] = [];
-
-      if (allRelevantLemmas.length > 0) {
-        const deltas = await submitFeedbackDraft({
-          targetWords: targetEntries,
-          markedWords: markedEntries,
-          sentence: tokensToPlainText(tokens.value),
-          originalTargets: originalTargetsRef,
-        });
-
-        statuses = deltas.map((d) => {
-          let type: "recognized" | "unknown" | "new" = "recognized";
-          if (d.is_new) {
-            type = "new";
-          } else if (d.new_level < d.old_level) {
-            type = "unknown";
-          } else if (d.new_level > d.old_level) {
-            type = "recognized";
-          } else {
-            // If level unchanged, usually means it maxed out or bottomed out
-            type = markedEntries.includes(d.lemma) ? "unknown" : "recognized";
-          }
-
-          return {
-            lemma: d.lemma,
-            currentLevel: d.is_new ? undefined : d.old_level,
-            newLevel: d.new_level,
-            type,
-          };
-        });
-      }
-
-      wordStatusList.value = statuses;
+      wordStatusList.value = await fetchWordProgressDraft();
       isSummaryModalOpen.value = true;
     } catch (e) {
       console.error("Failed to fetch vocabulary for summary modal:", e);
       // Fallback
       await goToNextSentence();
+    } finally {
+      isDrafting.value = false;
+    }
+  }
+
+  async function onProgressLemmaChange(
+    oldLemma: string,
+    newLemma: string,
+  ): Promise<void> {
+    if (!lemmaOverrides.setOverride(oldLemma, newLemma, "progress")) return;
+    isDrafting.value = true;
+    try {
+      wordStatusList.value = await fetchWordProgressDraft();
+    } catch {
+      feedbackError.value = i18nMessages.value.feedbackError;
+      setTimeout(() => {
+        feedbackError.value = "";
+      }, 4000);
     } finally {
       isDrafting.value = false;
     }
@@ -835,22 +896,8 @@
     isSubmittingFeedback.value = true;
     try {
       if (sentence.value) {
-        const targetEntries = tokens.value
-          .filter((t) => t.isTarget && t.lemma)
-          .map((t) => t.lemma!);
-        const markedEntries = tokens.value
-          .filter(
-            (t) => t.isWord && t.lemma && markedWords.value.has(tokenKey(t)),
-          )
-          .map((t) => t.lemma!);
-
         try {
-          await submitFeedback({
-            targetWords: targetEntries,
-            markedWords: markedEntries,
-            sentence: sentence.value,
-            originalTargets: originalTargets.value,
-          });
+          await submitFeedback(buildFeedbackRequest());
         } catch {
           feedbackError.value = i18nMessages.value.feedbackError;
           setTimeout(() => {
@@ -866,6 +913,7 @@
     showComposer.value = true;
     closeUiPanel();
     dismissDefinition();
+    lemmaOverrides.clearOverrides();
     stopTts();
   }
 
