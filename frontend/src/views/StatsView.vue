@@ -269,7 +269,13 @@
           </span>
         </div>
 
-        <table class="w-full border-collapse text-left">
+        <table class="w-full table-fixed border-collapse text-left">
+          <colgroup>
+            <col />
+            <col class="w-40" />
+            <col class="w-40" />
+            <col class="w-14" />
+          </colgroup>
           <thead>
             <tr
               class="border-b border-black/5 bg-surface text-xs uppercase tracking-widest text-inkLight"
@@ -277,13 +283,19 @@
               <th class="px-6 py-4 font-medium">
                 {{ i18nMessages.statsLemma }}
               </th>
-              <th class="px-6 py-4 font-medium">
+              <th
+                data-testid="stats-level-header"
+                class="px-4 py-4 text-center font-medium"
+              >
                 {{ i18nMessages.statsInterval }}
               </th>
-              <th class="px-6 py-4 font-medium">
+              <th
+                data-testid="stats-cooldown-header"
+                class="px-4 py-4 text-center font-medium"
+              >
                 {{ i18nMessages.statsCooldown }}
               </th>
-              <th class="w-10 px-2 py-4"></th>
+              <th class="px-2 py-4"></th>
             </tr>
           </thead>
           <tbody class="divide-y divide-black/3 text-sm">
@@ -297,10 +309,13 @@
                     word.lemma
                   }}</span>
                 </td>
-                <td class="px-6 py-4">
+                <td
+                  data-testid="stats-level-cell"
+                  class="px-4 py-4 text-center"
+                >
                   <span
                     v-if="editingKey !== word.lemma"
-                    class="inline-block w-14 text-center font-mono text-xs"
+                    class="mx-auto inline-flex h-8 w-20 items-center justify-center rounded-md font-mono text-sm tabular-nums"
                     :class="
                       word.level >= 6
                         ? 'text-emerald-500 font-semibold'
@@ -311,11 +326,11 @@
                   </span>
                   <input
                     v-else
-                    type="number"
+                    type="text"
+                    inputmode="numeric"
+                    pattern="[0-9]*"
                     :value="word.level"
-                    :min="1"
-                    :max="6"
-                    class="w-14 rounded border border-transparent bg-transparent px-1 py-0.5 text-center font-mono text-xs outline-none transition-colors focus:border-black/15 focus:bg-surface"
+                    class="mx-auto block h-8 w-20 rounded-md border border-ink/12 bg-paper/70 px-0 text-center font-mono text-sm tabular-nums outline-none transition-colors focus:border-ink/20 focus:bg-surface focus:ring-2 focus:ring-highlight/60"
                     :class="
                       word.level >= 6
                         ? 'text-emerald-500 font-semibold'
@@ -325,10 +340,13 @@
                     @click.stop
                   />
                 </td>
-                <td class="px-6 py-4">
+                <td
+                  data-testid="stats-cooldown-cell"
+                  class="px-4 py-4 text-center"
+                >
                   <span
                     v-if="editingKey !== word.lemma"
-                    class="inline-block w-14 text-center font-mono text-xs"
+                    class="mx-auto inline-flex h-8 w-20 items-center justify-center rounded-md font-mono text-sm tabular-nums"
                     :class="
                       word.cooldown > 0
                         ? 'text-inkLight'
@@ -339,11 +357,11 @@
                   </span>
                   <input
                     v-else
-                    type="number"
+                    type="text"
+                    inputmode="numeric"
+                    pattern="[0-9]*"
                     :value="word.cooldown"
-                    :min="0"
-                    :max="2 ** word.level"
-                    class="w-14 rounded border border-transparent bg-transparent px-1 py-0.5 text-center font-mono text-xs outline-none transition-colors focus:border-black/15 focus:bg-surface"
+                    class="mx-auto block h-8 w-20 rounded-md border border-ink/12 bg-paper/70 px-0 text-center font-mono text-sm tabular-nums outline-none transition-colors focus:border-ink/20 focus:bg-surface focus:ring-2 focus:ring-highlight/60"
                     :class="
                       word.cooldown > 0
                         ? 'text-inkLight'
@@ -354,28 +372,10 @@
                   />
                 </td>
                 <td class="px-2 py-4">
-                  <div class="flex items-center justify-end gap-1">
-                    <button
-                      v-if="editingKey === word.lemma"
-                      type="button"
-                      class="cursor-pointer rounded p-1 text-inkLight/40 transition-colors hover:bg-red-50 hover:text-red-500 dark:text-white/40 dark:hover:bg-red-500/20 dark:hover:text-red-400"
-                      :title="i18nMessages.deleteWord"
-                      @click.stop="handleDeleteWord(word)"
-                    >
-                      <svg
-                        class="h-4 w-4"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.5"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
-                        />
-                      </svg>
-                    </button>
+                  <div
+                    data-testid="stats-row-action"
+                    class="flex items-center justify-end"
+                  >
                     <button
                       type="button"
                       class="cursor-pointer rounded p-1 text-inkLight/40 transition-colors hover:bg-black/5 hover:text-ink dark:text-white/40 dark:hover:bg-white/10 dark:hover:text-white"
@@ -425,33 +425,59 @@
               <!-- Expanded detail row -->
               <tr v-if="expandedKey === word.lemma">
                 <td colspan="4" class="bg-black/2 px-6 py-3">
-                  <div class="flex flex-col gap-1 text-xs text-inkLight">
-                    <div>
-                      <span class="font-medium"
-                        >{{ i18nMessages.lastSeenLabel }}:</span
-                      >
-                      {{ formatLastSeen(word.lastSeen) }}
+                  <div
+                    class="flex flex-col gap-3 text-xs text-inkLight sm:flex-row sm:items-start sm:justify-between"
+                  >
+                    <div class="flex flex-col gap-1">
+                      <div>
+                        <span class="font-medium"
+                          >{{ i18nMessages.lastSeenLabel }}:</span
+                        >
+                        {{ formatLastSeen(word.lastSeen) }}
+                      </div>
+                      <div v-if="word.firstSeen">
+                        <span class="font-medium"
+                          >{{ i18nMessages.firstSeenLabel }}:</span
+                        >
+                        {{ formatLastSeen(word.firstSeen) }}
+                      </div>
+                      <div v-if="word.seenCount !== undefined">
+                        <span class="font-medium"
+                          >{{ i18nMessages.seenCountLabel }}:</span
+                        >
+                        {{ word.seenCount }}×
+                      </div>
+                      <div v-if="word.lastContext">
+                        <span class="font-medium"
+                          >{{ i18nMessages.lastContextLabel }}:</span
+                        >
+                        <span class="ml-1 font-serif italic">{{
+                          word.lastContext
+                        }}</span>
+                      </div>
                     </div>
-                    <div v-if="word.firstSeen">
-                      <span class="font-medium"
-                        >{{ i18nMessages.firstSeenLabel }}:</span
+                    <button
+                      type="button"
+                      data-testid="stats-detail-delete"
+                      class="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border border-red-500/15 px-3 py-1.5 text-xs font-medium text-red-500 transition-colors hover:bg-red-500/8 hover:text-red-600 dark:border-red-400/20 dark:text-red-400 dark:hover:bg-red-400/10"
+                      :title="i18nMessages.deleteWord"
+                      @click.stop="handleDeleteWord(word)"
+                    >
+                      <svg
+                        class="h-3.5 w-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        viewBox="0 0 24 24"
                       >
-                      {{ formatLastSeen(word.firstSeen) }}
-                    </div>
-                    <div v-if="word.seenCount !== undefined">
-                      <span class="font-medium"
-                        >{{ i18nMessages.seenCountLabel }}:</span
-                      >
-                      {{ word.seenCount }}×
-                    </div>
-                    <div v-if="word.lastContext">
-                      <span class="font-medium"
-                        >{{ i18nMessages.lastContextLabel }}:</span
-                      >
-                      <span class="ml-1 font-serif italic">{{
-                        word.lastContext
-                      }}</span>
-                    </div>
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
+                        />
+                      </svg>
+                      <span>{{ i18nMessages.deleteWord }}</span>
+                    </button>
                   </div>
                 </td>
               </tr>
