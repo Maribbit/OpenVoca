@@ -247,7 +247,7 @@
           <button
             @click="openProgressSummary"
             :disabled="isLoading || isDrafting || isUiPanelOpen"
-            class="group relative flex items-center justify-center gap-2 rounded-full border border-black/10 dark:border-white/10 bg-surface px-8 py-3 shadow-md hover:bg-black/5 dark:hover:bg-white/5 transition-all text-ink tracking-wide font-medium text-[15px] disabled:opacity-75 disabled:cursor-not-allowed"
+            class="group relative flex items-center justify-center gap-2 rounded-full border border-ink/10 bg-ink/5 px-8 py-3 text-[15px] font-medium tracking-wide text-ink shadow-none transition-all hover:bg-ink/8 hover:shadow-sm active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-75 dark:border-white/10 dark:bg-white/8 dark:hover:bg-white/12"
           >
             <svg
               v-if="isDrafting"
@@ -275,7 +275,7 @@
             }}</span>
             <kbd
               v-if="!isDrafting"
-              class="rounded border border-black/20 dark:border-gray-600 bg-black/10 dark:bg-gray-800 px-2 py-0.5 font-mono text-xs text-inkLight transition-colors font-semibold"
+              class="rounded border border-ink/15 bg-ink/8 px-2 py-0.5 font-mono text-xs font-semibold text-inkLight transition-colors dark:border-white/15 dark:bg-white/10"
               >Space</kbd
             >
           </button>
