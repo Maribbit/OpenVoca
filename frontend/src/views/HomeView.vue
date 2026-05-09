@@ -71,7 +71,8 @@
     />
 
     <main
-      class="flex min-h-zoom-screen flex-col items-center justify-center gap-14 px-8 py-24"
+      class="flex min-h-zoom-screen flex-col items-center justify-center px-8 py-24"
+      :class="showComposer ? 'gap-14' : 'gap-7'"
     >
       <template v-if="showComposer">
         <ComposerCard @generate="onComposerGenerate" />
@@ -242,7 +243,7 @@
           </button>
         </div>
 
-        <div class="mt-20 flex flex-col items-center">
+        <div class="flex flex-col items-center">
           <button
             @click="openProgressSummary"
             :disabled="isLoading || isDrafting || isUiPanelOpen"
