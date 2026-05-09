@@ -1,16 +1,18 @@
 <template>
   <div class="min-h-zoom-screen bg-paper p-8 text-ink antialiased">
     <div class="mx-auto max-w-5xl">
-      <header class="mb-12 flex items-center justify-between">
-        <div>
-          <h1 class="mb-2 font-serif text-3xl tracking-wide text-ink">
+      <header
+        class="sticky top-0 z-30 -mx-8 mb-8 flex min-h-16 items-center justify-between gap-4 border-b border-ink/8 bg-paper/95 px-8 py-3 backdrop-blur-md"
+      >
+        <div class="min-w-0">
+          <h1 class="font-serif text-2xl leading-tight tracking-wide text-ink">
             {{ i18nMessages.vocabulary }}
           </h1>
-          <p class="text-sm text-inkLight">
+          <p class="mt-0.5 hidden text-xs text-inkLight sm:block">
             {{ words.length }} {{ i18nMessages.showingWords }}
           </p>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex shrink-0 items-center gap-2">
           <input
             ref="importFileInput"
             type="file"
@@ -20,9 +22,11 @@
           />
           <button
             type="button"
-            class="flex items-center gap-2 rounded-full border border-black/8 bg-surface px-5 py-2.5 text-sm font-medium text-ink transition-all hover:border-black/15 hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            class="flex items-center gap-2 rounded-full border border-ink/10 bg-surface px-4 py-2 text-sm font-medium text-ink transition-all hover:border-ink/18 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
             @click="importFileInput?.click()"
             :disabled="isImporting || isLoading"
+            :title="i18nMessages.importVocabulary"
+            :aria-label="i18nMessages.importVocabulary"
           >
             <svg
               v-if="isImporting"
@@ -59,13 +63,17 @@
                 d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2m-4-8-4-4m0 0L8 8m4-4v12"
               />
             </svg>
-            {{ i18nMessages.importVocabulary }}
+            <span class="hidden sm:inline">{{
+              i18nMessages.importVocabulary
+            }}</span>
           </button>
           <button
             type="button"
-            class="flex items-center gap-2 rounded-full border border-black/8 bg-surface px-5 py-2.5 text-sm font-medium text-ink transition-all hover:border-black/15 hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            class="flex items-center gap-2 rounded-full border border-ink/10 bg-surface px-4 py-2 text-sm font-medium text-ink transition-all hover:border-ink/18 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
             @click="handleExport"
             :disabled="isExporting || isLoading"
+            :title="i18nMessages.exportVocabulary"
+            :aria-label="i18nMessages.exportVocabulary"
           >
             <svg
               v-if="isExporting"
@@ -102,11 +110,15 @@
                 d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"
               />
             </svg>
-            {{ i18nMessages.exportVocabulary }}
+            <span class="hidden sm:inline">{{
+              i18nMessages.exportVocabulary
+            }}</span>
           </button>
           <router-link
             to="/"
-            class="flex items-center gap-2 rounded-full border border-black/8 bg-surface px-5 py-2.5 text-sm font-medium text-ink transition-all hover:border-black/15 hover:shadow-sm"
+            class="flex items-center gap-2 rounded-full border border-ink/10 bg-surface px-4 py-2 text-sm font-medium text-ink transition-all hover:border-ink/18 hover:shadow-sm"
+            :title="i18nMessages.backToReading"
+            :aria-label="i18nMessages.backToReading"
           >
             <svg
               class="h-4 w-4"
@@ -121,7 +133,9 @@
                 d="M10 19l-7-7m0 0l7-7m-7 7h18"
               />
             </svg>
-            {{ i18nMessages.backToReading }}
+            <span class="hidden sm:inline">{{
+              i18nMessages.backToReading
+            }}</span>
           </router-link>
         </div>
       </header>

@@ -2,18 +2,20 @@
   <div class="min-h-zoom-screen bg-paper p-8 text-ink antialiased">
     <div class="mx-auto max-w-3xl">
       <!-- Header -->
-      <header class="mb-12 flex items-center justify-between">
-        <div>
-          <h1 class="mb-2 font-serif text-3xl tracking-wide text-ink">
+      <header
+        class="sticky top-0 z-30 -mx-8 mb-8 flex min-h-16 items-center justify-between gap-4 border-b border-ink/8 bg-paper/95 px-8 py-3 backdrop-blur-md"
+      >
+        <div class="min-w-0">
+          <h1 class="font-serif text-2xl leading-tight tracking-wide text-ink">
             {{ i18nMessages.settings }}
           </h1>
-          <p class="text-sm text-inkLight">
+          <p class="mt-0.5 hidden text-xs text-inkLight sm:block">
             {{ i18nMessages.settingsSubtitle }}
           </p>
         </div>
         <router-link
           to="/"
-          class="flex items-center gap-2 rounded-full border border-black/8 bg-surface px-5 py-2.5 text-sm font-medium text-ink transition-all hover:border-black/15 hover:shadow-sm"
+          class="flex shrink-0 items-center gap-2 rounded-full border border-ink/10 bg-surface px-4 py-2 text-sm font-medium text-ink transition-all hover:border-ink/18 hover:shadow-sm"
         >
           <svg
             class="h-4 w-4"
