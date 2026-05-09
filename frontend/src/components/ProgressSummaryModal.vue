@@ -58,11 +58,11 @@
     @click.self="emit('cancel')"
   >
     <div
-      class="bg-surface border border-gray-700 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col transform scale-100 mx-4"
+      class="bg-surface border border-ink/8 dark:border-white/10 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col transform scale-100 mx-4"
     >
       <!-- Header -->
       <div
-        class="p-6 pb-5 border-b border-white/5 flex justify-between items-start"
+        class="p-6 pb-5 border-b border-ink/5 dark:border-white/5 flex justify-between items-start"
       >
         <div>
           <h2 class="text-2xl font-serif text-ink">
@@ -84,7 +84,7 @@
           >
             <div class="flex items-center gap-4">
               <div
-                class="w-10 h-10 shrink-0 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400"
+                class="w-10 h-10 shrink-0 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 dark:text-emerald-400"
               >
                 <svg
                   class="w-5 h-5"
@@ -111,11 +111,12 @@
               </div>
             </div>
             <div
-              class="flex items-center gap-3 text-sm font-mono tracking-tight bg-gray-800/50 px-3 py-1.5 rounded-lg border border-gray-700/50 shrink-0 ml-2"
+              data-testid="level-delta"
+              class="flex items-center gap-3 text-sm font-mono tracking-tight bg-ink/4 dark:bg-white/8 px-3 py-1.5 rounded-lg border border-ink/8 dark:border-white/10 shrink-0 ml-2"
             >
               <span class="text-inkLight">Lv.{{ item.currentLevel ?? 1 }}</span>
               <svg
-                class="w-4 h-4 text-emerald-400"
+                class="w-4 h-4 text-emerald-500 dark:text-emerald-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -127,7 +128,7 @@
                   d="M14 5l7 7m0 0l-7 7m7-7H3"
                 ></path>
               </svg>
-              <span class="text-emerald-400 font-bold"
+              <span class="text-emerald-500 dark:text-emerald-400 font-bold"
                 >Lv.{{ item.newLevel }}</span
               >
             </div>
@@ -140,7 +141,7 @@
           >
             <div class="flex items-center gap-4">
               <div
-                class="w-10 h-10 shrink-0 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-400"
+                class="w-10 h-10 shrink-0 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500 dark:text-rose-400"
               >
                 <svg
                   class="w-5 h-5"
@@ -161,17 +162,19 @@
                   class="font-sans font-medium text-ink text-[17px] truncate"
                   >{{ item.lemma }}</span
                 >
-                <span class="text-xs text-rose-400/80 truncate">{{
-                  messages.progressUnknown
-                }}</span>
+                <span
+                  class="text-xs text-rose-500/80 dark:text-rose-400/80 truncate"
+                  >{{ messages.progressUnknown }}</span
+                >
               </div>
             </div>
             <div
-              class="flex items-center gap-3 text-sm font-mono tracking-tight bg-gray-800/50 px-3 py-1.5 rounded-lg border border-gray-700/50 shrink-0 ml-2"
+              data-testid="level-delta"
+              class="flex items-center gap-3 text-sm font-mono tracking-tight bg-ink/4 dark:bg-white/8 px-3 py-1.5 rounded-lg border border-ink/8 dark:border-white/10 shrink-0 ml-2"
             >
               <span class="text-inkLight">Lv.{{ item.currentLevel ?? 1 }}</span>
               <svg
-                class="w-4 h-4 text-rose-400"
+                class="w-4 h-4 text-rose-500 dark:text-rose-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -183,7 +186,7 @@
                   d="M10 19l-7-7m0 0l7-7m-7 7h18"
                 ></path>
               </svg>
-              <span class="text-rose-400 font-bold"
+              <span class="text-rose-500 dark:text-rose-400 font-bold"
                 >Lv.{{ item.newLevel }}</span
               >
             </div>
@@ -196,7 +199,7 @@
           >
             <div class="flex items-center gap-4">
               <div
-                class="w-10 h-10 shrink-0 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400"
+                class="w-10 h-10 shrink-0 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 dark:text-blue-400"
               >
                 <svg
                   class="w-5 h-5"
@@ -217,20 +220,23 @@
                   class="font-sans font-medium text-ink text-[17px] truncate"
                   >{{ item.lemma }}</span
                 >
-                <span class="text-xs text-blue-400/80 truncate">{{
-                  messages.progressNew
-                }}</span>
+                <span
+                  class="text-xs text-blue-500/80 dark:text-blue-400/80 truncate"
+                  >{{ messages.progressNew }}</span
+                >
               </div>
             </div>
             <div
-              class="flex items-center gap-3 text-sm font-mono tracking-tight bg-gray-800/50 px-3 py-1.5 rounded-lg border border-gray-700/50 shrink-0 ml-2"
+              data-testid="level-delta"
+              class="flex items-center gap-3 text-sm font-mono tracking-tight bg-ink/4 dark:bg-white/8 px-3 py-1.5 rounded-lg border border-ink/8 dark:border-white/10 shrink-0 ml-2"
             >
               <span
-                class="text-inkLight px-1 border border-gray-600 rounded text-[11px] font-sans"
+                data-testid="new-word-badge"
+                class="text-inkLight px-1 border border-ink/15 dark:border-white/15 rounded text-[11px] font-sans"
                 >NEW</span
               >
               <svg
-                class="w-4 h-4 text-blue-400"
+                class="w-4 h-4 text-blue-500 dark:text-blue-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -242,7 +248,7 @@
                   d="M14 5l7 7m0 0l-7 7m7-7H3"
                 ></path>
               </svg>
-              <span class="text-blue-400 font-bold"
+              <span class="text-blue-500 dark:text-blue-400 font-bold"
                 >Lv.{{ item.newLevel }}</span
               >
             </div>
@@ -261,7 +267,7 @@
 
       <!-- Footer Actions -->
       <div
-        class="p-6 pt-5 bg-black/5 dark:bg-black/20 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between border-t border-white/5"
+        class="p-6 pt-5 bg-black/5 dark:bg-black/20 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between border-t border-ink/5 dark:border-white/5"
       >
         <button
           @click="emit('cancel')"
