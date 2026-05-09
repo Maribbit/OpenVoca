@@ -407,7 +407,6 @@
     onMounted,
     onUnmounted,
     ref,
-    watch,
   } from "vue";
 
   import {
@@ -564,11 +563,11 @@
   }
 
   function loadUiFontSize(): UiFontSizeOption {
-    const saved = get("interface", "uiFontSize", "md");
+    const saved = get("interface", "uiFontSize", "sm");
     const valid: UiFontSizeOption[] = ["xs", "sm", "md", "lg", "xl"];
     if (valid.includes(saved as UiFontSizeOption))
       return saved as UiFontSizeOption;
-    return "md";
+    return "sm";
   }
 
   function applyTheme(theme: ThemeOption): void {
@@ -658,6 +657,7 @@
   function onReadingSettingsChange(next: ReadingUiSettings): void {
     readingUiSettings.value = next;
     applyTheme(next.theme);
+    saveReadingUiSettings();
   }
 
   // --- Sentence & feedback ---
@@ -1003,12 +1003,4 @@
     stopElapsedTimer();
     detachRouteListeners();
   });
-
-  watch(
-    readingUiSettings,
-    () => {
-      saveReadingUiSettings();
-    },
-    { deep: true },
-  );
 </script>

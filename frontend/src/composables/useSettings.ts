@@ -53,6 +53,8 @@ function applyMap(map: SettingsMap): void {
   }
 }
 
+applyMap(loadCache());
+
 // --- Public API ---
 
 /** Read a single setting. Returns `fallback` when the key is absent. */
