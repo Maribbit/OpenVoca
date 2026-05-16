@@ -21,7 +21,7 @@ def build_sentence_generation_prompt(
 
     if normalized:
         final += (
-            " IMPORTANT: You MUST mark the target words in the sentence using Markdown italics, "
+            " IMPORTANT: You MUST mark the target words in the generated text using Markdown italics, "
             "like *word*. Do not use bold or quotes, only single asterisks."
         )
 

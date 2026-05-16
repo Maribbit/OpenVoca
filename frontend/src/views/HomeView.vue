@@ -142,18 +142,73 @@
       </template>
 
       <template v-else>
+        <div
+          v-if="isRiddleMode && !isLoading && !errorMessage"
+          class="flex w-full flex-col items-center gap-8"
+        >
+          <div class="flex w-full flex-col items-center gap-4">
+            <div
+              v-if="riddleClueTokens.length > 0"
+              class="flex w-full max-w-3xl flex-col items-center gap-1.5"
+            >
+              <p
+                class="text-[10px] font-semibold uppercase tracking-[0.16em] text-inkLight/55"
+              >
+                {{ i18nMessages.riddleClue }}
+              </p>
+              <SentenceDisplay
+                :tokens="riddleClueTokens"
+                :marked-words="markedWords"
+                :is-loading="false"
+                error-message=""
+                loading-text=""
+                :typography-class="riddleClueTypographyClass"
+                @word-click="onWordClick"
+              />
+            </div>
+            <SentenceDisplay
+              :tokens="riddleQuestionTokens"
+              :marked-words="markedWords"
+              :is-loading="false"
+              error-message=""
+              loading-text=""
+              :typography-class="sentenceTypographyClass"
+              @word-click="onWordClick"
+            />
+          </div>
+          <Transition name="fade">
+            <div
+              v-if="answerRevealed"
+              class="flex w-full max-w-3xl flex-col items-center gap-3 rounded-lg border border-ink/6 bg-surface/55 px-5 py-5 shadow-sm dark:border-white/8 dark:bg-white/5"
+            >
+              <p class="text-sm font-semibold text-inkLight">
+                {{ i18nMessages.riddleAnswer }}
+              </p>
+              <SentenceDisplay
+                :tokens="riddleAnswerTokens"
+                :marked-words="markedWords"
+                :is-loading="false"
+                error-message=""
+                loading-text=""
+                :typography-class="sentenceTypographyClass"
+                @word-click="onWordClick"
+              />
+            </div>
+          </Transition>
+        </div>
         <SentenceDisplay
+          v-else
           :tokens="tokens"
           :marked-words="markedWords"
           :is-loading="isLoading"
           :error-message="errorMessage"
-          :loading-text="i18nMessages.loadingSentence"
+          :loading-text="loadingText"
           :loading-progress="loadingProgress"
           :typography-class="sentenceTypographyClass"
           @word-click="onWordClick"
         />
 
-        <div v-if="tokens.length > 0" class="flex items-center gap-1">
+        <div v-if="visibleTokens.length > 0" class="flex items-center gap-1">
           <button
             type="button"
             class="cursor-pointer rounded-full p-2 transition-colors hover:bg-black/4"
@@ -245,6 +300,14 @@
 
         <div class="flex flex-col items-center">
           <button
+            v-if="isRiddleMode && !answerRevealed"
+            @click="answerRevealed = true"
+            class="group relative flex items-center justify-center gap-2 rounded-full border border-ink/10 bg-ink/5 px-8 py-3 text-[15px] font-medium tracking-wide text-ink shadow-none transition-all hover:bg-ink/8 hover:shadow-sm active:scale-[0.99] dark:border-white/10 dark:bg-white/8 dark:hover:bg-white/12"
+          >
+            <span>{{ i18nMessages.revealAnswer }}</span>
+          </button>
+          <button
+            v-else
             @click="openProgressSummary"
             :disabled="isLoading || isDrafting || isUiPanelOpen"
             class="group relative flex items-center justify-center gap-2 rounded-full border border-ink/10 bg-ink/5 px-8 py-3 text-[15px] font-medium tracking-wide text-ink shadow-none transition-all hover:bg-ink/8 hover:shadow-sm active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-75 dark:border-white/10 dark:bg-white/8 dark:hover:bg-white/12"
@@ -417,6 +480,8 @@
     tokensToPlainText,
     type DictionaryEntry,
     type FeedbackRequest,
+    type ReadingMode,
+    type ReadingRiddle,
     type ReadingSentenceToken,
   } from "../api/reading";
   import { useLemmaOverrides } from "../composables/useLemmaOverrides";
@@ -455,8 +520,11 @@
   const lemmaOverrides = useLemmaOverrides();
 
   const appVersion = __APP_VERSION__;
+  const readingMode = ref<ReadingMode>("sentence");
   const sentence = ref("");
   const tokens = ref<ReadingSentenceToken[]>([]);
+  const riddle = ref<ReadingRiddle | null>(null);
+  const answerRevealed = ref(false);
   const originalTargets = ref<string[]>([]);
   const errorMessage = ref("");
   const composerError = ref("");
@@ -523,6 +591,34 @@
     return `${fontSizeMap[readingUiSettings.value.fontSize]} ${spacingMap[readingUiSettings.value.spacing]}`;
   });
 
+  const isRiddleMode = computed(
+    () => readingMode.value === "riddle" && riddle.value !== null,
+  );
+
+  const riddleClueTypographyClass =
+    "text-[1.05rem] md:text-[1.2rem] leading-[1.55] tracking-normal";
+  const riddleClueTokens = computed(() => riddle.value?.clueTokens ?? []);
+  const riddleQuestionTokens = computed(
+    () => riddle.value?.questionTokens ?? [],
+  );
+  const riddleAnswerTokens = computed(() => riddle.value?.answerTokens ?? []);
+  const loadingText = computed(() =>
+    readingMode.value === "riddle"
+      ? i18nMessages.value.loadingRiddle
+      : i18nMessages.value.loadingSentence,
+  );
+
+  const visibleTokens = computed(() => {
+    if (!isRiddleMode.value) return tokens.value;
+    return answerRevealed.value
+      ? [
+          ...riddleClueTokens.value,
+          ...riddleQuestionTokens.value,
+          ...riddleAnswerTokens.value,
+        ]
+      : [...riddleClueTokens.value, ...riddleQuestionTokens.value];
+  });
+
   const uiHeaderSizeClass = computed(() => {
     const map: Record<UiFontSizeOption, string> = {
       xs: "text-[11px]",
@@ -586,7 +682,7 @@
   }
 
   function copySentence(): void {
-    navigator.clipboard.writeText(tokensToPlainText(tokens.value));
+    navigator.clipboard.writeText(tokensToPlainText(visibleTokens.value));
     copyConfirmed.value = true;
     setTimeout(() => {
       copyConfirmed.value = false;
@@ -621,7 +717,7 @@
       stopTts();
       return;
     }
-    const text = tokensToPlainText(tokens.value);
+    const text = tokensToPlainText(visibleTokens.value);
     if (!text) return;
     stopTts();
     ttsLoading.value = true;
@@ -761,25 +857,45 @@
     }
   }
 
+  function generationErrorDetail(error: unknown): string | null {
+    if (!(error instanceof Error)) return null;
+    const message = error.message.trim();
+    if (
+      !message ||
+      message === "Failed to fetch" ||
+      message === "No response received."
+    ) {
+      return null;
+    }
+    return message;
+  }
+
   async function loadSentence(
     prompt: string,
     targetWords: string[],
+    mode: ReadingMode,
   ): Promise<void> {
     isLoading.value = true;
     loadingProgress.value = null;
     errorMessage.value = "";
+    readingMode.value = mode;
+    riddle.value = null;
+    answerRevealed.value = false;
     startElapsedTimer();
     try {
       await fetchNextReadingSentenceStream(
-        { prompt, targetWords },
+        { prompt, targetWords, mode },
         {
           onProgress(wordCount: number) {
             stopElapsedTimer();
             loadingProgress.value = `${wordCount} ${wordCount === 1 ? i18nMessages.value.wordSingular : i18nMessages.value.wordPlural}`;
           },
           onComplete(response) {
+            readingMode.value = response.mode ?? mode;
             sentence.value = response.sentence;
             tokens.value = response.tokens;
+            riddle.value = response.riddle ?? null;
+            answerRevealed.value = false;
             originalTargets.value = response.words ?? [];
             markedWords.value = new Set();
             lemmaOverrides.clearOverrides();
@@ -793,10 +909,13 @@
       if (!sentence.value) {
         throw new Error("No response received.");
       }
-    } catch {
+    } catch (error) {
       showComposer.value = true;
-      composerError.value = i18nMessages.value.connectionError;
+      composerError.value =
+        generationErrorDetail(error) ?? i18nMessages.value.connectionError;
       tokens.value = [];
+      riddle.value = null;
+      answerRevealed.value = false;
       lemmaOverrides.clearOverrides();
     } finally {
       stopElapsedTimer();
@@ -806,11 +925,12 @@
   }
 
   function buildFeedbackRequest(): FeedbackRequest {
+    const feedbackTokens = visibleTokens.value;
     const targetEntries = lemmaOverrides.uniqueEffectiveLemmas(
-      tokens.value.filter((token) => token.isTarget && token.isWord),
+      feedbackTokens.filter((token) => token.isTarget && token.isWord),
     );
     const markedEntries = lemmaOverrides.uniqueEffectiveLemmas(
-      tokens.value.filter(
+      feedbackTokens.filter(
         (token) => token.isWord && markedWords.value.has(tokenKey(token)),
       ),
     );
@@ -821,7 +941,7 @@
     return {
       targetWords: targetEntries,
       markedWords: markedEntries,
-      sentence: tokensToPlainText(tokens.value),
+      sentence: tokensToPlainText(feedbackTokens),
       originalTargets: originalTargetsRef,
     };
   }
@@ -868,6 +988,7 @@
       return;
 
     if (tokens.value.length === 0) return;
+    if (isRiddleMode.value && !answerRevealed.value) return;
 
     isDrafting.value = true;
     try {
@@ -921,6 +1042,9 @@
     }
 
     showComposer.value = true;
+    riddle.value = null;
+    answerRevealed.value = false;
+    readingMode.value = "sentence";
     closeUiPanel();
     dismissDefinition();
     lemmaOverrides.clearOverrides();
@@ -930,10 +1054,11 @@
   async function onComposerGenerate(
     prompt: string,
     targetWords: string[],
+    mode: ReadingMode = "sentence",
   ): Promise<void> {
     composerError.value = "";
     showComposer.value = false;
-    await loadSentence(prompt, targetWords);
+    await loadSentence(prompt, targetWords, mode);
   }
 
   // --- Keyboard ---
@@ -948,7 +1073,11 @@
         !isSummaryModalOpen.value &&
         tokens.value.length > 0
       ) {
-        openProgressSummary();
+        if (isRiddleMode.value && !answerRevealed.value) {
+          answerRevealed.value = true;
+        } else {
+          openProgressSummary();
+        }
       }
     }
   }

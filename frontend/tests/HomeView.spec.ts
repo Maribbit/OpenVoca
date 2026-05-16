@@ -29,6 +29,74 @@ const tokenizedSentence = {
   ],
 };
 
+const tokenizedRiddle = {
+  mode: "riddle",
+  sentence:
+    "coastal signal\nI guide ships through dark water.\na harbor lantern",
+  words: ["harbor", "lantern"],
+  tokens: [
+    { text: "coastal", isWord: true, isTarget: false, pos: "ADJ" },
+    {
+      text: "signal",
+      isWord: true,
+      isTarget: false,
+      pos: "NOUN",
+      trailingSpace: false,
+    },
+    { text: "I", isWord: true, isTarget: false, pos: "PRON" },
+    { text: "guide", isWord: true, isTarget: false, pos: "VERB" },
+    { text: "ships", isWord: true, isTarget: false, pos: "NOUN" },
+    { text: "through", isWord: true, isTarget: false, pos: "ADP" },
+    { text: "dark", isWord: true, isTarget: false, pos: "ADJ" },
+    { text: "water", isWord: true, isTarget: false, pos: "NOUN" },
+    { text: ".", isWord: false, isTarget: false, trailingSpace: false },
+    { text: "a", isWord: true, isTarget: false, pos: "DET" },
+    { text: "harbor", isWord: true, isTarget: true, pos: "NOUN" },
+    {
+      text: "lantern",
+      isWord: true,
+      isTarget: true,
+      pos: "NOUN",
+      trailingSpace: false,
+    },
+  ],
+  riddle: {
+    clue: "coastal signal",
+    question: "I guide ships through dark water.",
+    answer: "a harbor lantern",
+    clueTokens: [
+      { text: "coastal", isWord: true, isTarget: false, pos: "ADJ" },
+      {
+        text: "signal",
+        isWord: true,
+        isTarget: false,
+        pos: "NOUN",
+        trailingSpace: false,
+      },
+    ],
+    questionTokens: [
+      { text: "I", isWord: true, isTarget: false, pos: "PRON" },
+      { text: "guide", isWord: true, isTarget: false, pos: "VERB" },
+      { text: "ships", isWord: true, isTarget: false, pos: "NOUN" },
+      { text: "through", isWord: true, isTarget: false, pos: "ADP" },
+      { text: "dark", isWord: true, isTarget: false, pos: "ADJ" },
+      { text: "water", isWord: true, isTarget: false, pos: "NOUN" },
+      { text: ".", isWord: false, isTarget: false, trailingSpace: false },
+    ],
+    answerTokens: [
+      { text: "a", isWord: true, isTarget: false, pos: "DET" },
+      { text: "harbor", isWord: true, isTarget: true, pos: "NOUN" },
+      {
+        text: "lantern",
+        isWord: true,
+        isTarget: true,
+        pos: "NOUN",
+        trailingSpace: false,
+      },
+    ],
+  },
+};
+
 describe("HomeView.vue", () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -42,7 +110,7 @@ describe("HomeView.vue", () => {
 
   /** Create a fetch mock that routes by URL. */
   function mockFetch() {
-    return vi.fn((url: string) => {
+    return vi.fn((url: string, init?: RequestInit) => {
       if (typeof url === "string" && url.startsWith("/api/target-words")) {
         return Promise.resolve({
           ok: true,
@@ -53,9 +121,14 @@ describe("HomeView.vue", () => {
         typeof url === "string" &&
         url.startsWith("/api/reading-sentence/next/stream")
       ) {
+        const body = JSON.parse(String(init?.body ?? "{}")) as {
+          mode?: string;
+        };
+        const responseData =
+          body.mode === "riddle" ? tokenizedRiddle : tokenizedSentence;
         return Promise.resolve({
           ok: true,
-          body: makeSseStream(tokenizedSentence),
+          body: makeSseStream(responseData),
         });
       }
       if (
@@ -82,12 +155,32 @@ describe("HomeView.vue", () => {
   }
 
   /** Build a ReadableStream that emits SSE progress + complete events. */
-  function makeSseStream(data: typeof tokenizedSentence): ReadableStream {
+  function makeSseStream(data: typeof tokenizedSentence): ReadableStream;
+  function makeSseStream(data: typeof tokenizedRiddle): ReadableStream;
+  function makeSseStream(
+    data: typeof tokenizedSentence | typeof tokenizedRiddle,
+  ): ReadableStream {
     const encoder = new TextEncoder();
     const wordCount = data.sentence.split(/\s+/).length;
     const lines = [
       `event: progress\ndata: ${JSON.stringify({ wordCount })}\n\n`,
       `event: complete\ndata: ${JSON.stringify(data)}\n\n`,
+    ];
+    return new ReadableStream({
+      start(controller) {
+        for (const line of lines) {
+          controller.enqueue(encoder.encode(line));
+        }
+        controller.close();
+      },
+    });
+  }
+
+  function makeErrorSseStream(detail: string): ReadableStream {
+    const encoder = new TextEncoder();
+    const lines = [
+      `event: progress\ndata: ${JSON.stringify({ wordCount: 4 })}\n\n`,
+      `event: error\ndata: ${JSON.stringify({ detail })}\n\n`,
     ];
     return new ReadableStream({
       start(controller) {
@@ -116,7 +209,10 @@ describe("HomeView.vue", () => {
   ): Promise<void> {
     const generateBtn = wrapper
       .findAll("button")
-      .find((b) => b.text().includes("Generate"));
+      .find(
+        (button) =>
+          button.text().includes("Generate") || button.text().includes("生成"),
+      );
     expect(generateBtn).toBeDefined();
     await generateBtn!.trigger("click");
     await flushPromises();
@@ -174,6 +270,151 @@ describe("HomeView.vue", () => {
     ]);
     expect(wrapper.text()).toContain("meadow.");
     expect(wrapper.text()).toContain("Review Progress");
+  });
+
+  it("reveals riddle answers before progress review", async () => {
+    window.localStorage.setItem("openvoca.ui.locale", "en");
+
+    const fetchMock = mockFetch();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = mount(HomeView, {
+      global: { plugins: [makeRouter()] },
+    });
+    await flushPromises();
+
+    const riddleModeButton = wrapper
+      .findAll("button")
+      .find((button) => button.text() === "Riddle");
+    expect(riddleModeButton).toBeDefined();
+    await riddleModeButton!.trigger("click");
+
+    await generateFromComposer(wrapper);
+
+    expect(wrapper.text()).toContain("Clue");
+    expect(wrapper.text()).toContain("coastal signal");
+    expect(
+      wrapper.findAll("button").some((button) => button.text() === "coastal"),
+    ).toBe(true);
+    expect(wrapper.text()).toContain("I guide ships through dark water.");
+    expect(wrapper.text()).not.toContain("a harbor lantern");
+    expect(wrapper.text()).toContain("Reveal Answer");
+    expect(wrapper.text()).not.toContain("Review Progress");
+
+    const streamRequest = fetchMock.mock.calls.find(([url]) =>
+      String(url).startsWith("/api/reading-sentence/next/stream"),
+    );
+    expect(JSON.parse(String(streamRequest?.[1]?.body))).toMatchObject({
+      mode: "riddle",
+    });
+
+    const revealButton = wrapper
+      .findAll("button")
+      .find((button) => button.text().includes("Reveal Answer"));
+    expect(revealButton).toBeDefined();
+    await revealButton!.trigger("click");
+
+    expect(wrapper.text()).toContain("Answer");
+    expect(wrapper.text()).toContain("a harbor lantern");
+    expect(wrapper.text()).toContain("Review Progress");
+  });
+
+  it("builds concise English riddle prompts from a scene and custom details", async () => {
+    window.localStorage.setItem(
+      "openvoca.settings.cache",
+      JSON.stringify({ interface: { locale: "zh" } }),
+    );
+
+    const fetchMock = mockFetch();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = mount(HomeView, {
+      global: { plugins: [makeRouter()] },
+    });
+    await flushPromises();
+
+    const riddleModeButton = wrapper
+      .findAll("button")
+      .find((button) => button.text() === "猜谜");
+    expect(riddleModeButton).toBeDefined();
+    await riddleModeButton!.trigger("click");
+
+    expect(wrapper.text()).toContain("商务");
+    expect(wrapper.text()).toContain("自定义");
+    expect(wrapper.text()).not.toContain("方向细化");
+
+    const businessButton = wrapper
+      .findAll("button")
+      .find((button) => button.text().includes("商务"));
+    expect(businessButton).toBeDefined();
+    await businessButton!.trigger("click");
+
+    const addDetailsButton = wrapper
+      .findAll("button")
+      .find((button) => button.text().includes("添加细节"));
+    expect(addDetailsButton).toBeDefined();
+    await addDetailsButton!.trigger("click");
+
+    const detailInput = wrapper.find("textarea");
+    expect(detailInput.exists()).toBe(true);
+    await detailInput.setValue("SaaS renewal negotiation");
+
+    await generateFromComposer(wrapper);
+
+    const streamRequest = fetchMock.mock.calls.find(([url]) =>
+      String(url).startsWith("/api/reading-sentence/next/stream"),
+    );
+    const body = JSON.parse(String(streamRequest?.[1]?.body)) as {
+      mode?: string;
+      prompt?: string;
+    };
+    expect(body.mode).toBe("riddle");
+    expect(body.prompt).toContain("All output must be English");
+    expect(body.prompt).toContain("question");
+    expect(body.prompt).toContain(
+      "Scene: Use a workplace or business situation",
+    );
+    expect(body.prompt).toContain("SaaS renewal negotiation");
+    expect(body.prompt).not.toContain("方向细化");
+    expect(body.prompt).not.toContain("商务英语");
+    expect(body.prompt).not.toContain("Practice direction");
+    expect(body.prompt).not.toContain("[Focus]");
+  });
+
+  it("shows stream generation error details in the composer", async () => {
+    window.localStorage.setItem("openvoca.ui.locale", "en");
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        if (url.startsWith("/api/target-words")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => targetWordsResponse,
+          });
+        }
+        if (url.startsWith("/api/reading-sentence/next/stream")) {
+          return Promise.resolve({
+            ok: true,
+            body: makeErrorSseStream("Riddle response must be valid JSON."),
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({}),
+        });
+      }),
+    );
+
+    const wrapper = mount(HomeView, {
+      global: { plugins: [makeRouter()] },
+    });
+    await flushPromises();
+
+    await generateFromComposer(wrapper);
+
+    expect(wrapper.text()).toContain("Riddle response must be valid JSON.");
+    expect(wrapper.text()).not.toContain("Unable to reach the model");
   });
 
   it("opens progress summary on continue and advances on submit", async () => {

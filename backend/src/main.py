@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import json
 import csv
@@ -6,6 +8,7 @@ import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Literal
 
 import httpx
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
@@ -122,12 +125,26 @@ class ReadingSentenceRequest(BaseModel):
 
     prompt: str = Field(min_length=1, max_length=5000)
     target_words: list[str] = Field(alias="targetWords")
+    mode: Literal["sentence", "riddle"] = "sentence"
 
 
 class ReadingSentenceResponse(BaseModel):
     sentence: str
     words: list[str]
     tokens: list["ReadingSentenceToken"]
+    mode: Literal["sentence", "riddle"] = "sentence"
+    riddle: ReadingRiddle | None = None
+
+
+class ReadingRiddle(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    clue: str
+    question: str
+    answer: str
+    clue_tokens: list["ReadingSentenceToken"] = Field(alias="clueTokens")
+    question_tokens: list["ReadingSentenceToken"] = Field(alias="questionTokens")
+    answer_tokens: list["ReadingSentenceToken"] = Field(alias="answerTokens")
 
 
 class ReadingSentenceToken(BaseModel):
@@ -172,6 +189,115 @@ def _utc_iso(dt: datetime) -> str:
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt.isoformat()
+
+
+def _response_tokens(text: str) -> list[ReadingSentenceToken]:
+    tokens = tokenize_sentence(text)
+    return [
+        ReadingSentenceToken(
+            text=t.text,
+            is_word=t.is_word,
+            is_target=t.is_target,
+            pos=t.pos,
+            lemma=t.lemma,
+            trailing_space=t.trailing_space,
+        )
+        for t in tokens
+    ]
+
+
+def _strip_json_code_fence(text: str) -> str:
+    stripped = text.strip()
+    if not stripped.startswith("```"):
+        return stripped
+
+    stripped = stripped[3:].lstrip()
+    if stripped.lower().startswith("json"):
+        stripped = stripped[4:].lstrip()
+    if stripped.endswith("```"):
+        stripped = stripped[:-3].rstrip()
+    return stripped.strip()
+
+
+def _normalize_completion(
+    completion: str,
+    mode: Literal["sentence", "riddle"],
+) -> str:
+    if mode == "riddle":
+        return completion.strip()
+    return " ".join(completion.split())
+
+
+def _build_generation_prompt(
+    prompt: str,
+    target_words: list[str],
+    mode: Literal["sentence", "riddle"],
+) -> str:
+    if mode == "sentence":
+        return build_sentence_generation_prompt(prompt, target_words)
+
+    final = prompt.strip()
+    if not final:
+        raise ValueError("A prompt is required to generate a riddle.")
+
+    normalized = [word.strip() for word in target_words if word.strip()]
+    if normalized:
+        final += (
+            "\nMark target words that appear in the question or answer with "
+            "single asterisks, like *word*."
+        )
+    return final
+
+
+def _parse_riddle_completion(completion: str) -> tuple[str, str, str]:
+    try:
+        payload = json.loads(_strip_json_code_fence(completion))
+    except json.JSONDecodeError as exc:
+        raise ValueError("Riddle response must be valid JSON.") from exc
+
+    if not isinstance(payload, dict):
+        raise ValueError("Riddle response must be a JSON object.")
+
+    fields: dict[str, str] = {}
+    for field_name in ("clue", "question", "answer"):
+        value = payload.get(field_name)
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"Riddle response must include a non-empty {field_name}.")
+        fields[field_name] = value.strip()
+
+    return fields["clue"], fields["question"], fields["answer"]
+
+
+def _build_reading_response(
+    completion: str,
+    words: list[str],
+    mode: Literal["sentence", "riddle"],
+) -> ReadingSentenceResponse:
+    if mode == "riddle":
+        clue, question, answer = _parse_riddle_completion(completion)
+        clue_tokens = _response_tokens(clue)
+        question_tokens = _response_tokens(question)
+        answer_tokens = _response_tokens(answer)
+        return ReadingSentenceResponse(
+            sentence=f"{clue}\n{question}\n{answer}",
+            words=words,
+            tokens=[*clue_tokens, *question_tokens, *answer_tokens],
+            mode="riddle",
+            riddle=ReadingRiddle(
+                clue=clue,
+                question=question,
+                answer=answer,
+                clue_tokens=clue_tokens,
+                question_tokens=question_tokens,
+                answer_tokens=answer_tokens,
+            ),
+        )
+
+    return ReadingSentenceResponse(
+        sentence=completion,
+        words=words,
+        tokens=_response_tokens(completion),
+    )
 
 
 @app.get("/api/health")
@@ -249,34 +375,18 @@ async def test_provider() -> dict[str, str | bool]:
 
 
 async def _generate_reading_response(
-    prompt: str, words: list[str]
+    prompt: str, words: list[str], mode: Literal["sentence", "riddle"] = "sentence"
 ) -> ReadingSentenceResponse:
     """Shared logic: finalize prompt, call LLM, tokenize, return response."""
     try:
-        final_prompt = build_sentence_generation_prompt(prompt, words)
-        sentence = await llm.generate_completion(final_prompt)
+        final_prompt = _build_generation_prompt(prompt, words, mode)
+        completion = await llm.generate_completion(final_prompt)
+        return _build_reading_response(completion, words, mode)
     except (httpx.HTTPError, ValueError) as exc:
         raise HTTPException(
             status_code=502,
             detail="Unable to generate a sentence. Check your model configuration.",
         ) from exc
-
-    tokens = tokenize_sentence(sentence)
-    return ReadingSentenceResponse(
-        sentence=sentence,
-        words=words,
-        tokens=[
-            ReadingSentenceToken(
-                text=t.text,
-                is_word=t.is_word,
-                is_target=t.is_target,
-                pos=t.pos,
-                lemma=t.lemma,
-                trailing_space=t.trailing_space,
-            )
-            for t in tokens
-        ],
-    )
 
 
 @app.get("/api/target-words")
@@ -300,7 +410,9 @@ async def get_next_reading_sentence(
     for the next generation cycle.
     """
     tick_cooldowns()
-    return await _generate_reading_response(request.prompt, request.target_words)
+    return await _generate_reading_response(
+        request.prompt, request.target_words, request.mode
+    )
 
 
 @app.post("/api/reading-sentence/next/stream")
@@ -315,8 +427,8 @@ async def stream_next_reading_sentence(
     - ``error``: ``{"detail": "..."}``
     """
     tick_cooldowns()
-    final_prompt = build_sentence_generation_prompt(
-        request.prompt, request.target_words
+    final_prompt = _build_generation_prompt(
+        request.prompt, request.target_words, request.mode
     )
 
     async def event_stream():  # noqa: ANN202
@@ -330,27 +442,18 @@ async def stream_next_reading_sentence(
             yield f"event: error\ndata: {json.dumps({'detail': str(exc)[:300]})}\n\n"
             return
 
-        sentence = " ".join(accumulated.split())
-        if not sentence:
+        completion = _normalize_completion(accumulated, request.mode)
+        if not completion:
             yield f"event: error\ndata: {json.dumps({'detail': 'Empty response from model.'})}\n\n"
             return
 
-        tokens = tokenize_sentence(sentence)
-        result = ReadingSentenceResponse(
-            sentence=sentence,
-            words=request.target_words,
-            tokens=[
-                ReadingSentenceToken(
-                    text=t.text,
-                    is_word=t.is_word,
-                    is_target=t.is_target,
-                    pos=t.pos,
-                    lemma=t.lemma,
-                    trailing_space=t.trailing_space,
-                )
-                for t in tokens
-            ],
-        )
+        try:
+            result = _build_reading_response(
+                completion, request.target_words, request.mode
+            )
+        except ValueError as exc:
+            yield f"event: error\ndata: {json.dumps({'detail': str(exc)[:300]})}\n\n"
+            return
         yield f"event: complete\ndata: {result.model_dump_json(by_alias=True)}\n\n"
 
     return StreamingResponse(

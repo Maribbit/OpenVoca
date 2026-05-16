@@ -4,6 +4,26 @@
     <div
       class="w-full bg-surface/80 backdrop-blur-md rounded-2xl border border-ink/5 shadow-sm p-5 space-y-6"
     >
+      <!-- Mode -->
+      <div class="rounded-full bg-paper p-1">
+        <div class="flex gap-1">
+          <button
+            type="button"
+            :class="['mode-toggle', { active: mode === 'sentence' }]"
+            @click="mode = 'sentence'"
+          >
+            {{ t.composerModeSentence }}
+          </button>
+          <button
+            type="button"
+            :class="['mode-toggle', { active: mode === 'riddle' }]"
+            @click="mode = 'riddle'"
+          >
+            {{ t.composerModeRiddle }}
+          </button>
+        </div>
+      </div>
+
       <!-- Target Words -->
       <div>
         <div class="flex items-center justify-between mb-3">
@@ -94,7 +114,7 @@
       </div>
 
       <!-- Scenario -->
-      <div>
+      <div v-if="mode === 'sentence'">
         <span
           class="text-xs font-semibold uppercase tracking-[0.15em] text-inkLight block mb-3"
           >{{ t.composerScenario }}</span
@@ -128,6 +148,52 @@
             rows="2"
             :placeholder="customPlaceholder"
             v-model="customScenario"
+            class="w-full px-3.5 py-2.5 bg-paper/80 border border-ink/8 rounded-xl text-sm text-ink placeholder:text-inkLight/50 focus:outline-none focus:ring-2 focus:ring-highlight/80 transition-shadow resize-none leading-relaxed"
+          ></textarea>
+        </div>
+      </div>
+
+      <!-- Riddle scenario -->
+      <div v-else>
+        <span
+          class="text-xs font-semibold uppercase tracking-[0.15em] text-inkLight block mb-3"
+          >{{ t.composerRiddleScenario }}</span
+        >
+        <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <button
+            v-for="scenario in RIDDLE_SCENARIOS"
+            :key="scenario.key"
+            type="button"
+            :class="[
+              'scenario-card',
+              { active: riddleScenario === scenario.key },
+            ]"
+            @click="selectRiddleScenario(scenario.key)"
+          >
+            <span class="scenario-emoji">{{ scenario.emoji }}</span>
+            <span class="scenario-label">{{
+              riddleScenarioLabel(scenario.key)
+            }}</span>
+          </button>
+        </div>
+        <div class="mt-3">
+          <button
+            v-if="
+              riddleScenario !== 'none' &&
+              !riddleSupplementOpen &&
+              !riddleCustom.trim()
+            "
+            type="button"
+            @click="riddleSupplementOpen = true"
+            class="text-xs text-inkLight/50 hover:text-inkLight transition-colors cursor-pointer"
+          >
+            + {{ t.composerAddDetails }}
+          </button>
+          <textarea
+            v-else
+            rows="2"
+            :placeholder="riddleCustomPlaceholder"
+            v-model="riddleCustom"
             class="w-full px-3.5 py-2.5 bg-paper/80 border border-ink/8 rounded-xl text-sm text-ink placeholder:text-inkLight/50 focus:outline-none focus:ring-2 focus:ring-highlight/80 transition-shadow resize-none leading-relaxed"
           ></textarea>
         </div>
@@ -267,7 +333,7 @@
         @click="emitGenerate"
         class="px-8 py-3 bg-ink text-paper rounded-full text-sm font-medium shadow-sm hover:bg-ink/85 active:scale-95 transition-all cursor-pointer"
       >
-        {{ t.composerGenerate }}
+        {{ generateButtonLabel }}
       </button>
     </div>
   </div>
@@ -276,17 +342,50 @@
 <script setup lang="ts">
   import { nextTick, onMounted, ref, computed, watch } from "vue";
 
-  import { fetchTargetWords } from "../api/reading";
+  import { fetchTargetWords, type ReadingMode } from "../api/reading";
   import { DEFAULT_READING_PREFERENCES } from "../composables/readingPreferences";
   import { useI18n } from "../composables/useI18n";
   import { useSettings } from "../composables/useSettings";
 
   const emit = defineEmits<{
-    generate: [prompt: string, targetWords: string[]];
+    generate: [prompt: string, targetWords: string[], mode: ReadingMode];
   }>();
 
   const { messages: t } = useI18n();
   const { get, set } = useSettings();
+
+  type RiddleScenario =
+    | "vocabulary"
+    | "business"
+    | "culture"
+    | "geography"
+    | "dialogue"
+    | "none";
+
+  type PromptedRiddleScenario = Exclude<RiddleScenario, "none">;
+
+  const RIDDLE_SCENARIOS = [
+    { key: "vocabulary", emoji: "🔎" },
+    { key: "business", emoji: "💼" },
+    { key: "culture", emoji: "🏛️" },
+    { key: "geography", emoji: "🧭" },
+    { key: "dialogue", emoji: "💬" },
+    { key: "none", emoji: "✍️" },
+  ] as const satisfies readonly { key: RiddleScenario; emoji: string }[];
+
+  const RIDDLE_SCENARIO_KEYS = RIDDLE_SCENARIOS.map((scenario) => scenario.key);
+
+  function normalizeRiddleScenario(saved: string): RiddleScenario {
+    if (saved === "place") return "geography";
+    if (saved === "person" || saved === "event") return "culture";
+    if (saved === "professional") return "business";
+    return RIDDLE_SCENARIO_KEYS.includes(saved as RiddleScenario)
+      ? (saved as RiddleScenario)
+      : "vocabulary";
+  }
+
+  const savedMode = get("composer", "mode", "sentence");
+  const mode = ref<ReadingMode>(savedMode === "riddle" ? "riddle" : "sentence");
 
   // --- Target Words ---
   const suggestedWords = ref<string[]>([]);
@@ -392,6 +491,19 @@
     sentence: "Use a natural, moderate length.",
     narrative:
       "Write at length with rich descriptive detail and subordinate clauses.",
+  };
+
+  const RIDDLE_SCENARIO_PROMPTS: Record<PromptedRiddleScenario, string> = {
+    vocabulary:
+      "Create a vocabulary riddle. The answer should be an English word, phrase, or usage pattern.",
+    business:
+      "Use a workplace or business situation. The answer can be a term, next action, or natural reply.",
+    culture:
+      "Use a culture or history setting. The answer can be a person, event, object, era, or idea.",
+    geography:
+      "Use a place, travel, or local-context setting. The answer can be a city, country, landmark, route, or venue.",
+    dialogue:
+      "Use a short conversation setup. The answer should be the next natural English line to say.",
   };
 
   // --- Scenarios ---
@@ -526,10 +638,54 @@
     return opt ? opt.label : "";
   });
 
+  // --- Riddle options ---
+  const savedRiddleScenario = get("composer", "riddleScenario", "vocabulary");
+  const riddleScenario = ref<RiddleScenario>(
+    normalizeRiddleScenario(savedRiddleScenario),
+  );
+
+  const savedRiddleCustom = get(
+    "composer",
+    "riddleCustom",
+    get("composer", "riddleFocus", get("composer", "riddleTheme", "")),
+  );
+  const riddleCustom = ref(savedRiddleCustom);
+  const riddleSupplementOpen = ref(false);
+
+  watch(riddleScenario, (newKey) => {
+    if (newKey !== "none" && !riddleCustom.value.trim()) {
+      riddleSupplementOpen.value = false;
+    }
+  });
+
+  const riddleCustomPlaceholder = computed(() =>
+    riddleScenario.value !== "none"
+      ? t.value.composerCustomPlaceholderSupplement
+      : t.value.composerCustomPlaceholder,
+  );
+
+  function riddleScenarioLabel(value: RiddleScenario): string {
+    const key = `composerRiddleScenario_${value}` as keyof typeof t.value;
+    return (t.value[key] as string) ?? value;
+  }
+
+  function selectRiddleScenario(value: RiddleScenario): void {
+    if (riddleScenario.value === value && value !== "none") {
+      riddleScenario.value = "none";
+    } else {
+      riddleScenario.value = value;
+    }
+  }
+
+  function riddleScenarioPrompt(): string | null {
+    if (riddleScenario.value === "none") return null;
+    return RIDDLE_SCENARIO_PROMPTS[riddleScenario.value];
+  }
+
   // --- Preview ---
   const previewOpen = ref(false);
 
-  const composerInstructions = computed(() => {
+  const sentenceComposerInstructions = computed(() => {
     const parts: string[] = [];
 
     const custom = customScenario.value.trim();
@@ -563,6 +719,28 @@
     return parts.length ? parts.join("\n") : "";
   });
 
+  function difficultyInstruction(): string | null {
+    if (difficulty.value === "custom") {
+      const custom = customDifficulty.value.trim();
+      return custom ? `[Difficulty] ${custom}` : null;
+    }
+    if (difficulty.value in DIFFICULTY_INSTRUCTIONS) {
+      return `[Difficulty] ${DIFFICULTY_INSTRUCTIONS[difficulty.value]}`;
+    }
+    return null;
+  }
+
+  function lengthInstruction(): string | null {
+    if (length.value === "custom") {
+      const custom = customLength.value.trim();
+      return custom ? `[Length] ${custom}` : null;
+    }
+    if (length.value in LENGTH_INSTRUCTIONS) {
+      return `[Length] ${LENGTH_INSTRUCTIONS[length.value]}`;
+    }
+    return null;
+  }
+
   // --- Prompt Template (read-only, for preview) ---
   const DEFAULT_PROMPT_TEMPLATE = DEFAULT_READING_PREFERENCES.promptTemplate;
 
@@ -572,6 +750,10 @@
 
   /** Build the full prompt from template + target words + composer instructions. */
   function buildPrompt(words: string[]): string {
+    if (mode.value === "riddle") {
+      return buildRiddlePrompt(words);
+    }
+
     const template = promptTemplate.value.trim() || DEFAULT_PROMPT_TEMPLATE;
 
     const wordsText = words.length ? words.join(", ") : "";
@@ -579,8 +761,41 @@
       ? template.replace("{{target_words}}", wordsText)
       : template;
 
-    const ci = composerInstructions.value;
+    const ci = sentenceComposerInstructions.value;
     return ci ? resolved + "\n" + ci : resolved;
+  }
+
+  function buildRiddlePrompt(words: string[]): string {
+    const wordsText = words.length ? words.join(", ") : "none";
+    const parts = [
+      'Return only valid JSON with exactly these fields: {"clue": string, "question": string, "answer": string}.',
+      "All output must be English.",
+      "clue: 2-8 English words describing what to guess; do not reveal the answer.",
+      "question: one compact riddle, situation, or dialogue prompt. Do not reveal the answer.",
+      "answer: a concise English answer.",
+    ];
+
+    const scene = riddleScenarioPrompt();
+    const custom = riddleCustom.value.trim();
+    if (scene || custom) {
+      const details = [scene, custom ? `User details: ${custom}` : ""]
+        .filter(Boolean)
+        .join(" ");
+      parts.push(`Scene: ${details}`);
+    }
+
+    parts.push(`Target words: ${wordsText}. Use them naturally when possible.`);
+    parts.push(
+      "If user details are not English, interpret them but still output English only.",
+    );
+
+    const difficulty = difficultyInstruction();
+    if (difficulty) parts.push(difficulty);
+
+    const length = lengthInstruction();
+    if (length) parts.push(length);
+
+    return parts.join("\n");
   }
 
   const fullPreviewText = computed(() => {
@@ -590,26 +805,50 @@
     return buildPrompt(words);
   });
 
+  const generateButtonLabel = computed(() =>
+    mode.value === "riddle"
+      ? t.value.composerGenerateRiddle
+      : t.value.composerGenerate,
+  );
+
   // --- Emit ---
   function emitGenerate() {
     set("composer", {
+      mode: mode.value,
       scenario: selectedScenario.value,
       customScenario: customScenario.value,
       difficulty: difficulty.value,
       customDifficulty: customDifficulty.value,
       length: length.value,
       customLength: customLength.value,
+      riddleScenario: riddleScenario.value,
+      riddleCustom: riddleCustom.value,
     });
 
     emit(
       "generate",
       buildPrompt(effectiveTargetWords.value),
       effectiveTargetWords.value,
+      mode.value,
     );
   }
 </script>
 
 <style scoped>
+  .mode-toggle {
+    flex: 1;
+    border-radius: 9999px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: color-mix(in srgb, var(--color-inkLight) 80%, transparent);
+    transition: all 0.15s;
+  }
+  .mode-toggle.active {
+    background: var(--color-ink);
+    color: var(--color-paper);
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--color-ink) 12%, transparent);
+  }
   .suggestion-chip {
     display: inline-flex;
     align-items: center;

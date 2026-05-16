@@ -1,7 +1,20 @@
+export type ReadingMode = "sentence" | "riddle";
+
 export interface ReadingSentenceResponse {
   sentence: string;
   words: string[];
   tokens: ReadingSentenceToken[];
+  mode?: ReadingMode;
+  riddle?: ReadingRiddle;
+}
+
+export interface ReadingRiddle {
+  clue: string;
+  question: string;
+  answer: string;
+  clueTokens: ReadingSentenceToken[];
+  questionTokens: ReadingSentenceToken[];
+  answerTokens: ReadingSentenceToken[];
 }
 
 export interface ReadingSentenceToken {
@@ -16,6 +29,7 @@ export interface ReadingSentenceToken {
 export interface GenerateReadingSentenceRequest {
   prompt: string;
   targetWords: string[];
+  mode?: ReadingMode;
 }
 
 export interface FeedbackRequest {

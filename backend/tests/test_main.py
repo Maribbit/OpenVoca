@@ -1,3 +1,4 @@
+import json
 import time
 
 import httpx
@@ -76,6 +77,127 @@ def test_reading_sentence_endpoint_returns_pos_tags(
 
     dot_tok = next(t for t in tokens if t["text"] == ".")
     assert dot_tok["pos"] is None
+
+
+def test_reading_sentence_endpoint_returns_riddle_payload(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Riddle mode should return clue, question, and answer payload fields."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    async def fake_generate_completion(prompt: str) -> str:
+        assert "All output must be English" in prompt
+        assert "single asterisks" in prompt
+        return (
+            '{"clue":"coastal signal",'
+            '"question":"I guide ships through dark water.",'
+            '"answer":"a *harbor* *lantern*"}'
+        )
+
+    monkeypatch.setattr(
+        main_module.llm,
+        "generate_completion",
+        fake_generate_completion,
+    )
+
+    response = client.post(
+        "/api/reading-sentence/next",
+        json={
+            "mode": "riddle",
+            "prompt": 'Return only valid JSON with exactly these fields: {"clue": string, "question": string, "answer": string}. All output must be English.',
+            "targetWords": ["harbor", "lantern"],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["mode"] == "riddle"
+    assert data["riddle"]["clue"] == "coastal signal"
+    assert data["riddle"]["question"] == "I guide ships through dark water."
+    assert data["riddle"]["answer"] == "a *harbor* *lantern*"
+
+    clue_tokens = data["riddle"]["clueTokens"]
+    question_tokens = data["riddle"]["questionTokens"]
+    answer_tokens = data["riddle"]["answerTokens"]
+    assert any(t["text"] == "coastal" and t["isWord"] for t in clue_tokens)
+    assert any(t["text"] == "ships" and t["isWord"] for t in question_tokens)
+    assert any(t["text"] == "harbor" and t["isTarget"] is True for t in answer_tokens)
+    assert any(t["text"] == "lantern" and t["isTarget"] is True for t in answer_tokens)
+
+
+def test_stream_reading_sentence_endpoint_accepts_fenced_riddle_json(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Streaming riddle mode should accept common fenced JSON model output."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    async def fake_generate_completion_stream(prompt: str):  # noqa: ANN202
+        assert "All output must be English" in prompt
+        for chunk in [
+            "```json\n",
+            '{"clue":"coastal signal",',
+            '"question":"I guide ships through dark water.",',
+            '"answer":"a *harbor* *lantern*"}',
+            "\n```",
+        ]:
+            yield chunk
+
+    monkeypatch.setattr(
+        main_module.llm,
+        "generate_completion_stream",
+        fake_generate_completion_stream,
+    )
+
+    response = client.post(
+        "/api/reading-sentence/next/stream",
+        json={
+            "mode": "riddle",
+            "prompt": 'Return only valid JSON with exactly these fields: {"clue": string, "question": string, "answer": string}. All output must be English.',
+            "targetWords": ["harbor", "lantern"],
+        },
+    )
+
+    assert response.status_code == 200
+    assert "event: error" not in response.text
+    assert "event: complete" in response.text
+    lines = response.text.splitlines()
+    complete_index = lines.index("event: complete")
+    complete_line = lines[complete_index + 1]
+    data = json.loads(complete_line.removeprefix("data: "))
+    assert data["mode"] == "riddle"
+    assert data["riddle"]["clue"] == "coastal signal"
+    assert data["riddle"]["question"] == "I guide ships through dark water."
+    assert data["riddle"]["answer"] == "a *harbor* *lantern*"
+
+
+def test_reading_sentence_endpoint_rejects_invalid_riddle_json(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Riddle mode should fail clearly when the model does not return JSON."""
+    engine = _in_memory_engine()
+    monkeypatch.setattr("src.services.word_store._engine", engine)
+
+    async def fake_generate_completion(prompt: str) -> str:  # noqa: ARG001
+        return "The answer is probably a lantern."
+
+    monkeypatch.setattr(
+        main_module.llm,
+        "generate_completion",
+        fake_generate_completion,
+    )
+
+    response = client.post(
+        "/api/reading-sentence/next",
+        json={
+            "mode": "riddle",
+            "prompt": "Return strict JSON with clue, question, and answer.",
+            "targetWords": ["lantern"],
+        },
+    )
+
+    assert response.status_code == 502
 
 
 def test_target_words_endpoint_picks_from_vocabulary(

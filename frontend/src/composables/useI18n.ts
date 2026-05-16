@@ -8,6 +8,7 @@ export interface LocaleMessages {
   menu: string;
   readingDisplaySettings: string;
   loadingSentence: string;
+  loadingRiddle: string;
   connectionError: string;
   goToSettings: string;
   feedbackError: string;
@@ -105,6 +106,24 @@ export interface LocaleMessages {
   composerTargetWords: string;
   composerRefreshSuggestions: string;
   composerAddWordPlaceholder: string;
+  composerModeSentence: string;
+  composerModeRiddle: string;
+  composerRiddleScenario: string;
+  composerRiddleScenario_vocabulary: string;
+  composerRiddleScenario_vocabularyDesc: string;
+  composerRiddleScenario_business: string;
+  composerRiddleScenario_businessDesc: string;
+  composerRiddleScenario_culture: string;
+  composerRiddleScenario_cultureDesc: string;
+  composerRiddleScenario_geography: string;
+  composerRiddleScenario_geographyDesc: string;
+  composerRiddleScenario_dialogue: string;
+  composerRiddleScenario_dialogueDesc: string;
+  composerRiddleScenario_none: string;
+  composerGenerateRiddle: string;
+  revealAnswer: string;
+  riddleClue: string;
+  riddleAnswer: string;
   statsLemma: string;
   statsInterval: string;
   statsIntervalTip: string;
@@ -169,6 +188,7 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     menu: "MENU",
     readingDisplaySettings: "Reading display settings",
     loadingSentence: "Generating a sentence…",
+    loadingRiddle: "Generating a riddle…",
     connectionError: "Unable to reach the model. Check your settings.",
     goToSettings: "Go to Settings →",
     feedbackError: "Failed to save your word feedback.",
@@ -282,6 +302,24 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     composerTargetWords: "Target Words",
     composerRefreshSuggestions: "Refresh suggestions",
     composerAddWordPlaceholder: "type & enter",
+    composerModeSentence: "Sentence",
+    composerModeRiddle: "Riddle",
+    composerRiddleScenario: "Scenario",
+    composerRiddleScenario_vocabulary: "Vocabulary",
+    composerRiddleScenario_vocabularyDesc: "guess a word",
+    composerRiddleScenario_business: "Business",
+    composerRiddleScenario_businessDesc: "workplace use",
+    composerRiddleScenario_culture: "Culture",
+    composerRiddleScenario_cultureDesc: "people or events",
+    composerRiddleScenario_geography: "Travel",
+    composerRiddleScenario_geographyDesc: "places in context",
+    composerRiddleScenario_dialogue: "Dialogue",
+    composerRiddleScenario_dialogueDesc: "next line",
+    composerRiddleScenario_none: "Custom",
+    composerGenerateRiddle: "Generate riddle",
+    revealAnswer: "Reveal Answer",
+    riddleClue: "Clue",
+    riddleAnswer: "Answer",
     statsLemma: "Lemma",
     statsInterval: "Familiarity",
     statsIntervalTip: "Each level doubles the cooldown: 2, 4, 8, 16, 32, 64",
@@ -348,6 +386,7 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     menu: "菜单",
     readingDisplaySettings: "阅读显示设置",
     loadingSentence: "正在生成例句…",
+    loadingRiddle: "正在生成谜题…",
     connectionError: "无法连接模型。请检查设置。",
     goToSettings: "前往设置 →",
     feedbackError: "保存词汇反馈失败。",
@@ -455,6 +494,24 @@ export const MESSAGES: Record<Locale, LocaleMessages> = {
     composerTargetWords: "目标词",
     composerRefreshSuggestions: "刷新推荐词",
     composerAddWordPlaceholder: "输入并回车",
+    composerModeSentence: "例句",
+    composerModeRiddle: "猜谜",
+    composerRiddleScenario: "场景",
+    composerRiddleScenario_vocabulary: "词汇",
+    composerRiddleScenario_vocabularyDesc: "猜词短语",
+    composerRiddleScenario_business: "商务",
+    composerRiddleScenario_businessDesc: "职场表达",
+    composerRiddleScenario_culture: "文化",
+    composerRiddleScenario_cultureDesc: "人物事件",
+    composerRiddleScenario_geography: "旅行",
+    composerRiddleScenario_geographyDesc: "地点语境",
+    composerRiddleScenario_dialogue: "对话",
+    composerRiddleScenario_dialogueDesc: "接下一句",
+    composerRiddleScenario_none: "自定义",
+    composerGenerateRiddle: "生成谜题",
+    revealAnswer: "揭晓答案",
+    riddleClue: "提示",
+    riddleAnswer: "答案",
     statsLemma: "词元",
     statsInterval: "熟悉度",
     statsIntervalTip: "每升一级，冷却翻倍：2, 4, 8, 16, 32, 64",
